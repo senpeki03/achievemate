@@ -1,0 +1,1482 @@
+Page 3 of 8 
+ 
+ 
+ 
+PROGRAM OF STUDY (Network Technology Track) 
+ 
+ 
+FIRST YEAR 
+FIRST SEMESTER  
+Code 
+Course Title 
+Units 
+Lec 
+Lab 
+Prerequisite 
+IT 111 
+Introduction to Computing 
+3 
+2 
+3 
+- 
+GEd 102 
+Mathematics in the Modern World 
+3 
+3 
+- 
+- 
+GEd 108 
+Art Appreciation 
+3 
+3 
+- 
+- 
+FILI 101 
+Kontekstwalisadong Komunikasyon sa Filipino 
+3 
+3 
+- 
+- 
+PE 101 
+Physical Fitness, Gymnastics and Aerobics 
+2 
+2 
+- 
+- 
+NSTP 111 
+National Service Training Program 1 
+3 
+3 
+- 
+- 
+GEd 103 
+The Life and Works of Rizal 
+3 
+3 
+- 
+- 
+GEd 104 
+The Contemporary World 
+3 
+3 
+- 
+- 
+ 
+TOTAL 
+23 
+22 
+3 
+ 
+ 
+ 
+ 
+FIRST YEAR 
+SECOND SEMESTER  
+Code 
+Course Title 
+Units 
+Lec 
+Lab 
+Prerequisite 
+CS 111 
+Computer Programming 
+3 
+2 
+3 
+IT 111 
+CS 131 
+Data Structures and Algorithms 
+3 
+2 
+3 
+IT 111 
+MATH 111 Linear Algebra 
+3 
+3 
+- 
+GEd 102 
+FILI 102 
+Filipino sa Iba't Ibang Disiplina 
+3 
+3 
+- 
+- 
+GEd 105 
+Readings in Philippine History 
+3 
+3 
+- 
+- 
+GEd 109 
+Science, Technology and Society 
+3 
+3 
+- 
+- 
+PE 102 
+Rhythmic Activities 
+2 
+2 
+- 
+PE 101 
+NSTP 121 
+National Service Training Program 2 
+3 
+3 
+- 
+NSTP 111 
+ 
+TOTAL 
+23 
+21 
+6 
+ 
+ 
+ 
+ 
+SECOND YEAR 
+FIRST SEMESTER  
+Code 
+Course Title 
+Units 
+Lec 
+Lab 
+Prerequisite 
+CS 121 
+Advanced Computer Programming 
+3 
+2 
+3 
+CS 111 
+IT 211 
+Database Management System 
+3 
+2 
+3 
+CS 111 
+CS 211 
+Object-Oriented Programming 
+3 
+2 
+3 
+CS 111, CS 131 
+LITR 102 
+ASEAN Literature 
+3 
+3 
+- 
+- 
+CpE 405 
+Discrete Mathematics 
+3 
+3 
+- 
+MATH 111 
+PHY 101 
+Calculus Based Physics  
+3 
+2 
+3 
+MATH 111 
+IT 212 
+Computer Networking 1 
+3 
+2 
+3 
+IT 111 
+PE 103 
+Individual and Dual Sports 
+2 
+2 
+- 
+PE 101 
+ 
+TOTAL 
+23 
+18 
+15 
+ 
+ 
+ 
+ 
+SECOND YEAR 
+SECOND SEMESTER  
+Code 
+Course Title 
+Units 
+Lec 
+Lab 
+Prerequisite 
+IT 221 
+Information Management 
+3 
+2 
+3 
+IT 111 
+IT 223 
+Computer Networking 2 
+3 
+2 
+3 
+IT 212 
+IT 222 
+Advanced Database Management System 
+3 
+2 
+3 
+IT 211 
+MATH 408 Data Analysis 
+3 
+3 
+- 
+MATH 111 
+ES 101 
+Environmental Sciences 
+3 
+2 
+3 
+PHY 101 
+GEd 106 
+Purposive Communication 
+3 
+3 
+- 
+- 
+GEd 101 
+Understanding the Self 
+3 
+3 
+- 
+- 
+PE 104 
+Team Sports 
+2 
+2 
+- 
+PE 101 
+ 
+TOTAL 
+23 
+19 
+12 
+ 
+ 
+ 
+ 
+ 
+ 
+Page 4 of 8 
+ 
+ 
+THIRD YEAR 
+FIRST SEMESTER  
+Code 
+Course Title 
+Units 
+Lec 
+Lab 
+Prerequisite 
+IT 311 
+Systems Administration and Maintenance 
+3 
+2 
+3 
+IT 221,IT 222 
+IT 312 
+System Integration and Architecture 
+3 
+2 
+3 
+CS 131 
+NTT 401 
+Computer Networking 3 
+3 
+2 
+3 
+IT 223 
+NTT 402 
+Internet of Things (IoT) 
+3 
+2 
+3 
+IT 223 
+IT 313 
+System Analysis and Design 
+3 
+2 
+3 
+IT 222 
+IT 314 
+Web Systems and Technologies 
+3 
+2 
+3 
+CS 211 
+GEd 107 
+Ethics 
+3 
+3 
+- 
+- 
+ 
+TOTAL 
+21 
+15 
+18 
+ 
+ 
+ 
+THIRD YEAR 
+SECOND SEMESTER  
+Code 
+Course Title 
+Units 
+Lec 
+Lab 
+Prerequisite 
+IT 321 
+Human-computer interaction 
+3 
+3 
+- 
+IT 314 
+NTT 403 
+Computer Networking 4 
+3 
+2 
+3 
+NTT 401 
+NTT 404 
+Cloud Computing 
+3 
+2 
+3 
+NTT 402 
+IT 322 
+Advanced System Integration and Architecture 
+3 
+2 
+3 
+IT 312 
+IT 323 
+Information Assurance and Security 
+3 
+2 
+3 
+IT 223 
+IT 324 
+Capstone Project 1 
+3 
+3 
+- 
+Regular 3rd Year 
+IT 325 
+IT Project Management 
+3 
+3 
+- 
+IT 313 
+ 
+TOTAL 
+21 
+17 
+12 
+ 
+ 
+ 
+THIRD YEAR 
+MIDTERM 
+Code 
+Course Title 
+Units 
+Lec 
+Lab 
+Prerequisite 
+IT 331 
+Application Development and Emerging Technologies 
+3 
+2 
+3 
+IT 321 
+IT 332 
+Integrative Programming and Technologies 
+3 
+3 
+- 
+IT 314 
+ 
+TOTAL 
+6 
+5 
+3 
+ 
+ 
+ 
+FOURTH YEAR 
+FIRST SEMESTER  
+Code 
+Course Title 
+Units 
+Lec 
+Lab 
+Prerequisite 
+CS 423 
+Social Issues and Professional Practice 
+3 
+3 
+- 
+- 
+IT 411 
+Capstone Project 2 
+3 
+3 
+- 
+IT 324 
+NTT 405 
+Cybersecurity 
+3 
+2 
+3 
+NTT 403 
+ENGG 405 
+Technopreneurship 
+3 
+3 
+- 
+- 
+IT 413 
+Advanced Information Assurance and Security 
+3 
+2 
+3 
+IT 323 
+IT 414 
+System Quality Assurance 
+3 
+2 
+3 
+IT 325 
+IT 412 
+Platform Technologies 
+3 
+3 
+- 
+IT 332 
+ 
+TOTAL 
+21 
+18 
+9 
+ 
+ 
+ 
+FOURTH YEAR 
+SECOND SEMESTER  
+Code 
+Course Title 
+Units 
+Lec 
+Lab 
+Prerequisite 
+IT 421 
+Internship Training 
+6 
+- 
+500 
+Regular 4th Year 
+ 
+TOTAL 
+6 
+- 
+500 
+ 
+ 
+ 
+ 
+Page 5 of 8 
+ 
+PROGRAM OF STUDY (Business Analytics Track) 
+ 
+FIRST YEAR 
+FIRST SEMESTER  
+Code 
+Course Title 
+Units 
+Lec 
+Lab 
+Prerequisite 
+IT 111 
+Introduction to Computing 
+3 
+2 
+3 
+- 
+GEd 102 
+Mathematics in the Modern World 
+3 
+3 
+- 
+- 
+GEd 108 
+Art Appreciation 
+3 
+3 
+- 
+- 
+FILI 101 
+Kontekstwalisadong Komunikasyon sa Filipino 
+3 
+3 
+- 
+- 
+PE 101 
+Physical Fitness, Gymnastics and Aerobics 
+2 
+2 
+- 
+- 
+NSTP 111 
+National Service Training Program 1 
+3 
+3 
+- 
+- 
+GEd 103 
+The Life and Works of Rizal 
+3 
+3 
+- 
+- 
+GEd 104 
+The Contemporary World 
+3 
+3 
+- 
+- 
+ 
+TOTAL 
+23 
+22 
+3 
+ 
+ 
+ 
+ 
+FIRST YEAR 
+SECOND SEMESTER  
+Code 
+Course Title 
+Units 
+Lec 
+Lab 
+Prerequisite 
+CS 111 
+Computer Programming 
+3 
+2 
+3 
+IT 111 
+CS 131 
+Data Structures and Algorithms 
+3 
+2 
+3 
+IT 111 
+MATH 111 
+Linear Algebra 
+3 
+3 
+- 
+GEd 102 
+FILI 102 
+Filipino sa Iba't Ibang Disiplina 
+3 
+3 
+- 
+- 
+GEd 105 
+Readings in Philippine History 
+3 
+3 
+- 
+- 
+GEd 109 
+Science, Technology and Society 
+3 
+3 
+- 
+- 
+PE 102 
+Rhythmic Activities 
+2 
+2 
+- 
+PE 101 
+NSTP 121 
+National Service Training Program 2 
+3 
+3 
+- 
+NSTP 111 
+ 
+TOTAL 
+23 
+21 
+6 
+ 
+ 
+ 
+ 
+SECOND YEAR 
+FIRST SEMESTER  
+Code 
+Course Title 
+Units 
+Lec 
+Lab 
+Prerequisite 
+CS 121 
+Advanced Computer Programming 
+3 
+2 
+3 
+CS 111 
+IT 211 
+Database Management System 
+3 
+2 
+3 
+CS 111 
+CS 211 
+Object-Oriented Programming 
+3 
+2 
+3 
+CS 111, CS 131 
+LITR 102 
+ASEAN Literature 
+3 
+3 
+- 
+- 
+CpE 405 
+Discrete Mathematics 
+3 
+3 
+- 
+MATH 111 
+PHY 101 
+Calculus Based Physics  
+3 
+2 
+3 
+MATH 111 
+IT 212 
+Computer Networking 1 
+3 
+2 
+3 
+IT 111 
+PE 103 
+Individual and Dual Sports 
+2 
+2 
+- 
+PE 101 
+ 
+TOTAL 
+23 
+18 
+15 
+ 
+ 
+ 
+ 
+SECOND YEAR 
+SECOND SEMESTER  
+Code 
+Course Title 
+Units 
+Lec 
+Lab 
+Prerequisite 
+IT 221 
+Information Management 
+3 
+2 
+3 
+IT 111 
+IT 223 
+Computer Networking 2 
+3 
+2 
+3 
+IT 212 
+IT 222 
+Advanced Database Management System 
+3 
+2 
+3 
+IT 211 
+MATH 408 Data Analysis 
+3 
+3 
+- 
+MATH 111 
+ES 101 
+Environmental Sciences 
+3 
+2 
+3 
+PHY 101 
+GEd 106 
+Purposive Communication 
+3 
+3 
+- 
+- 
+GEd 101 
+Understanding the Self 
+3 
+3 
+- 
+- 
+PE 104 
+Team Sports 
+2 
+2 
+- 
+PE 101 
+ 
+TOTAL 
+23 
+19 
+12 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Page 6 of 8 
+ 
+THIRD YEAR 
+FIRST SEMESTER  
+Code 
+Course Title 
+Units 
+Lec 
+Lab 
+Prerequisite 
+IT 311 
+Systems Administration and Maintenance 
+3 
+2 
+3 
+IT 221,IT 222 
+IT 312 
+System Integration and Architecture 
+3 
+2 
+3 
+CS 131 
+BAT 401 
+Fundamentals of Business Analytics 
+3 
+2 
+3 
+IT 221,IT 222 
+BAT 402 
+Fundamentals of Analytics Modeling 
+3 
+2 
+3 
+IT 221,IT 222 
+IT 313 
+System Analysis and Design 
+3 
+2 
+3 
+IT 222 
+IT 314 
+Web Systems and Technologies 
+3 
+2 
+3 
+CS 211 
+GEd 107 
+Ethics 
+3 
+3 
+- 
+- 
+ 
+TOTAL 
+21 
+15 
+18 
+ 
+ 
+ 
+THIRD YEAR 
+SECOND SEMESTER  
+Code 
+Course Title 
+Units 
+Lec 
+Lab 
+Prerequisite 
+IT 321 
+Human-computer interaction 
+3 
+3 
+- 
+IT 314 
+BAT 403 
+Fundamentals of Enterprise Data Management 
+3 
+2 
+3 
+BAT 401 
+BAT 404 
+Analytics Techniques & Tools 
+3 
+2 
+3 
+BAT 402 
+IT 322 
+Advanced System Integration and Architecture 
+3 
+2 
+3 
+IT 312 
+IT 323 
+Information Assurance and Security 
+3 
+2 
+3 
+IT 223 
+IT 324 
+Capstone Project 1 
+3 
+3 
+- 
+Regular 3rd Year 
+IT 325 
+IT Project Management 
+3 
+3 
+- 
+IT 313 
+ 
+TOTAL 
+21 
+17 
+12 
+ 
+ 
+ 
+THIRD YEAR 
+MIDTERM 
+Code 
+Course Title 
+Units 
+Lec 
+Lab 
+Prerequisite 
+IT 331 
+Application Development and Emerging Technologies 
+3 
+2 
+3 
+IT 321 
+IT 332 
+Integrative Programming and Technologies 
+3 
+3 
+- 
+IT 314 
+ 
+TOTAL 
+6 
+5 
+3 
+ 
+ 
+ 
+FOURTH YEAR 
+FIRST SEMESTER  
+Code 
+Course Title 
+Units 
+Lec 
+Lab 
+Prerequisite 
+CS 423 
+Social Issues and Professional Practice 
+3 
+3 
+- 
+- 
+IT 411 
+Capstone Project 2 
+3 
+3 
+- 
+IT 324 
+BAT 405 
+Analytics Application 
+3 
+2 
+3 
+BAT 404 
+ENGG 405 
+Technopreneurship 
+3 
+3 
+- 
+- 
+IT 413 
+Advanced Information Assurance and Security 
+3 
+2 
+3 
+IT 323 
+IT 414 
+System Quality Assurance 
+3 
+2 
+3 
+IT 325 
+IT 412 
+Platform Technologies 
+3 
+3 
+- 
+IT 332 
+ 
+TOTAL 
+21 
+18 
+9 
+ 
+ 
+ 
+FOURTH YEAR 
+SECOND SEMESTER  
+Code 
+Course Title 
+Units 
+Lec 
+Lab 
+Prerequisite 
+IT 421 
+Internship Training 
+6 
+- 
+500 
+Regular 4th Year 
+ 
+TOTAL 
+6 
+- 
+500 
+ 
+ 
+ 
+ 
+Page 7 of 8 
+ 
+PROGRAM OF STUDY (Service Management Track) 
+ 
+FIRST YEAR 
+FIRST SEMESTER  
+Code 
+Course Title 
+Units 
+Lec 
+Lab 
+Prerequisite 
+IT 111 
+Introduction to Computing 
+3 
+2 
+3 
+- 
+GEd 102 
+Mathematics in the Modern World 
+3 
+3 
+- 
+- 
+GEd 108 
+Art Appreciation 
+3 
+3 
+- 
+- 
+FILI 101 
+Kontekstwalisadong Komunikasyon sa Filipino 
+3 
+3 
+- 
+- 
+PE 101 
+Physical Fitness, Gymnastics and Aerobics 
+2 
+2 
+- 
+- 
+NSTP 111 
+National Service Training Program 1 
+3 
+3 
+- 
+- 
+GEd 103 
+The Life and Works of Rizal 
+3 
+3 
+- 
+- 
+GEd 104 
+The Contemporary World 
+3 
+3 
+- 
+- 
+ 
+TOTAL 
+23 
+22 
+3 
+ 
+ 
+ 
+ 
+FIRST YEAR 
+SECOND SEMESTER  
+Code 
+Course Title 
+Units 
+Lec 
+Lab 
+Prerequisite 
+CS 111 
+Computer Programming 
+3 
+2 
+3 
+IT 111 
+CS 131 
+Data Structures and Algorithms 
+3 
+2 
+3 
+IT 111 
+MATH 111 
+Linear Algebra 
+3 
+3 
+- 
+GEd 102 
+FILI 102 
+Filipino sa Iba't Ibang Disiplina 
+3 
+3 
+- 
+- 
+GEd 105 
+Readings in Philippine History 
+3 
+3 
+- 
+- 
+GEd 109 
+Science, Technology and Society 
+3 
+3 
+- 
+- 
+PE 102 
+Rhythmic Activities 
+2 
+2 
+- 
+PE 101 
+NSTP 112 
+National Service Training Program 2 
+3 
+3 
+- 
+NSTP 111 
+ 
+TOTAL 
+23 
+21 
+6 
+ 
+ 
+ 
+ 
+SECOND YEAR 
+FIRST SEMESTER  
+Code 
+Course Title 
+Units 
+Lec 
+Lab 
+Prerequisite 
+CS 121 
+Advanced Computer Programming 
+3 
+2 
+3 
+CS 111 
+IT 211 
+Database Management System 
+3 
+2 
+3 
+CS 111 
+CS 211 
+Object-Oriented Programming 
+3 
+2 
+3 
+CS 111, CS 131 
+LITR 102 
+ASEAN Literature 
+3 
+3 
+- 
+- 
+CpE 405 
+Discrete Mathematics 
+3 
+3 
+- 
+MATH 111 
+PHY 101 
+Calculus Based Physics  
+3 
+2 
+3 
+MATH 111 
+IT 212 
+Computer Networking 1 
+3 
+2 
+3 
+IT 111 
+PE 103 
+Individual and Dual Sports 
+2 
+2 
+- 
+PE 101 
+ 
+TOTAL 
+23 
+18 
+15 
+ 
+ 
+ 
+ 
+SECOND YEAR 
+SECOND SEMESTER  
+Code 
+Course Title 
+Units 
+Lec 
+Lab 
+Prerequisite 
+IT 221 
+Information Management 
+3 
+2 
+3 
+IT 111 
+IT 223 
+Computer Networking 2 
+3 
+2 
+3 
+IT 212 
+IT 222 
+Advanced Database Management System 
+3 
+2 
+3 
+IT 211 
+MATH 408 Data Analysis 
+3 
+3 
+- 
+MATH 111 
+ES 101 
+Environmental Sciences 
+3 
+2 
+3 
+PHY 101 
+GEd 106 
+Purposive Communication 
+3 
+3 
+- 
+- 
+GEd 101 
+Understanding the Self 
+3 
+3 
+- 
+- 
+PE 104 
+Team Sports 
+2 
+2 
+- 
+PE 101 
+ 
+TOTAL 
+23 
+19 
+12 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Page 8 of 8 
+ 
+THIRD YEAR 
+FIRST SEMESTER  
+Code 
+Course Title 
+Units 
+Lec 
+Lab 
+Prerequisite 
+IT 311 
+Systems Administration and Maintenance 
+3 
+2 
+3 
+IT 221,IT 222 
+IT 312 
+System Integration and Architecture 
+3 
+2 
+3 
+CS 131 
+SMT 401 
+Fundamentals of Business Process Outsourcing 101 
+3 
+2 
+3 
+IT 221 
+SMT 402 
+Business Communication 
+3 
+2 
+3 
+IT 221 
+IT 313 
+System Analysis and Design 
+3 
+2 
+3 
+IT 222 
+IT 314 
+Web Systems and Technologies 
+3 
+2 
+3 
+CS 211 
+GEd 107 
+Ethics 
+3 
+3 
+- 
+- 
+ 
+TOTAL 
+21 
+15 
+18 
+ 
+ 
+ 
+THIRD YEAR 
+SECOND SEMESTER  
+Code 
+Course Title 
+Units 
+Lec 
+Lab 
+Prerequisite 
+IT 321 
+Human-computer interaction 
+3 
+3 
+- 
+IT 314 
+SMT 403 
+Fundamentals of Business Process Outsourcing 102 
+3 
+2 
+3 
+SMT 401 
+SMT 404 
+Service Culture 
+3 
+2 
+3 
+SMT 401 
+IT 322 
+Advanced System Integration and Architecture 
+3 
+2 
+3 
+IT 312 
+IT 323 
+Information Assurance and Security 
+3 
+2 
+3 
+IT 223 
+IT 324 
+Capstone Project 1 
+3 
+3 
+- 
+Regular 3rd Year 
+IT 325 
+IT Project Management 
+3 
+3 
+- 
+IT 313 
+ 
+TOTAL 
+21 
+17 
+12 
+ 
+ 
+ 
+THIRD YEAR 
+MIDTERM 
+Code 
+Course Title 
+Units 
+Lec 
+Lab 
+Prerequisite 
+IT 331 
+Application Development and Emerging Technologies 
+3 
+2 
+3 
+IT 321 
+IT 332 
+Integrative Programming and Technologies 
+3 
+3 
+- 
+IT 314 
+ 
+TOTAL 
+6 
+5 
+3 
+ 
+ 
+ 
+FOURTH YEAR 
+FIRST SEMESTER  
+Code 
+Course Title 
+Units 
+Lec 
+Lab 
+Prerequisite 
+CS 423 
+Social Issues and Professional Practice 
+3 
+3 
+- 
+- 
+IT 411 
+Capstone Project 2 
+3 
+3 
+- 
+IT 324 
+SMT 405 
+Principles of System Thinking 
+3 
+2 
+3 
+SMT 403 
+ENGG 405 
+Technopreneurship 
+3 
+3 
+- 
+- 
+IT 413 
+Advanced Information Assurance and Security 
+3 
+2 
+3 
+IT 323 
+IT 414 
+System Quality Assurance 
+3 
+2 
+3 
+IT 325 
+IT 412 
+Platform Technologies 
+3 
+3 
+- 
+IT 332 
+ 
+TOTAL 
+21 
+18 
+9 
+ 
+ 
+ 
+FOURTH YEAR 
+SECOND SEMESTER  
+Code 
+Course Title 
+Units 
+Lec 
+Lab 
+Prerequisite 
+IT 421 
+Internship Training 
+6 
+- 
+500 
+Regular 4th Year 
+ 
+TOTAL 
+6 
+- 
+500 
+ 
+ 
+ 

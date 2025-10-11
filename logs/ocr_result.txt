@@ -1,0 +1,1570 @@
+{
+  "subjects": [
+    {
+      "Code": [
+        "IT 111",
+        "GEd 102",
+        "GEd 108",
+        "FILI 101",
+        "PE 101",
+        "NSTP 111",
+        "GEd 103",
+        "GEd 104"
+      ],
+      "Course_Title": [
+        "Introduction to Computing",
+        "Mathematics in the Modern World",
+        "Art Appreciation",
+        "Kontekstwalisadong Komunikasyon sa Filipino",
+        "Physical Fitness, Gymnastics and Aerobics",
+        "National Service Training Program 1",
+        "The Life and Works of Rizal",
+        "The Contemporary World"
+      ],
+      "units": [
+        3,
+        3,
+        3,
+        3,
+        2,
+        3,
+        3,
+        3
+      ],
+      "lec": [
+        2,
+        3,
+        3,
+        3,
+        2,
+        3,
+        3,
+        3
+      ],
+      "lab": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "prerequisite": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "total_units": 23,
+      "total_lec": 22,
+      "total_lab": 3,
+      "year_level": "First Year",
+      "semester": "First Semester",
+      "track": "Network Technology Track"
+    },
+    {
+      "Code": [
+        "CS 111",
+        "CS 131",
+        "MATH 111",
+        "FILI 102",
+        "GEd 105",
+        "GEd 109",
+        "PE 102",
+        "NSTP 121"
+      ],
+      "Course_Title": [
+        "Computer Programming",
+        "Data Structures and Algorithms",
+        "Linear Algebra",
+        "Filipino sa Iba't Ibang Disiplina",
+        "Readings in Philippine History",
+        "Science, Technology and Society",
+        "Rhythmic Activities",
+        "National Service Training Program 2"
+      ],
+      "units": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        2,
+        3
+      ],
+      "lec": [
+        2,
+        2,
+        3,
+        3,
+        3,
+        3,
+        2,
+        3
+      ],
+      "lab": [
+        3,
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "prerequisite": [
+        "IT 111",
+        "IT 111",
+        "GEd 102",
+        "-",
+        "-",
+        "-",
+        "PE 101",
+        "NSTP 111"
+      ],
+      "total_units": 23,
+      "total_lec": 21,
+      "total_lab": 6,
+      "year_level": "First Year",
+      "semester": "Second Semester",
+      "track": "Network Technology Track"
+    },
+    {
+      "Code": [
+        "CS 121",
+        "IT 211",
+        "CS 211",
+        "LITR 102",
+        "CpE 405",
+        "PHY 101",
+        "IT 212",
+        "PE 103"
+      ],
+      "Course_Title": [
+        "Advanced Computer Programming",
+        "Database Management System",
+        "Object-Oriented Programming",
+        "ASEAN Literature",
+        "Discrete Mathematics",
+        "Calculus Based Physics",
+        "Computer Networking 1",
+        "Individual and Dual Sports"
+      ],
+      "units": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        2
+      ],
+      "lec": [
+        2,
+        2,
+        2,
+        3,
+        3,
+        2,
+        2,
+        2
+      ],
+      "lab": [
+        3,
+        3,
+        3,
+        0,
+        0,
+        3,
+        3,
+        0
+      ],
+      "prerequisite": [
+        "CS 111",
+        "CS 111",
+        "CS 111, CS 131",
+        "-",
+        "MATH 111",
+        "MATH 111",
+        "IT 111",
+        "PE 101"
+      ],
+      "total_units": 23,
+      "total_lec": 18,
+      "total_lab": 15,
+      "year_level": "Second Year",
+      "semester": "First Semester",
+      "track": "Network Technology Track"
+    },
+    {
+      "Code": [
+        "IT 221",
+        "IT 223",
+        "IT 222",
+        "MATH 408",
+        "ES 101",
+        "GEd 106",
+        "GEd 101",
+        "PE 104"
+      ],
+      "Course_Title": [
+        "Information Management",
+        "Computer Networking 2",
+        "Advanced Database Management System",
+        "Data Analysis",
+        "Environmental Sciences",
+        "Purposive Communication",
+        "Understanding the Self",
+        "Team Sports"
+      ],
+      "units": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        2
+      ],
+      "lec": [
+        2,
+        2,
+        2,
+        3,
+        2,
+        3,
+        3,
+        2
+      ],
+      "lab": [
+        3,
+        3,
+        3,
+        0,
+        3,
+        0,
+        0,
+        0
+      ],
+      "prerequisite": [
+        "IT 111",
+        "IT 212",
+        "IT 211",
+        "MATH 111",
+        "PHY 101",
+        "-",
+        "-",
+        "PE 101"
+      ],
+      "total_units": 23,
+      "total_lec": 19,
+      "total_lab": 12,
+      "year_level": "Second Year",
+      "semester": "Second Semester",
+      "track": "Network Technology Track"
+    },
+    {
+      "Code": [
+        "IT 311",
+        "IT 312",
+        "NTT 401",
+        "NTT 402",
+        "IT 313",
+        "IT 314",
+        "GEd 107"
+      ],
+      "Course_Title": [
+        "Systems Administration and Maintenance",
+        "System Integration and Architecture",
+        "Computer Networking 3",
+        "Internet of Things (IoT)",
+        "System Analysis and Design",
+        "Web Systems and Technologies",
+        "Ethics"
+      ],
+      "units": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "lec": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        3
+      ],
+      "lab": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        0
+      ],
+      "prerequisite": [
+        "IT 221,IT 222",
+        "CS 131",
+        "IT 223",
+        "IT 223",
+        "IT 222",
+        "CS 211",
+        "-"
+      ],
+      "total_units": 21,
+      "total_lec": 15,
+      "total_lab": 18,
+      "year_level": "Third Year",
+      "semester": "First Semester",
+      "track": "Network Technology Track"
+    },
+    {
+      "Code": [
+        "IT 321",
+        "NTT 403",
+        "NTT 404",
+        "IT 322",
+        "IT 323",
+        "IT 324",
+        "IT 325"
+      ],
+      "Course_Title": [
+        "Human-computer interaction",
+        "Computer Networking 4",
+        "Cloud Computing",
+        "Advanced System Integration and Architecture",
+        "Information Assurance and Security",
+        "Capstone Project 1",
+        "IT Project Management"
+      ],
+      "units": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "lec": [
+        3,
+        2,
+        2,
+        2,
+        2,
+        3,
+        3
+      ],
+      "lab": [
+        0,
+        3,
+        3,
+        3,
+        3,
+        0,
+        0
+      ],
+      "prerequisite": [
+        "IT 314",
+        "NTT 401",
+        "NTT 402",
+        "IT 312",
+        "IT 223",
+        "Regular 3rd Year",
+        "IT 313"
+      ],
+      "total_units": 21,
+      "total_lec": 17,
+      "total_lab": 12,
+      "year_level": "Third Year",
+      "semester": "Second Semester",
+      "track": "Network Technology Track"
+    },
+    {
+      "Code": [
+        "MIDTERM",
+        "IT 331",
+        "IT 332"
+      ],
+      "Course_Title": [
+        "Code",
+        "Application Development and Emerging Technologies",
+        "Integrative Programming and Technologies"
+      ],
+      "units": [
+        0,
+        3,
+        3
+      ],
+      "lec": [
+        0,
+        2,
+        3
+      ],
+      "lab": [
+        0,
+        3,
+        0
+      ],
+      "prerequisite": [
+        "Lab",
+        "IT 321",
+        "IT 314"
+      ],
+      "total_units": 6,
+      "total_lec": 5,
+      "total_lab": 3,
+      "year_level": "Third Year",
+      "semester": "Second Semester",
+      "track": "Network Technology Track"
+    },
+    {
+      "Code": [
+        "CS 423",
+        "IT 411",
+        "NTT 405",
+        "ENGG 405",
+        "IT 413",
+        "IT 414",
+        "IT 412"
+      ],
+      "Course_Title": [
+        "Social Issues and Professional Practice",
+        "Capstone Project 2",
+        "Cybersecurity",
+        "Technopreneurship",
+        "Advanced Information Assurance and Security",
+        "System Quality Assurance",
+        "Platform Technologies"
+      ],
+      "units": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "lec": [
+        3,
+        3,
+        2,
+        3,
+        2,
+        2,
+        3
+      ],
+      "lab": [
+        0,
+        0,
+        3,
+        0,
+        3,
+        3,
+        0
+      ],
+      "prerequisite": [
+        "-",
+        "IT 324",
+        "NTT 403",
+        "-",
+        "IT 323",
+        "IT 325",
+        "IT 332"
+      ],
+      "total_units": 21,
+      "total_lec": 18,
+      "total_lab": 9,
+      "year_level": "Fourth Year",
+      "semester": "First Semester",
+      "track": "Network Technology Track"
+    },
+    {
+      "Code": [
+        "IT 421"
+      ],
+      "Course_Title": [
+        "Internship Training"
+      ],
+      "units": [
+        6
+      ],
+      "lec": [
+        0
+      ],
+      "lab": [
+        500
+      ],
+      "prerequisite": [
+        "Regular 4th Year"
+      ],
+      "total_units": 6,
+      "total_lec": 0,
+      "total_lab": 500,
+      "year_level": "Fourth Year",
+      "semester": "Second Semester",
+      "track": "Network Technology Track"
+    },
+    {
+      "Code": [
+        "IT 111",
+        "GEd 102",
+        "GEd 108",
+        "FILI 101",
+        "PE 101",
+        "NSTP 111",
+        "GEd 103",
+        "GEd 104"
+      ],
+      "Course_Title": [
+        "Introduction to Computing",
+        "Mathematics in the Modern World",
+        "Art Appreciation",
+        "Kontekstwalisadong Komunikasyon sa Filipino",
+        "Physical Fitness, Gymnastics and Aerobics",
+        "National Service Training Program 1",
+        "The Life and Works of Rizal",
+        "The Contemporary World"
+      ],
+      "units": [
+        3,
+        3,
+        3,
+        3,
+        2,
+        3,
+        3,
+        3
+      ],
+      "lec": [
+        2,
+        3,
+        3,
+        3,
+        2,
+        3,
+        3,
+        3
+      ],
+      "lab": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "prerequisite": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "total_units": 23,
+      "total_lec": 22,
+      "total_lab": 3,
+      "year_level": "First Year",
+      "semester": "First Semester",
+      "track": "Business Analytics Track"
+    },
+    {
+      "Code": [
+        "CS 111",
+        "CS 131",
+        "MATH 111",
+        "FILI 102",
+        "GEd 105",
+        "GEd 109",
+        "PE 102",
+        "NSTP 121"
+      ],
+      "Course_Title": [
+        "Computer Programming",
+        "Data Structures and Algorithms",
+        "Linear Algebra",
+        "Filipino sa Iba't Ibang Disiplina",
+        "Readings in Philippine History",
+        "Science, Technology and Society",
+        "Rhythmic Activities",
+        "National Service Training Program 2"
+      ],
+      "units": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        2,
+        3
+      ],
+      "lec": [
+        2,
+        2,
+        3,
+        3,
+        3,
+        3,
+        2,
+        3
+      ],
+      "lab": [
+        3,
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "prerequisite": [
+        "IT 111",
+        "IT 111",
+        "GEd 102",
+        "-",
+        "-",
+        "-",
+        "PE 101",
+        "NSTP 111"
+      ],
+      "total_units": 23,
+      "total_lec": 21,
+      "total_lab": 6,
+      "year_level": "First Year",
+      "semester": "Second Semester",
+      "track": "Business Analytics Track"
+    },
+    {
+      "Code": [
+        "CS 121",
+        "IT 211",
+        "CS 211",
+        "LITR 102",
+        "CpE 405",
+        "PHY 101",
+        "IT 212",
+        "PE 103"
+      ],
+      "Course_Title": [
+        "Advanced Computer Programming",
+        "Database Management System",
+        "Object-Oriented Programming",
+        "ASEAN Literature",
+        "Discrete Mathematics",
+        "Calculus Based Physics",
+        "Computer Networking 1",
+        "Individual and Dual Sports"
+      ],
+      "units": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        2
+      ],
+      "lec": [
+        2,
+        2,
+        2,
+        3,
+        3,
+        2,
+        2,
+        2
+      ],
+      "lab": [
+        3,
+        3,
+        3,
+        0,
+        0,
+        3,
+        3,
+        0
+      ],
+      "prerequisite": [
+        "CS 111",
+        "CS 111",
+        "CS 111, CS 131",
+        "-",
+        "MATH 111",
+        "MATH 111",
+        "IT 111",
+        "PE 101"
+      ],
+      "total_units": 23,
+      "total_lec": 18,
+      "total_lab": 15,
+      "year_level": "Second Year",
+      "semester": "First Semester",
+      "track": "Business Analytics Track"
+    },
+    {
+      "Code": [
+        "IT 221",
+        "IT 223",
+        "IT 222",
+        "MATH 408",
+        "ES 101",
+        "GEd 106",
+        "GEd 101",
+        "PE 104"
+      ],
+      "Course_Title": [
+        "Information Management",
+        "Computer Networking 2",
+        "Advanced Database Management System",
+        "Data Analysis",
+        "Environmental Sciences",
+        "Purposive Communication",
+        "Understanding the Self",
+        "Team Sports"
+      ],
+      "units": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        2
+      ],
+      "lec": [
+        2,
+        2,
+        2,
+        3,
+        2,
+        3,
+        3,
+        2
+      ],
+      "lab": [
+        3,
+        3,
+        3,
+        0,
+        3,
+        0,
+        0,
+        0
+      ],
+      "prerequisite": [
+        "IT 111",
+        "IT 212",
+        "IT 211",
+        "MATH 111",
+        "PHY 101",
+        "-",
+        "-",
+        "PE 101"
+      ],
+      "total_units": 23,
+      "total_lec": 19,
+      "total_lab": 12,
+      "year_level": "Second Year",
+      "semester": "Second Semester",
+      "track": "Business Analytics Track"
+    },
+    {
+      "Code": [
+        "IT 311",
+        "IT 312",
+        "BAT 401",
+        "BAT 402",
+        "IT 313",
+        "IT 314",
+        "GEd 107"
+      ],
+      "Course_Title": [
+        "Systems Administration and Maintenance",
+        "System Integration and Architecture",
+        "Fundamentals of Business Analytics",
+        "Fundamentals of Analytics Modeling",
+        "System Analysis and Design",
+        "Web Systems and Technologies",
+        "Ethics"
+      ],
+      "units": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "lec": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        3
+      ],
+      "lab": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        0
+      ],
+      "prerequisite": [
+        "IT 221,IT 222",
+        "CS 131",
+        "IT 221,IT 222",
+        "IT 221,IT 222",
+        "IT 222",
+        "CS 211",
+        "-"
+      ],
+      "total_units": 21,
+      "total_lec": 15,
+      "total_lab": 18,
+      "year_level": "Third Year",
+      "semester": "First Semester",
+      "track": "Business Analytics Track"
+    },
+    {
+      "Code": [
+        "IT 321",
+        "BAT 403",
+        "BAT 404",
+        "IT 322",
+        "IT 323",
+        "IT 324",
+        "IT 325"
+      ],
+      "Course_Title": [
+        "Human-computer interaction",
+        "Fundamentals of Enterprise Data Management",
+        "Analytics Techniques & Tools",
+        "Advanced System Integration and Architecture",
+        "Information Assurance and Security",
+        "Capstone Project 1",
+        "IT Project Management"
+      ],
+      "units": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "lec": [
+        3,
+        2,
+        2,
+        2,
+        2,
+        3,
+        3
+      ],
+      "lab": [
+        0,
+        3,
+        3,
+        3,
+        3,
+        0,
+        0
+      ],
+      "prerequisite": [
+        "IT 314",
+        "BAT 401",
+        "BAT 402",
+        "IT 312",
+        "IT 223",
+        "Regular 3rd Year",
+        "IT 313"
+      ],
+      "total_units": 21,
+      "total_lec": 17,
+      "total_lab": 12,
+      "year_level": "Third Year",
+      "semester": "Second Semester",
+      "track": "Business Analytics Track"
+    },
+    {
+      "Code": [
+        "MIDTERM",
+        "IT 331",
+        "IT 332"
+      ],
+      "Course_Title": [
+        "Code",
+        "Application Development and Emerging Technologies",
+        "Integrative Programming and Technologies"
+      ],
+      "units": [
+        0,
+        3,
+        3
+      ],
+      "lec": [
+        0,
+        2,
+        3
+      ],
+      "lab": [
+        0,
+        3,
+        0
+      ],
+      "prerequisite": [
+        "Lab",
+        "IT 321",
+        "IT 314"
+      ],
+      "total_units": 6,
+      "total_lec": 5,
+      "total_lab": 3,
+      "year_level": "Third Year",
+      "semester": "Second Semester",
+      "track": "Business Analytics Track"
+    },
+    {
+      "Code": [
+        "CS 423",
+        "IT 411",
+        "BAT 405",
+        "ENGG 405",
+        "IT 413",
+        "IT 414",
+        "IT 412"
+      ],
+      "Course_Title": [
+        "Social Issues and Professional Practice",
+        "Capstone Project 2",
+        "Analytics Application",
+        "Technopreneurship",
+        "Advanced Information Assurance and Security",
+        "System Quality Assurance",
+        "Platform Technologies"
+      ],
+      "units": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "lec": [
+        3,
+        3,
+        2,
+        3,
+        2,
+        2,
+        3
+      ],
+      "lab": [
+        0,
+        0,
+        3,
+        0,
+        3,
+        3,
+        0
+      ],
+      "prerequisite": [
+        "-",
+        "IT 324",
+        "BAT 404",
+        "-",
+        "IT 323",
+        "IT 325",
+        "IT 332"
+      ],
+      "total_units": 21,
+      "total_lec": 18,
+      "total_lab": 9,
+      "year_level": "Fourth Year",
+      "semester": "First Semester",
+      "track": "Business Analytics Track"
+    },
+    {
+      "Code": [
+        "IT 421"
+      ],
+      "Course_Title": [
+        "Internship Training"
+      ],
+      "units": [
+        6
+      ],
+      "lec": [
+        0
+      ],
+      "lab": [
+        500
+      ],
+      "prerequisite": [
+        "Regular 4th Year"
+      ],
+      "total_units": 6,
+      "total_lec": 0,
+      "total_lab": 500,
+      "year_level": "Fourth Year",
+      "semester": "Second Semester",
+      "track": "Business Analytics Track"
+    },
+    {
+      "Code": [
+        "IT 111",
+        "GEd 102",
+        "GEd 108",
+        "FILI 101",
+        "PE 101",
+        "NSTP 111",
+        "GEd 103",
+        "GEd 104"
+      ],
+      "Course_Title": [
+        "Introduction to Computing",
+        "Mathematics in the Modern World",
+        "Art Appreciation",
+        "Kontekstwalisadong Komunikasyon sa Filipino",
+        "Physical Fitness, Gymnastics and Aerobics",
+        "National Service Training Program 1",
+        "The Life and Works of Rizal",
+        "The Contemporary World"
+      ],
+      "units": [
+        3,
+        3,
+        3,
+        3,
+        2,
+        3,
+        3,
+        3
+      ],
+      "lec": [
+        2,
+        3,
+        3,
+        3,
+        2,
+        3,
+        3,
+        3
+      ],
+      "lab": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "prerequisite": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "total_units": 23,
+      "total_lec": 22,
+      "total_lab": 3,
+      "year_level": "First Year",
+      "semester": "First Semester",
+      "track": "Service Management Track"
+    },
+    {
+      "Code": [
+        "CS 111",
+        "CS 131",
+        "MATH 111",
+        "FILI 102",
+        "GEd 105",
+        "GEd 109",
+        "PE 102",
+        "NSTP 112"
+      ],
+      "Course_Title": [
+        "Computer Programming",
+        "Data Structures and Algorithms",
+        "Linear Algebra",
+        "Filipino sa Iba't Ibang Disiplina",
+        "Readings in Philippine History",
+        "Science, Technology and Society",
+        "Rhythmic Activities",
+        "National Service Training Program 2"
+      ],
+      "units": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        2,
+        3
+      ],
+      "lec": [
+        2,
+        2,
+        3,
+        3,
+        3,
+        3,
+        2,
+        3
+      ],
+      "lab": [
+        3,
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "prerequisite": [
+        "IT 111",
+        "IT 111",
+        "GEd 102",
+        "-",
+        "-",
+        "-",
+        "PE 101",
+        "NSTP 111"
+      ],
+      "total_units": 23,
+      "total_lec": 21,
+      "total_lab": 6,
+      "year_level": "First Year",
+      "semester": "Second Semester",
+      "track": "Service Management Track"
+    },
+    {
+      "Code": [
+        "CS 121",
+        "IT 211",
+        "CS 211",
+        "LITR 102",
+        "CpE 405",
+        "PHY 101",
+        "IT 212",
+        "PE 103"
+      ],
+      "Course_Title": [
+        "Advanced Computer Programming",
+        "Database Management System",
+        "Object-Oriented Programming",
+        "ASEAN Literature",
+        "Discrete Mathematics",
+        "Calculus Based Physics",
+        "Computer Networking 1",
+        "Individual and Dual Sports"
+      ],
+      "units": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        2
+      ],
+      "lec": [
+        2,
+        2,
+        2,
+        3,
+        3,
+        2,
+        2,
+        2
+      ],
+      "lab": [
+        3,
+        3,
+        3,
+        0,
+        0,
+        3,
+        3,
+        0
+      ],
+      "prerequisite": [
+        "CS 111",
+        "CS 111",
+        "CS 111, CS 131",
+        "-",
+        "MATH 111",
+        "MATH 111",
+        "IT 111",
+        "PE 101"
+      ],
+      "total_units": 23,
+      "total_lec": 18,
+      "total_lab": 15,
+      "year_level": "Second Year",
+      "semester": "First Semester",
+      "track": "Service Management Track"
+    },
+    {
+      "Code": [
+        "IT 221",
+        "IT 223",
+        "IT 222",
+        "MATH 408",
+        "ES 101",
+        "GEd 106",
+        "GEd 101",
+        "PE 104"
+      ],
+      "Course_Title": [
+        "Information Management",
+        "Computer Networking 2",
+        "Advanced Database Management System",
+        "Data Analysis",
+        "Environmental Sciences",
+        "Purposive Communication",
+        "Understanding the Self",
+        "Team Sports"
+      ],
+      "units": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        2
+      ],
+      "lec": [
+        2,
+        2,
+        2,
+        3,
+        2,
+        3,
+        3,
+        2
+      ],
+      "lab": [
+        3,
+        3,
+        3,
+        0,
+        3,
+        0,
+        0,
+        0
+      ],
+      "prerequisite": [
+        "IT 111",
+        "IT 212",
+        "IT 211",
+        "MATH 111",
+        "PHY 101",
+        "-",
+        "-",
+        "PE 101"
+      ],
+      "total_units": 23,
+      "total_lec": 19,
+      "total_lab": 12,
+      "year_level": "Second Year",
+      "semester": "Second Semester",
+      "track": "Service Management Track"
+    },
+    {
+      "Code": [
+        "IT 311",
+        "IT 312",
+        "SMT 401",
+        "SMT 402",
+        "IT 313",
+        "IT 314",
+        "GEd 107"
+      ],
+      "Course_Title": [
+        "Systems Administration and Maintenance",
+        "System Integration and Architecture",
+        "Fundamentals of Business Process Outsourcing 101",
+        "Business Communication",
+        "System Analysis and Design",
+        "Web Systems and Technologies",
+        "Ethics"
+      ],
+      "units": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "lec": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        3
+      ],
+      "lab": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        0
+      ],
+      "prerequisite": [
+        "IT 221,IT 222",
+        "CS 131",
+        "IT 221",
+        "IT 221",
+        "IT 222",
+        "CS 211",
+        "-"
+      ],
+      "total_units": 21,
+      "total_lec": 15,
+      "total_lab": 18,
+      "year_level": "Third Year",
+      "semester": "First Semester",
+      "track": "Service Management Track"
+    },
+    {
+      "Code": [
+        "IT 321",
+        "SMT 403",
+        "SMT 404",
+        "IT 322",
+        "IT 323",
+        "IT 324",
+        "IT 325"
+      ],
+      "Course_Title": [
+        "Human-computer interaction",
+        "Fundamentals of Business Process Outsourcing 102",
+        "Service Culture",
+        "Advanced System Integration and Architecture",
+        "Information Assurance and Security",
+        "Capstone Project 1",
+        "IT Project Management"
+      ],
+      "units": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "lec": [
+        3,
+        2,
+        2,
+        2,
+        2,
+        3,
+        3
+      ],
+      "lab": [
+        0,
+        3,
+        3,
+        3,
+        3,
+        0,
+        0
+      ],
+      "prerequisite": [
+        "IT 314",
+        "SMT 401",
+        "SMT 401",
+        "IT 312",
+        "IT 223",
+        "Regular 3rd Year",
+        "IT 313"
+      ],
+      "total_units": 21,
+      "total_lec": 17,
+      "total_lab": 12,
+      "year_level": "Third Year",
+      "semester": "Second Semester",
+      "track": "Service Management Track"
+    },
+    {
+      "Code": [
+        "MIDTERM",
+        "IT 331",
+        "IT 332"
+      ],
+      "Course_Title": [
+        "Code",
+        "Application Development and Emerging Technologies",
+        "Integrative Programming and Technologies"
+      ],
+      "units": [
+        0,
+        3,
+        3
+      ],
+      "lec": [
+        0,
+        2,
+        3
+      ],
+      "lab": [
+        0,
+        3,
+        0
+      ],
+      "prerequisite": [
+        "Lab",
+        "IT 321",
+        "IT 314"
+      ],
+      "total_units": 6,
+      "total_lec": 5,
+      "total_lab": 3,
+      "year_level": "Third Year",
+      "semester": "Second Semester",
+      "track": "Service Management Track"
+    },
+    {
+      "Code": [
+        "CS 423",
+        "IT 411",
+        "SMT 405",
+        "ENGG 405",
+        "IT 413",
+        "IT 414",
+        "IT 412"
+      ],
+      "Course_Title": [
+        "Social Issues and Professional Practice",
+        "Capstone Project 2",
+        "Principles of System Thinking",
+        "Technopreneurship",
+        "Advanced Information Assurance and Security",
+        "System Quality Assurance",
+        "Platform Technologies"
+      ],
+      "units": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "lec": [
+        3,
+        3,
+        2,
+        3,
+        2,
+        2,
+        3
+      ],
+      "lab": [
+        0,
+        0,
+        3,
+        0,
+        3,
+        3,
+        0
+      ],
+      "prerequisite": [
+        "-",
+        "IT 324",
+        "SMT 403",
+        "-",
+        "IT 323",
+        "IT 325",
+        "IT 332"
+      ],
+      "total_units": 21,
+      "total_lec": 18,
+      "total_lab": 9,
+      "year_level": "Fourth Year",
+      "semester": "First Semester",
+      "track": "Service Management Track"
+    },
+    {
+      "Code": [
+        "IT 421"
+      ],
+      "Course_Title": [
+        "Internship Training"
+      ],
+      "units": [
+        6
+      ],
+      "lec": [
+        0
+      ],
+      "lab": [
+        500
+      ],
+      "prerequisite": [
+        "Regular 4th Year"
+      ],
+      "total_units": 6,
+      "total_lec": 0,
+      "total_lab": 500,
+      "year_level": "Fourth Year",
+      "semester": "Second Semester",
+      "track": "Service Management Track"
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class UserDesignation extends Model
+{
+    protected $table = 'user_designation';
+    protected $primaryKey = 'UserDesignation_id';
+    public $incrementing = true;
+    protected $keyType = 'int';
+    public $timestamps = false;
+
+    protected $fillable = [
+        'Campus_id',
+        'College_id',
+        'Program_id',
+        'Major_id',
+        'Designation_id',
+        'User_id',
+        'Login_id',
+
+    ];
+    
+    public function user()
+    {
+        return $this->belongsTo(\App\Models\UserManage::class, 'User_id', 'User_id');
+    }
+
+     public function login()
+    {
+        return $this->belongsTo(Login::class, 'Login_id', 'Login_id');
+    }
+    
+    public function designation()
+    {
+        return $this->belongsTo(\App\Models\Designation::class, 'Designation_id', 'Designation_id');
+    }
+
+        public function campus()
+    {
+        return $this->belongsTo(Campus::class, 'Campus_id', 'Campus_id');
+    }
+
+    public function college()
+    {
+        return $this->belongsTo(College::class, 'College_id', 'College_id');
+    }
+
+    public function program()
+    {
+        return $this->belongsTo(Program::class, 'Program_id', 'Program_id');
+    }
+
+    public function major()
+    {
+        return $this->belongsTo(Major::class, 'Major_id', 'Major_id');
+    }
+
+}
