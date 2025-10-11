@@ -231,7 +231,7 @@
             </div>
           </div>
 
-          {{-- Step 7: Generate Application --}}
+          <!-- Step 7: Generate Application -->
           <div class="text-start step-section" id="step-7" style="display: none;">
             <div class="mb-3 d-flex align-items-center gap-2">
               <button id="pdf-generate-btn" type="button" class="btn btn-primary" onclick="generatePdf()">Generate / Refresh Application PDF</button>
@@ -243,6 +243,7 @@
               <span class="small text-muted">Click <strong>Finish</strong> to submit your application after generating your PDF.</span>
             </div>
           </div>
+
 
         </div>
       </div>
@@ -358,31 +359,6 @@
         <h5 class="text-success fw-bold mb-1">Success!</h5>
         <p class="mb-4 text-muted">Your application has been submitted.</p>
         <div><button type="button" id="successOkBtn" class="btn btn-primary px-4" data-bs-dismiss="modal">OK</button></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Authenticity (Tamper) FAIL -->
-<div class="modal fade" id="tamperFailModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered" style="max-width: 640px;">
-    <div class="modal-content border-0 shadow rounded-4">
-      <div class="modal-header border-0"><h5 class="modal-title text-danger fw-bold">Document Authentication Check Failed</h5></div>
-      <div class="modal-body pt-0">
-        <p>Your uploaded Certificate could not be verified.</p>
-        <p class="mb-1">Reason:</p>
-        <p id="tamperReason" class="text-danger small mb-2"></p>
-        <p class="mb-1">Possible causes:</p>
-        <ul class="mb-2">
-          <li>QR code is invalid or unreadable</li>
-          <li>The document appears altered or tampered</li>
-          <li>The uploaded file is not an official copy</li>
-        </ul>
-        <p class="small text-muted mb-0">Note: Please re-upload a valid official document from the Student Portal.</p>
-      </div>
-      <div class="modal-footer border-0 d-flex justify-content-between">
-        <button type="button" id="tamperReuploadBtn" class="btn btn-primary">Re-upload Document</button>
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
       </div>
     </div>
   </div>
@@ -571,17 +547,46 @@ async function saveDebugRaw(text, source){
   }catch(e){ /* ignore */ }
 }
 
+  function submitApplicationForm() {
+    const form = document.getElementById('applicationForm');
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const submitRoute = document.querySelector('meta[name="route-application-submit"]').getAttribute('content');
+    const formData = new FormData(form);
+
+    fetch(submitRoute, {
+      method: 'POST',
+      headers: {
+        'X-CSRF-TOKEN': csrfToken,  
+      },
+      body: formData  
+    })
+    .then(response => response.json())
+    .then(result => {
+      if (response.ok) {
+        alert('Application submitted successfully!');
+      } else {
+        alert('Error submitting application.');
+      }
+    })
+    .catch(error => {
+      alert('An error occurred. Please try again.');
+      console.error('Error:', error);
+    });
+  }
+  
+
 document.getElementById('applicationForm').addEventListener('submit', async function(event) {
   event.preventDefault();  // Prevent default form submission
   
-  // Get the CSRF token from the meta tag
+  // Get the CSRF token and route URL from meta tags
   const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+  const submitRoute = document.querySelector('meta[name="route-application-submit"]').getAttribute('content');
   
   // Prepare form data
   const formData = new FormData(this);
 
   try {
-    const response = await fetch(route('student.application.submit'), {
+    const response = await fetch(submitRoute, {
       method: 'POST',
       headers: {
         'X-CSRF-TOKEN': csrfToken,  // Include CSRF token
@@ -590,18 +595,23 @@ document.getElementById('applicationForm').addEventListener('submit', async func
     });
 
     const result = await response.json();
+    
     if (response.ok) {
       console.log('Application submitted successfully:', result);
       // Handle success (update UI, show success message, etc.)
+      alert('Application submitted successfully!');
     } else {
       console.error('Error submitting application:', result);
       // Handle error (show error message)
+      alert('Error submitting application. Please try again.');
     }
   } catch (error) {
     console.error('Request failed:', error);
     // Handle network or other errors
+    alert('An error occurred. Please check your network connection and try again.');
   }
 });
+
 
 async function validateGrades() {
     const response = await fetch('/student/validate-grades', {
@@ -1689,7 +1699,7 @@ async function generatePdf() {
   const iframe = document.getElementById('pdf-frame');
   const openA  = document.getElementById('pdf-open-link');
 
-  const { rows, meta, total_units, gwa } = collectCurrentStateFromUI();
+  const { rows, meta, total_units, gwa } = collectCurrentStateFromUI();  // Collecting current UI data
 
   const payload = {
     cor_png_path: serverPaths.cor_img || "",
@@ -1706,13 +1716,19 @@ async function generatePdf() {
   if (btn) btn.disabled = true;
   if (status) status.textContent = 'Generating…';
 
+  // Fetch data to generate the PDF
   async function postTo(url){
-    return fetch(url, { method: 'POST', headers: { 'Content-Type':'application/json','X-CSRF-TOKEN': csrf,'Accept':'application/json' }, body: JSON.stringify(payload) });
+    return fetch(url, { 
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'X-CSRF-TOKEN': csrf, 'Accept':'application/json' },
+      body: JSON.stringify(payload)
+    });
   }
 
   try {
     let res = await postTo(primaryUrl);
-    let json = {}; try { json = await res.json(); } catch(_) {}
+    let json = {}; 
+    try { json = await res.json(); } catch(_) {}
 
     if (res.status === 410) {
       if (status) status.textContent = 'Switching to new generator…';
@@ -1742,6 +1758,7 @@ async function generatePdf() {
     if (status) status.textContent = `Failed to generate PDF: ${e.message || e}`;
   } finally { if (btn) btn.disabled = false; }
 }
+
 function collectCurrentStateFromUI(){
   const rows=[]; document.querySelectorAll('#extracted-grade-table tbody tr').forEach(tr=>{
     const t=tr.querySelectorAll('td'); if(t.length<7) return; const maybeIdx=t[0].textContent.trim(); if(maybeIdx.includes('NOTHING FOLLOWS')) return;
