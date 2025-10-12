@@ -125,33 +125,6 @@ class ApplicationController extends Controller
     }
 }
 
-private function compareGrades($ocrGrades, $outputGrades)
-{
-    $mismatches = [];
-    
-    // Compare row by row
-    foreach ($ocrGrades as $index => $ocrGrade) {
-        // Assuming that each line contains the grade as the last element (adjust based on your file format)
-        $ocrGradeData = explode(' ', trim($ocrGrade));
-        $outputGradeData = explode(' ', trim($outputGrades[$index]));
-
-        $ocrGradeValue = end($ocrGradeData);  // Get the last element (grade) from OCR file
-        $outputGradeValue = end($outputGradeData);  // Get the last element (grade) from output file
-
-        // Compare grades
-        if ($ocrGradeValue !== $outputGradeValue) {
-            $mismatches[] = [
-                'index' => $index + 1,
-                'ocr_grade' => $ocrGradeValue,
-                'output_grade' => $outputGradeValue,
-            ];
-        }
-    }
-
-    return $mismatches;
-}
-
-
 
     public function validateCogLatest()
     {
@@ -524,6 +497,136 @@ private function compareGrades($ocrGrades, $outputGrades)
             return response()->json(['success'=>false,'message'=>$e->getMessage()],500);
         }
     }
+
+
+public function parseAndSaveCogOutput()
+{
+    try {
+        // Get the contents of cog_output.txt and cog_ocr_output.txt
+        $qrContent = file_get_contents(storage_path('app/cog/cog_output.txt'));
+        $ocrContent = file_get_contents(storage_path('app/cog/cog_ocr_output.txt'));
+
+        // Parse the QR content
+        $ocrLines = explode("\n", $ocrContent);
+        $qrLines = explode("\n", $qrContent);
+
+        $ocrParsed = [];
+        $qrParsed = [];
+
+        // Parse OCR content for grades
+        foreach ($ocrLines as $line) {
+            if (preg_match('/\|\s*(\d+)\s*\|\s*([\d\.]+)\s*\|/', $line, $matches)) {
+                $ocrParsed[] = [
+                    'index' => $matches[1],
+                    'grade' => $matches[2],
+                ];
+            }
+        }
+
+        // Parse QR content for grades
+        foreach ($qrLines as $line) {
+            if (preg_match('/\|\s*(\d+)\s*\|\s*([\d\.]+)\s*\|/', $line, $matches)) {
+                $qrParsed[] = [
+                    'index' => $matches[1],
+                    'grade' => $matches[2],
+                ];
+            }
+        }
+
+        // Save the parsed content
+        file_put_contents(storage_path('app/cog/parse_qr_output.txt'), json_encode($qrParsed, JSON_PRETTY_PRINT));
+        file_put_contents(storage_path('app/cog/parse_ocr_output.txt'), json_encode($ocrParsed, JSON_PRETTY_PRINT));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Files parsed and saved successfully.',
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'An error occurred: ' . $e->getMessage(),
+        ]);
+    }
+}
+
+
+    private function parseGrades(string $content): string
+    {
+        $lines = explode("\n", $content);
+        $parsedData = [];
+
+        // Parse the grades in each line (you can modify this if the format is different)
+        foreach ($lines as $line) {
+            if (preg_match('/^\| (\d+)\s*\| (\d+\.\d{2}) \|/', $line, $matches)) {
+                $parsedData[] = '|  ' . $matches[1] . '  |  ' . $matches[2] . ' |';
+            }
+        }
+
+        // Return the parsed grades in the format needed
+        return "|  #  | Grade |\n| --- |------- |\n" . implode("\n", $parsedData);
+    }
+
+
+
+        private function saveParsedData($filename, $data)
+    {
+        $filePath = storage_path('app/cog/' . $filename);
+        $content = "|  #  | Grade |\n| --- |------- |\n";
+
+        foreach ($data as $row) {
+            $content .= "|  {$row['index']}  |  {$row['grade']}  |\n";
+        }
+
+        file_put_contents($filePath, $content);
+    }
+
+
+        public function compareGrades()
+    {
+        $qrFile = storage_path('app/cog/parse_qr_output.txt');
+        $ocrFile = storage_path('app/cog/parse_ocr_output.txt');
+
+        // Read the content of both parsed files
+        $qrData = file_get_contents($qrFile);
+        $ocrData = file_get_contents($ocrFile);
+
+        // Parse the data from both files
+        $qrParsedData = $this->parseGrades($qrData);
+        $ocrParsedData = $this->parseGrades($ocrData);
+
+        // Compare the grades
+        $mismatches = $this->compareParsedGrades($qrParsedData, $ocrParsedData);
+
+        // Return mismatches if found
+        if (count($mismatches) > 0) {
+            return response()->json(['status' => 'fail', 'mismatches' => $mismatches]);
+        }
+
+        return response()->json(['status' => 'success', 'message' => 'Grades validated successfully.']);
+    }
+
+
+        private function compareParsedGrades($qrGrades, $ocrGrades)
+    {
+        $mismatches = [];
+
+        foreach ($qrGrades as $index => $qrGrade) {
+            $ocrGrade = $ocrGrades[$index] ?? null;
+
+            if ($ocrGrade && $qrGrade['grade'] !== $ocrGrade['grade']) {
+                $mismatches[] = [
+                    'index' => $qrGrade['index'],
+                    'qr_grade' => $qrGrade['grade'],
+                    'ocr_grade' => $ocrGrade['grade'],
+                ];
+            }
+        }
+
+        return $mismatches;
+    }
+
+
+
 
     /**
      * Writes cog_output.txt exactly like your sample.

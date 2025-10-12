@@ -282,6 +282,10 @@ Route::middleware(['web', 'auth'])
         Route::post('/graduation-form', [GraduationFormController::class, 'store'])->name('graduation.store');
 
         Route::post('/cog/validate-from-text', [ApplicationController::class, 'validateCogFromText'])->name('cog.validateFromText');
+
+        Route::get('/parse-grades', [ApplicationController::class, 'parseAndSaveGrades']);
+Route::get('/compare-grades', [ApplicationController::class, 'compareGrades']);
+
     });
 
     Route::get('/media/{path}', function (string $path) {

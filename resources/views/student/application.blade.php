@@ -1335,34 +1335,86 @@ async function waitUntil(pred, { timeout=3500, interval=120 } = {}) {
 }
 const sleep = (ms)=>new Promise(r=>setTimeout(r,ms));
 
-// STRICT VALIDATION: both QR & OCR must be present and all grades equal
-// Function to compare grades row by row
 async function runValidations() {
-    setValState('v-tamper', 'loading', 'Comparing QR vs OCR from saved text...');
-    
+    setValState('v-tamper', 'loading', 'Comparing QR vs OCR grades...');
+
     const cogOcrData = window.lastOcrRawText || '';  // Raw OCR text from the file
-    const cogOutputData = await fetchCogOutput();  // Fetch the content of cog_output.txt
+    const cogOutputData = await fetchCogOutput();    // Fetch the content of cog_output.txt
 
-    // Parse both the OCR and output data into structured objects (arrays of course rows)
-    const ocrCourses = parseCoursesData(cogOcrData);
-    const outputCourses = parseCoursesData(cogOutputData);
+    // Robust parser to handle both Markdown and OCR rows
+    const parseGradesRobust = (text) => {
+        const rows = [];
+        const lines = text.split('\n');
+        for (const line of lines) {
+            // 1) Try parsing Markdown table row (cog_output.txt)
+            let m = line.match(/^\|\s*(\d+)\s*\|\s*[A-Za-z0-9\s/-]+\s*\|\s*.+?\s*\|\s*\d+\s*\|\s*([\d.]+)\s*\|/);
+            if (m) {
+                rows.push({ idx: parseInt(m[1]), grade: m[2] });
+                continue;
+            }
 
-    // Compare the parsed course data
-    const mismatches = compareCourses(ocrCourses, outputCourses);
+            // 2) Fallback: OCR-style spaced columns (cog_ocr_output.txt)
+            m = line.match(/^\s*(\d+)\s+.+?\s+\d+\s+([\d.]+)\s+/);
+            if (m) {
+                rows.push({ idx: parseInt(m[1]), grade: m[2] });
+            }
+        }
+        return rows;
+    };
 
-    // If mismatches exist, handle them
+    // Parse both OCR and server output
+    const ocrCourses = parseGradesRobust(cogOcrData);
+    console.log("OCR rows detected:", ocrCourses);
+
+    const outputCourses = parseGradesRobust(cogOutputData);
+    console.log("Server rows detected:", outputCourses);
+
+    // Compare row by row
+    const mismatches = [];
+    const maxRows = Math.max(ocrCourses.length, outputCourses.length);
+    for (let i = 0; i < maxRows; i++) {
+        const ocr = ocrCourses[i];
+        const out = outputCourses[i];
+        if (!ocr || !out) continue;
+
+        // Compare grades (if any mismatch, add to the mismatches array)
+        if (ocr.grade !== out.grade) {
+            mismatches.push({
+                index: out.idx,
+                serverGrade: out.grade,
+                ocrGrade: ocr.grade
+            });
+        }
+    }
+
+    // Update UI based on mismatches
+    const tamperEl = document.getElementById('v-tamper');
     if (mismatches.length > 0) {
-        // Display failure reason (Document Authentication Error)
-        showDocumentAuthenticationFailure(mismatches);
-        setValState('v-tamper', 'fail', 'Grades mismatch found. Cannot proceed.');
-        console.log(mismatches);  // Log the mismatches
+        setValState('v-tamper', 'fail', 'Grades mismatch found');
+
+        const reasonEl = document.getElementById('tamperReason');
+        if (reasonEl) {
+            reasonEl.innerHTML = `
+                The following grades do not match between server output and uploaded OCR:
+                <ul>
+                    ${mismatches.map(m => `<li>Row ${m.index}: Server = ${m.serverGrade}, Uploaded = ${m.ocrGrade}</li>`).join('')}
+                </ul>
+                Please correct the document or re-upload.
+            `;
+        }
+
+        // Show modal if needed
+        showModal('#tamperFailModal');
+
+        validationPass = false;
     } else {
-        setValState('v-tamper', 'ok', 'QR and OCR match');
+        setValState('v-tamper', 'ok', 'All grades match');
         setValState('v-irregular', 'ok', 'Checked');
         setValState('v-grades', 'ok', 'No disqualifying grades');
         validationPass = true;
     }
 }
+
 
 // Fetch the content of cog_output.txt
 async function fetchCogOutput() {
@@ -1717,47 +1769,47 @@ async function generatePdf() {
   if (status) status.textContent = 'Generating…';
 
   // Fetch data to generate the PDF
-  async function postTo(url){
-    return fetch(url, { 
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'X-CSRF-TOKEN': csrf, 'Accept':'application/json' },
-      body: JSON.stringify(payload)
-    });
+  async function postTo(url) {
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+try {
+  let res = await postTo(primaryUrl);
+  let json = {};
+  try { json = await res.json(); } catch (_) {}
+
+  if (res.status === 410) {
+    if (status) status.textContent = 'Switching to new generator…';
+    res = await postTo(fallbackUrl);  // Ensure this URL is valid
+    try { json = await res.json(); } catch (_) {}
   }
 
-  try {
-    let res = await postTo(primaryUrl);
-    let json = {}; 
-    try { json = await res.json(); } catch(_) {}
+  if (!res.ok || !(json && (json.ok || json.public_url || json.url || json.path))) {
+    const msg = (json && (json.message || json.error)) ? ` (${json.message || json.error})` : '';
+    throw new Error(`Server error ${res.status}${msg}`);
+  }
 
-    if (res.status === 410) {
-      if (status) status.textContent = 'Switching to new generator…';
-      res = await postTo(fallbackUrl);
-      try { json = await res.json(); } catch(_) {}
-    }
+  let url = (json.public_url || json.url || '').toString().trim();
+  if (!url && json.path) {
+    const p = json.path.replace(/\\\\/g, '/').replace(/\\/g, '/');
+    const anchor = '/storage/app/public/';
+    const i = p.lastIndexOf(anchor);
+    if (i !== -1) url = '/storage/' + p.substring(i + anchor.length);
+  }
+  if (!url) url = '/storage/pdf_output/filled_dean_form.pdf';
 
-    if (!res.ok || !(json && (json.ok || json.public_url || json.url || json.path))) {
-      const msg = (json && (json.message || json.error)) ? ` (${json.message || json.error})` : '';
-      throw new Error(`Server error ${res.status}${msg}`);
-    }
+  const finalUrl = url + (url.includes('?') ? '&' : '?') + 'v=' + Date.now();
+  if (iframe) iframe.src = finalUrl;
+  if (openA) { openA.href = finalUrl; openA.style.display = 'inline'; }
+  if (status) status.textContent = 'Done.';
+} catch (e) {
+  if (status) status.textContent = `Failed to generate PDF: ${e.message || e}`;
+} finally { if (btn) btn.disabled = false; }
 
-    let url = (json.public_url || json.url || '').toString().trim();
-    if (!url && json.path) {
-      const p = json.path.replace(/\\\\/g,'/').replace(/\\/g,'/');
-      const anchor = '/storage/app/public/';
-      const i = p.lastIndexOf(anchor);
-      if (i !== -1) url = '/storage/' + p.substring(i + anchor.length);
-    }
-    if (!url) url = '/storage/pdf_output/filled_dean_form.pdf';
-
-    const finalUrl = url + (url.includes('?') ? '&' : '?') + 'v=' + Date.now();
-    if (iframe) iframe.src = finalUrl;
-    if (openA) { openA.href = finalUrl; openA.style.display = 'inline'; }
-    if (status) status.textContent = 'Done.';
-  } catch (e) {
-    if (status) status.textContent = `Failed to generate PDF: ${e.message || e}`;
-  } finally { if (btn) btn.disabled = false; }
-}
 
 function collectCurrentStateFromUI(){
   const rows=[]; document.querySelectorAll('#extracted-grade-table tbody tr').forEach(tr=>{
