@@ -1,25 +1,56 @@
+# PHPUnit Cache
 /.phpunit.cache
+
+# Laravel-specific folders
 /bootstrap/ssr
 /node_modules
-/public/build
-/public/hot
-/public/storage
+/vendor
+
+# Public directories (build, hot, and storage should not be tracked)
+public/build
+public/hot
+public/storage
+
+# Files related to storage (keys, pails, etc.)
 /storage/*.key
 /storage/pail
-/vendor
+
+# Environment configuration files (Do not push sensitive data!)
 .env
 .env.backup
 .env.production
-.phpactor.json
-.phpunit.result.cache
-Homestead.json
-Homestead.yaml
-npm-debug.log
-yarn-error.log
-/auth.json
-/.fleet
+
+# IDE-specific files
+/.phpactor.json
 /.idea
 /.nova
 /.vscode
 /.zed
-venv/
+/.fleet
+
+# Log files
+npm-debug.log
+yarn-error.log
+
+# Auth-related file (should not be pushed, likely contains sensitive data)
+/auth.json
+
+# Homestead (if using Laravel Homestead)
+/Homestead.json
+/Homestead.yaml
+
+# Python Virtual Environment (venv)
+/venv/
+
+# Miscellaneous
+.phpunit.result.cache
+
+# Temporary files and backups
+*.bak
+*.swp
+
+# macOS system files
+.DS_Store
+
+# Windows system files
+Thumbs.db
