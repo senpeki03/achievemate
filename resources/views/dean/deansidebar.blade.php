@@ -32,10 +32,10 @@
 
     <!-- Dashboard Card -->
     <div class="card shadow-sm border-0 m-2">
-      <a href="{{ route('registrar.dashboard') }}"
-        class="card-body py-3 px-4 d-flex align-items-center gap-4 nav-link text-decoration-none rounded-4 {{ $currentRoute == 'registrar.dashboard' ? 'custom-bg-primary' : '' }}">
-        <i class="bi bi-house-door fs-6 {{ $currentRoute == 'registrar.dashboard' ? 'text-white' : '' }}"></i>
-        <span class="fw-semibold small ms-1 {{ $currentRoute == 'registrar.dashboard' ? 'text-white' : 'text-dark' }}">Home</span>
+      <a href="{{ route('dean.dashboard') }}"
+        class="card-body py-3 px-4 d-flex align-items-center gap-4 nav-link text-decoration-none rounded-4 {{ $currentRoute == 'dean.dashboard' ? 'custom-bg-primary' : '' }}">
+        <i class="bi bi-house-door fs-6 {{ $currentRoute == 'dean.dashboard' ? 'text-white' : '' }}"></i>
+        <span class="fw-semibold small ms-1 {{ $currentRoute == 'dean.dashboard' ? 'text-white' : 'text-dark' }}">Home</span>
       </a>
     </div>
 

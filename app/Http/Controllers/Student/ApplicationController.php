@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use setasign\Fpdi\Fpdi;
 use App\Models\StudentManage;
@@ -72,134 +73,91 @@ class ApplicationController extends Controller
     private function readLatestCogOutput(): string
     {
         $p = storage_path('app/cog/cog_output.txt');
-        if (!is_file($p)) {
-            throw new \RuntimeException('cog_output.txt not found.');
-        }
+        if (!is_file($p)) throw new \RuntimeException('cog_output.txt not found.');
         $txt = (string) @file_get_contents($p);
-        if (trim($txt) === '') {
-            throw new \RuntimeException('cog_output.txt is empty.');
-        }
+        if (trim($txt) === '') throw new \RuntimeException('cog_output.txt is empty.');
         return $txt;
     }
 
-        public function validateGradeEligibility(Request $request)
+    /* ===================== ELIGIBILITY / VALIDATION ===================== */
+
+    public function validateGradeEligibility(Request $request)
     {
         $qrGrade = $request->input('qr_grade');
-        
-        // Check for valid grades (2.75, 3.00, INC, DROP)
         $validGrades = ['2.75', '3.00', 'INC', 'DROP'];
-        if (!in_array($qrGrade, $validGrades)) {
+        if (!in_array($qrGrade, $validGrades, true)) {
             return response()->json([
                 'status' => 'failed',
                 'message' => 'Grade is not eligible for application.',
             ], 422);
         }
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Grade is eligible for application.',
-        ]);
+        return response()->json(['status' => 'success', 'message' => 'Grade is eligible for application.']);
     }
 
+    /**
+     * Compare row-by-row the two GRADES-ONLY files:
+     *  - storage/app/cog/cog_output.txt
+     *  - storage/app/cog/cog_ocr_output.txt
+     */
     public function validateGrades(Request $request)
-{
-    try {
-        // Assuming the grades are passed as text content or the file paths
-        $ocrGradesPath = storage_path('path_to/cog_ocr_output.txt');
-        $outputGradesPath = storage_path('path_to/cog_output.txt');
+    {
+        try {
+            $ocrPath = storage_path('app/cog/cog_ocr_output.txt');
+            $outPath = storage_path('app/cog/cog_output.txt');
 
-        // Read the contents of both files
-        $ocrGrades = file($ocrGradesPath, FILE_IGNORE_NEW_LINES);
-        $outputGrades = file($outputGradesPath, FILE_IGNORE_NEW_LINES);
+            $ocr = is_file($ocrPath) ? preg_split('/\R/', trim(file_get_contents($ocrPath))) : [];
+            $out = is_file($outPath) ? preg_split('/\R/', trim(file_get_contents($outPath))) : [];
 
-        // Compare the contents row by row
-        $mismatches = $this->compareGrades($ocrGrades, $outputGrades);
+            $mismatches = [];
+            $max = max(count($ocr), count($out));
+            for ($i = 0; $i < $max; $i++) {
+                $a = isset($out[$i]) ? $this->normalizeGradeStrict($out[$i]) : '';
+                $b = isset($ocr[$i]) ? $this->normalizeGradeStrict($ocr[$i]) : '';
+                if ($a !== $b) {
+                    $mismatches[] = ['index' => $i+1, 'serverGrade' => $a ?: '—', 'ocrGrade' => $b ?: '—'];
+                }
+            }
 
-        if (count($mismatches) > 0) {
-            return response()->json(['status' => 'fail', 'mismatches' => $mismatches]);
+            if ($mismatches) return response()->json(['status' => 'fail', 'mismatches' => $mismatches]);
+            return response()->json(['status' => 'success', 'message' => 'Grades validated successfully.']);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
-
-        return response()->json(['status' => 'success', 'message' => 'Grades validated successfully.']);
-    } catch (\Exception $e) {
-        return response()->json(['status' => 'error', 'message' => $e->getMessage()]);
     }
-}
-
 
     public function validateCogLatest()
     {
         try {
-            $txt = $this->readLatestCogOutput();
-            $result = $this->runCogValidationOnText($txt);
-            $http = ($result['ok'] ?? false) ? 200 : 422;
-            return response()->json($result, $http);
+            $txt = $this->readLatestCogOutput(); // will now be grades-only lines
+            // For grades-only, just ensure it has at least 1 line
+            $lines = array_values(array_filter(array_map('trim', preg_split('/\R/', $txt ?? ''))));
+            if (empty($lines)) return response()->json(['ok'=>false,'reason'=>'No grades found'], 422);
+
+            return response()->json(['ok'=>true,'count'=>count($lines)], 200);
         } catch (\Throwable $e) {
             return response()->json(['ok'=>false,'reason'=>$e->getMessage()], 422);
         }
     }
 
-    private function runCogValidationOnText(string $raw): array
+
+
+    private function latestGeneratedDeanForm(int $freshSeconds = 900): ?string
     {
-        // Normalize CR/NBSP/thin-space/BOM
-        $norm = str_replace("\r", '', $raw);
-        $norm = preg_replace("/\x{00A0}|\x{202F}|\x{FEFF}/u", ' ', $norm);
+        $dir = storage_path('app/public/generated');
+        if (!is_dir($dir)) return null;
 
-        // Super-tolerant delimiter: any =... OCR TEXT ...=
-        if (!preg_match('/=+\s*OCR\s*TEXT\s*=+/iu', $norm, $m, PREG_OFFSET_CAPTURE)) {
-            return ['ok' => false, 'reason' => 'Missing OCR section'];
-        }
+        $candidates = glob($dir . DIRECTORY_SEPARATOR . '*.pdf') ?: [];
+        if (!$candidates) return null;
 
-        $pos = $m[0][1];
-        $len = strlen($m[0][0]);
-        $qrBlock  = trim(substr($norm, 0, $pos));
-        $ocrBlock = trim(substr($norm, $pos + $len));
+        usort($candidates, fn($a,$b) => filemtime($b) <=> filemtime($a));
+        $latest = $candidates[0] ?? null;
+        if (!$latest || !is_file($latest)) return null;
 
-        // Debugging - Check OCR Block Extraction
-        Log::debug('OCR Block:', ['ocrBlock' => $ocrBlock]);
+        $age = time() - filemtime($latest);
+        if ($age > $freshSeconds) return null; // too old; avoid picking stale forms
 
-        // Clean up the OCR block (remove extraneous lines like timestamps, URLs, etc.)
-        $ocrBlock = $this->cleanOcrText($ocrBlock);
-
-        // Debug the cleaned OCR block
-        Log::debug('Cleaned OCR Block:', ['ocrBlock' => $ocrBlock]);
-
-        $qrRows  = $this->parseMarkdownTableRows($qrBlock);
-        $ocrRows = $this->parseMarkdownTableRows($ocrBlock);
-        if (!$ocrRows) $ocrRows = $this->parseFixedWidthOcrRows($ocrBlock);
-
-        if (!$qrRows)  return ['ok'=>false,'reason'=>'No QR rows found'];
-        if (!$ocrRows) return ['ok'=>false,'reason'=>'No OCR rows found'];
-
-        $diff = $this->diffRowsByCode($qrRows, $ocrRows);
-
-        return [
-            'ok'         => empty($diff['mismatches']) && empty($diff['missing']) && empty($diff['extra']),
-            'mismatches' => $diff['mismatches'],
-            'missing'    => $diff['missing'],
-            'extra'      => $diff['extra'],
-        ];
+        return $latest;
     }
-
-    private function cleanOcrText(string $ocrText): string
-    {
-        // Remove unnecessary sections:
-        // 1. Remove timestamps (e.g., `6/3/24, 11:27 AM`)
-        $ocrText = preg_replace('/\d{1,2}\/\d{1,2}\/\d{4}, \d{1,2}:\d{2} [APap]{2}/', '', $ocrText);
-
-        // 2. Remove URLs
-        $ocrText = preg_replace('/https?:\/\/[^\s]+/', '', $ocrText);
-
-        // 3. Remove "NOTHING FOLLOWS" line
-        $ocrText = preg_replace('/\*\* NOTHING FOLLOWS \*\*/', '', $ocrText);
-
-        // Optional: Remove extra spaces or newlines that might remain
-        $ocrText = preg_replace('/\s+/', ' ', $ocrText);
-
-        return trim($ocrText);
-    }
-
-
-    /* ===================== FINAL SUBMIT ===================== */
 
     public function submitApplication(Request $request)
     {
@@ -208,62 +166,113 @@ class ApplicationController extends Controller
             return response()->json(['ok' => false, 'message' => 'Student not logged in.'], 403);
         }
 
-        $data = $request->validate([
-            'type'             => 'nullable|string|max:100',
-            'file_name'        => 'required|string|max:255',
-            'file_data_base64' => 'required|string',
-            'gwa'              => 'nullable|numeric',
-            'rank'             => 'nullable|string|max:100',
-            'status'           => 'nullable|string|max:50',
-            'context'          => 'nullable',
-        ]);
-
-        $b64 = $data['file_data_base64'];
-        if (str_starts_with($b64, 'data:')) {
-            $comma = strpos($b64, ',');
-            $b64   = $comma !== false ? substr($b64, $comma + 1) : $b64;
+        // ---- Validate inputs (your original)
+        $isMultipart = $request->hasFile('file');
+        if ($isMultipart) {
+            $data = $request->validate([
+                'type'      => 'required|string|max:100',
+                'file_name' => 'required|string|max:255',
+                'gwa'       => 'nullable|numeric',
+                'rank'      => 'nullable|string|max:100',
+                'status'    => 'nullable|string|max:50',
+                'context'   => 'nullable',
+                'file'      => 'required|file|mimes:pdf|max:10240',
+            ]);
+            $fallbackBinary = file_get_contents($request->file('file')->getRealPath());
+            $fallbackName   = $data['file_name'];
+        } else {
+            $data = $request->validate([
+                'type'             => 'required|string|max:100',
+                'file_name'        => 'required|string|max:255',
+                'file_data_base64' => 'required|string',
+                'gwa'              => 'nullable|numeric',
+                'rank'             => 'nullable|string|max:100',
+                'status'           => 'nullable|string|max:50',
+                'context'          => 'nullable',
+            ]);
+            $b64 = $data['file_data_base64'];
+            if (str_starts_with($b64, 'data:')) {
+                $comma = strpos($b64, ',');
+                $b64   = $comma !== false ? substr($b64, $comma + 1) : $b64;
+            }
+            $fallbackBinary = base64_decode($b64, true);
+            if ($fallbackBinary === false || $fallbackBinary === null) {
+                return response()->json(['ok' => false, 'message' => 'Invalid file_data_base64.'], 422);
+            }
+            if (strlen($fallbackBinary) > 10 * 1024 * 1024) {
+                return response()->json(['ok' => false, 'message' => 'PDF is too large. Max 10MB.'], 413);
+            }
+            $fallbackName = $data['file_name'];
         }
-        $binary = base64_decode($b64, true);
-        if ($binary === false || $binary === null) {
-            return response()->json(['ok' => false, 'message' => 'Invalid file_data_base64.'], 422);
-        }
-        if (strlen($binary) > 10 * 1024 * 1024) {
-            return response()->json(['ok' => false, 'message' => 'PDF is too large. Max 10MB.'], 413);
-        }
 
-        $type   = $data['type']   ?? 'DeanLister';
-        $status = $data['status'] ?? 'Pending';
+        $type   = $data['type'] ?? 'DeanLister';
+        $status = 'For Evaluation';
 
+        // ---- derive GWA/Rank (same as yours)
         $gwaInput = $data['gwa'] ?? null;
         $gwaNum   = is_numeric($gwaInput) ? (float)$gwaInput : null;
         $rankIn   = $data['rank'] ?? null;
 
-        if ($gwaNum === null && $request->has('context')) {
+        if ($gwaNum === null && isset($data['context'])) {
             try {
-                $ctx = $request->input('context');
+                $ctx   = is_string($data['context']) ? json_decode($data['context'], true) : $data['context'];
                 $ctxGwa = data_get($ctx, 'totals.gwa');
-                if (is_numeric($ctxGwa)) $gwaNum = (float) $ctxGwa;
+                if (is_numeric($ctxGwa)) $gwaNum = (float)$ctxGwa;
             } catch (\Throwable $e) { /* ignore */ }
         }
 
-        $rankFinal = $rankIn ?: ($this->rankFromGwaNullable($gwaNum) ?? 'Unranked');
-
+        $rankFinal   = $rankIn ?: ($this->rankFromGwaNullable($gwaNum) ?? 'Unranked');
         $gwaToStore  = $gwaNum ?? 0.0;
         $rankToStore = $rankFinal ?: 'Unranked';
 
+        // ============================================================
+        // Prefer the generated Dean’s List Application form
+        // ============================================================
+        $storeBinary = $fallbackBinary;
+        $storeName   = $fallbackName;
+
+        try {
+            // If your front-end passes an explicit rel path, prefer it:
+            $ctx = isset($data['context'])
+                ? (is_string($data['context']) ? json_decode($data['context'], true) : $data['context'])
+                : null;
+
+            $explicitRel = is_array($ctx) ? ($ctx['generated_rel'] ?? null) : null;
+            $explicitAbs = $explicitRel ? storage_path('app/public/' . ltrim($explicitRel, '/')) : null;
+
+            $generatedAbs = null;
+            if ($explicitAbs && is_file($explicitAbs)) {
+                $generatedAbs = $explicitAbs;
+            } else {
+                // Or auto-pick the newest form under /public/generated (fresh within 15 min)
+                $generatedAbs = $this->latestGeneratedDeanForm(15 * 60);
+            }
+
+            if ($generatedAbs && is_file($generatedAbs)) {
+                $storeBinary = (string) file_get_contents($generatedAbs);
+                $storeName   = "Application for Dean's Lister.pdf";  // <- force the desired name
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Using fallback file (could not read generated form)', ['err' => $e->getMessage()]);
+        }
+
+        // ============================================================
+        // Save into application table
+        // ============================================================
         try {
             $app = new Application();
             $app->Student_id = $studentId;
             $app->Type       = $type;
-            $app->File_name  = $data['file_name'];
-            $app->File_data  = $binary;
+            $app->File_name  = $storeName;   // will be "Application for Dean's Lister.pdf" when found
+            $app->File_data  = $storeBinary; // the generated PDF bytes
             $app->GWA        = $gwaToStore;
             $app->Rank       = $rankToStore;
-            $app->Status     = $status ?: 'Pending';
+            $app->Status     = $status;
             $app->save();
 
+            // optional audit (unchanged)
             try {
-                if ($request->has('context')) {
+                if (isset($data['context'])) {
                     $logDir  = storage_path('app/application_logs/'.$studentId);
                     File::ensureDirectoryExists($logDir);
                     $fname = 'app_'.$app->Application_id.'_'.now()->format('Ymd_His').'.json';
@@ -272,12 +281,12 @@ class ApplicationController extends Controller
                         'Application' => [
                             'Application_id' => $app->Application_id,
                             'Type'           => $type,
-                            'File_name'      => $data['file_name'],
+                            'File_name'      => $storeName,
                             'GWA'            => $gwaToStore,
                             'Rank'           => $rankToStore,
                             'Status'         => $app->Status,
                         ],
-                        'context' => $request->input('context'),
+                        'context' => $data['context'],
                     ], JSON_PRETTY_PRINT));
                 }
             } catch (\Throwable $logErr) {
@@ -300,6 +309,8 @@ class ApplicationController extends Controller
             return response()->json(['ok' => false, 'message' => 'Unable to save application.'], 500);
         }
     }
+
+
 
     private function rankFromGwaNullable(?float $gwa): ?string
     {
@@ -362,7 +373,6 @@ class ApplicationController extends Controller
             $request->validate(['image' => 'required|file|mimes:png,jpg,jpeg|max:25600']);
         }
 
-
         $dir = storage_path('app/cog');
         File::ensureDirectoryExists($dir);
 
@@ -377,19 +387,17 @@ class ApplicationController extends Controller
                 @unlink($finalPng);
                 $request->file('pdf')->move($dir, 'cog_upload.pdf');
 
-                // 1) Extract raw text (for OCR section)
                 $ocrText = $this->pdfToText($finalPdf);
+                $this->writeOcrGradesFromText($ocrText);
 
-                // 2) Render a PNG (best effort)
+
                 $pngMade = $this->renderPdfPage1ToPng($finalPdf, $finalPng);
                 if ($pngMade) {
                     $this->cogTopContentCrop($finalPng, $finalPng);
                 } else {
-                    Log::warning('COG: PNG not created from PDF (continuing gracefully).');
+                    Log::warning('COG: PNG not created from PDF (continuing).');
                 }
-
             } else {
-                // Image branch
                 $tmp = $request->file('image')->move($dir, 'cog_upload.tmp');
                 try {
                     $this->forceToPng((string)$tmp, $finalPng);
@@ -401,7 +409,6 @@ class ApplicationController extends Controller
                 $this->cogTopContentCrop($finalPng, $finalPng);
             }
 
-            // Publish preview PNG if we have one
             $publicUrl = null;
             if ($pngMade && is_file($finalPng)) {
                 $pubRel = 'uploads/cog/cog_upload.png';
@@ -435,6 +442,21 @@ class ApplicationController extends Controller
         }
     }
 
+    private function writeOcrGradesFromText(string $ocrText): void
+    {
+        $dir = storage_path('app/cog');
+        File::ensureDirectoryExists($dir);
+
+        // Parse and normalize grades-only from OCR text
+        $grades = $this->parseGradesOnlySmart($ocrText);
+        $txt = implode("\n", $grades) . "\n";
+
+        // Save to the same file your validator reads
+        File::put($dir . DIRECTORY_SEPARATOR . 'cog_ocr_output.txt', $txt, LOCK_EX);
+
+        // Optional: also refresh the pretty markdown mirrors for debugging/UI
+        $this->writeParsedMirrors($grades, $grades);
+    }
 
     public function uploadAttachments(Request $request)
     {
@@ -498,219 +520,93 @@ class ApplicationController extends Controller
         }
     }
 
-
-public function parseAndSaveCogOutput()
-{
-    try {
-        // Get the contents of cog_output.txt and cog_ocr_output.txt
-        $qrContent = file_get_contents(storage_path('app/cog/cog_output.txt'));
-        $ocrContent = file_get_contents(storage_path('app/cog/cog_ocr_output.txt'));
-
-        // Parse the QR content
-        $ocrLines = explode("\n", $ocrContent);
-        $qrLines = explode("\n", $qrContent);
-
-        $ocrParsed = [];
-        $qrParsed = [];
-
-        // Parse OCR content for grades
-        foreach ($ocrLines as $line) {
-            if (preg_match('/\|\s*(\d+)\s*\|\s*([\d\.]+)\s*\|/', $line, $matches)) {
-                $ocrParsed[] = [
-                    'index' => $matches[1],
-                    'grade' => $matches[2],
-                ];
-            }
-        }
-
-        // Parse QR content for grades
-        foreach ($qrLines as $line) {
-            if (preg_match('/\|\s*(\d+)\s*\|\s*([\d\.]+)\s*\|/', $line, $matches)) {
-                $qrParsed[] = [
-                    'index' => $matches[1],
-                    'grade' => $matches[2],
-                ];
-            }
-        }
-
-        // Save the parsed content
-        file_put_contents(storage_path('app/cog/parse_qr_output.txt'), json_encode($qrParsed, JSON_PRETTY_PRINT));
-        file_put_contents(storage_path('app/cog/parse_ocr_output.txt'), json_encode($ocrParsed, JSON_PRETTY_PRINT));
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Files parsed and saved successfully.',
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'An error occurred: ' . $e->getMessage(),
-        ]);
-    }
-}
-
-
-    private function parseGrades(string $content): string
-    {
-        $lines = explode("\n", $content);
-        $parsedData = [];
-
-        // Parse the grades in each line (you can modify this if the format is different)
-        foreach ($lines as $line) {
-            if (preg_match('/^\| (\d+)\s*\| (\d+\.\d{2}) \|/', $line, $matches)) {
-                $parsedData[] = '|  ' . $matches[1] . '  |  ' . $matches[2] . ' |';
-            }
-        }
-
-        // Return the parsed grades in the format needed
-        return "|  #  | Grade |\n| --- |------- |\n" . implode("\n", $parsedData);
-    }
-
-
-
-        private function saveParsedData($filename, $data)
-    {
-        $filePath = storage_path('app/cog/' . $filename);
-        $content = "|  #  | Grade |\n| --- |------- |\n";
-
-        foreach ($data as $row) {
-            $content .= "|  {$row['index']}  |  {$row['grade']}  |\n";
-        }
-
-        file_put_contents($filePath, $content);
-    }
-
-
-        public function compareGrades()
-    {
-        $qrFile = storage_path('app/cog/parse_qr_output.txt');
-        $ocrFile = storage_path('app/cog/parse_ocr_output.txt');
-
-        // Read the content of both parsed files
-        $qrData = file_get_contents($qrFile);
-        $ocrData = file_get_contents($ocrFile);
-
-        // Parse the data from both files
-        $qrParsedData = $this->parseGrades($qrData);
-        $ocrParsedData = $this->parseGrades($ocrData);
-
-        // Compare the grades
-        $mismatches = $this->compareParsedGrades($qrParsedData, $ocrParsedData);
-
-        // Return mismatches if found
-        if (count($mismatches) > 0) {
-            return response()->json(['status' => 'fail', 'mismatches' => $mismatches]);
-        }
-
-        return response()->json(['status' => 'success', 'message' => 'Grades validated successfully.']);
-    }
-
-
-        private function compareParsedGrades($qrGrades, $ocrGrades)
-    {
-        $mismatches = [];
-
-        foreach ($qrGrades as $index => $qrGrade) {
-            $ocrGrade = $ocrGrades[$index] ?? null;
-
-            if ($ocrGrade && $qrGrade['grade'] !== $ocrGrade['grade']) {
-                $mismatches[] = [
-                    'index' => $qrGrade['index'],
-                    'qr_grade' => $qrGrade['grade'],
-                    'ocr_grade' => $ocrGrade['grade'],
-                ];
-            }
-        }
-
-        return $mismatches;
-    }
-
-
-
-
     /**
-     * Writes cog_output.txt exactly like your sample.
+     * FINAL: Write grades-only files + maintain parse mirrors.
+     *  - cog_output.txt        (grades-only from QR rows)
+     *  - cog_ocr_output.txt    (grades-only from OCR rows)
+     *  - parse_qr_output.txt   (markdown mirror of parsed grades from cog_output.txt)
+     *  - parse_ocr_output.txt  (markdown mirror of parsed grades from cog_ocr_output.txt)
      */
-public function saveCogOutput(Request $request)
-{
-    $dir  = storage_path('app/cog');
-    File::ensureDirectoryExists($dir);
+    public function saveCogOutput(Request $request)
+    {
+        $dir  = storage_path('app/cog');
+        File::ensureDirectoryExists($dir);
 
-    // Data from the request
-    $meta    = (array) ($request->input('meta')   ?? []);
-    $rows    = (array) ($request->input('rows')   ?? []);
-    $totals  = (array) ($request->input('totals') ?? []);
-    $qrRaw   = (string) $request->input('qr_raw', '');
-    $ocrFull = (string) $request->input('ocr_full', '');
-    $ocrJson = (string) $request->input('ocr_text', '');
-    $pdfTxt  = (string) $request->input('pdf_text', '');
+        $meta    = (array) ($request->input('meta')   ?? []);
+        $rows    = (array) ($request->input('rows')   ?? []);
+        $totals  = (array) ($request->input('totals') ?? []);
+        $qrRaw   = (string) $request->input('qr_raw', '');
+        $ocrFull = (string) $request->input('ocr_full', '');
+        $ocrJson = (string) $request->input('ocr_text', '');
+        $pdfTxt  = (string) $request->input('pdf_text', '');
 
-    $finalOcr = trim($pdfTxt) ?: trim($ocrJson) ?: trim($ocrFull) ?: '';
-    if ($finalOcr === '') {
-        $maybePdf = storage_path('app/cog/cog_upload.pdf');
-        if (is_file($maybePdf)) $finalOcr = $this->pdfToText($maybePdf);
-    }
+        // OCR text source selection (optional)
+        $finalOcr = trim($pdfTxt) ?: trim($ocrJson) ?: trim($ocrFull) ?: '';
+        if ($finalOcr === '') {
+            $maybePdf = storage_path('app/cog/cog_upload.pdf');
+            if (is_file($maybePdf)) $finalOcr = $this->pdfToText($maybePdf);
+        }
 
-    $header = (array) $request->input('header', []);
-    if (!empty($header)) $meta = $this->mapHeaderToMeta($header, $meta);
+        // Build OCR rows from text when possible
+        $ocrRows = $this->parseMarkdownTableRows($finalOcr);
+        if (!$ocrRows) $ocrRows = $this->parseFixedWidthOcrRows($finalOcr);
+        $qrRows  = $rows;
 
-    // Render QR in pretty format with header and totals
-    $prettyQr = $this->renderCogPrettyWithHeaderTableTotals($meta, $rows, $totals);
+        // pretty (for audit)
+        $prettyQr = $this->renderCogPrettyWithHeaderTableTotals($meta, $qrRows, $totals);
+        File::put($dir.DIRECTORY_SEPARATOR.'cog_output.pretty.txt', $prettyQr.PHP_EOL, LOCK_EX);
+        File::put($dir.DIRECTORY_SEPARATOR.'cog_ocr_output.pretty.txt', trim($finalOcr).PHP_EOL, LOCK_EX);
 
-    $timestamp = now()->format('Y-m-d H:i:s');
+        // GRADES-ONLY into canonical files
+        $paths = $this->writeGradesOnlyFiles($qrRows, $ocrRows); // writes cog_output.txt & cog_ocr_output.txt
 
-    // Save QR data to `cog_qr_output.txt`
-    $qrOutput = "[TIME] {$timestamp}\n[SOURCE:QR]\n{$qrRaw}\n";
-    $qrOutput .= str_repeat('=', 51)."\n\n";
-    $qrOutput .= $prettyQr . "\n";
-    
-    // Save OCR data to `cog_ocr_output.txt`
-    $ocrOutput = "===============OCR TEXT===============\n\n";
-    $ocrOutput .= trim($finalOcr)."\n";
-
-    try {
-        // Save QR to a file
-        $qrPath = $dir . DIRECTORY_SEPARATOR . 'cog_output.txt';
-        file_put_contents($qrPath, $qrOutput, LOCK_EX);
-
-        // Save OCR to a separate file
-        $ocrPath = $dir . DIRECTORY_SEPARATOR . 'cog_ocr_output.txt';
-        file_put_contents($ocrPath, $ocrOutput, LOCK_EX);
+        // keep parse mirrors in sync
+        $mirrors = $this->updateParseMirrorsFromSources();
 
         return response()->json([
-            'ok'         => true,
-            'qr_path'    => $qrPath,
-            'ocr_path'   => $ocrPath,
-            'mode'       => 'qr+ocr_separated',
+            'ok'        => true,
+            'qr_path'   => $paths['qrPath'],
+            'ocr_path'  => $paths['ocrPath'],
+            'parse_qr'  => $mirrors['qrPath'] ?? null,
+            'parse_ocr' => $mirrors['ocrPath'] ?? null,
+            'mode'      => 'grades_only',
         ]);
-    } catch (\Throwable $e) {
-        Log::error('saveCogOutput failed', ['err'=>$e->getMessage()]);
-        return response()->json(['success'=>false,'message'=>$e->getMessage()],500);
     }
-}
 
+    /* ========== Simple GETs so Blade can fetch the two grades-only files ========== */
+    // routes/web.php:
+    // Route::get('/student/cog/output', [ApplicationController::class,'getCogOutputFile'])->name('student.cog.output');
+    // Route::get('/student/cog/ocr-output', [ApplicationController::class,'getCogOcrOutputFile'])->name('student.cog.ocrOutput');
 
-    public function logJsError(Request $request)
+    public function getCogOutputFile()
     {
-        Log::error('JS Client Error', [
-            'student_id' => session('Student_id'),
-            'type'       => $request->input('type'),
-            'message'    => $request->input('message'),
-            'stack'      => $request->input('stack'),
-            'step'       => $request->input('step'),
-            'url'        => $this->safeReferer($request),
-            'ua'         => $request->userAgent(),
-        ]);
-        return response()->json(['ok'=>true]);
+        $p = storage_path('app/cog/cog_output.txt'); // grades-only
+        if (!is_file($p)) return response('', 200, ['Content-Type'=>'text/plain; charset=utf-8']);
+        return response()->file($p, ['Content-Type'=>'text/plain; charset=utf-8']);
     }
 
-    private function safeReferer(Request $r): string
+    public function getCogOcrOutputFile()
     {
-        try { return (string) $r->header('referer'); } catch (\Throwable $e) { return ''; }
+        $p = storage_path('app/cog/cog_ocr_output.txt'); // grades-only
+        if (!is_file($p)) return response('', 200, ['Content-Type'=>'text/plain; charset=utf-8']);
+        return response()->file($p, ['Content-Type'=>'text/plain; charset=utf-8']);
     }
 
-    /* ===================== JSON-DRIVEN GENERATOR ===================== */
-    
+    // Optional route for manual refresh:
+    // Route::post('/student/cog/refresh-parse', [ApplicationController::class, 'refreshParseMirrors'])
+    //     ->name('student.cog.refreshParse');
+
+    public function refreshParseMirrors()
+    {
+        try {
+            $paths = $this->updateParseMirrorsFromSources();
+            return response()->json(['ok'=>true] + $paths);
+        } catch (\Throwable $e) {
+            return response()->json(['ok'=>false,'error'=>$e->getMessage()], 500);
+        }
+    }
+
+    /* ===================== JSON-DRIVEN PDF GENERATOR ===================== */
 
     public function generateDeanListFormFromJson(Request $request)
     {
@@ -723,6 +619,7 @@ public function saveCogOutput(Request $request)
             'cog_png_path'  => 'nullable|string',
         ]);
 
+        // ============ Template ============
         $tplFromClient = $data['template_path'] ?? null;
         if ($tplFromClient && is_file($tplFromClient)) {
             $template = $tplFromClient;
@@ -740,6 +637,7 @@ public function saveCogOutput(Request $request)
             ], 404);
         }
 
+        // ============ Attachments (images for p2) ============
         $corPdf      = storage_path('app/cor/cor_upload.pdf');
         $corPngFixed = $data['cor_png_path'] ?? storage_path('app/cor/cor_upload.png');
         $cogPngFixed = $data['cog_png_path'] ?? storage_path('app/cog/cog_upload.png');
@@ -751,18 +649,19 @@ public function saveCogOutput(Request $request)
         $corPng = is_file($corPngFixed) ? str_replace('\\','/',$corPngFixed) : null;
         $cogPng = is_file($cogPngFixed) ? str_replace('\\','/',$cogPngFixed) : null;
 
+        // ============ Data ============
         $meta   = (array)($data['meta'] ?? []);
         $rowsIn = (array)($data['rows'] ?? []);
         $totals = (array)($data['totals'] ?? []);
 
         $courseRows = [];
         foreach ($rowsIn as $r) {
-            $code  = (string)($r['code']  ?? '');
-            $title = (string)($r['title'] ?? '');
-            $units = (float) ($r['units'] ?? 0);
+            $code     = (string)($r['code']  ?? '');
+            $title    = (string)($r['title'] ?? '');
+            $units    = (float) ($r['units'] ?? 0);
             $gradeVal = $r['grade'] ?? 0;
-            $grade = is_numeric($gradeVal) ? (float)$gradeVal : (float)preg_replace('/[^\d.]+/','',(string)$gradeVal);
-            $wg    = ($units > 0 && $grade > 0) ? $units * $grade : 0.0;
+            $grade    = is_numeric($gradeVal) ? (float)$gradeVal : (float)preg_replace('/[^\d.]+/','',(string)$gradeVal);
+            $wg       = ($units > 0 && $grade > 0) ? $units * $grade : 0.0;
 
             $courseRows[] = [
                 'name'  => trim($code.' '.$title),
@@ -791,6 +690,7 @@ public function saveCogOutput(Request $request)
             elseif ($g <= 1.7500)                 $rank = 'Tech Prodigy';
         }
 
+        // ============ Student ============
         $studentId = session('Student_id');
         if (!$studentId) return response()->json(['error' => 'Student not logged in.'], 403);
 
@@ -821,6 +721,7 @@ public function saveCogOutput(Request $request)
         $course        = (string)($meta['program']       ?? $programName);
         $track         = (string)($meta['track']         ?? $majorName);
 
+        // ============ Output paths ============
         $relOut = 'generated/deanslist_'.now()->format('Ymd_His').'_'.Str::random(5).'.pdf';
         $absOut = storage_path('app/public/'.$relOut);
         File::ensureDirectoryExists(dirname($absOut));
@@ -829,6 +730,7 @@ public function saveCogOutput(Request $request)
             $pdf = new Fpdi();
             $pageCount = $pdf->setSourceFile($template);
 
+            // -------- Page 1 --------
             $tpl1  = $pdf->importPage(1);
             $size1 = $pdf->getTemplateSize($tpl1);
             $pdf->AddPage($size1['orientation'], [$size1['width'], $size1['height']]);
@@ -871,12 +773,14 @@ public function saveCogOutput(Request $request)
             }
             $pdf->SetXY(160, 296.5);   $pdf->Write(0, $rank);
 
+            // -------- Page 2 --------
             if ($pageCount >= 2) {
                 $tpl2  = $pdf->importPage(2);
                 $size2 = $pdf->getTemplateSize($tpl2);
                 $pdf->AddPage($size2['orientation'], [$size2['width'], $size2['height']]);
                 $pdf->useTemplate($tpl2);
 
+                // Attachment boxes
                 $COR_BOX = ['x'=>26.0, 'y'=>18.0,  'w'=>167.0, 'h'=>118.0];
                 $COG_BOX = ['x'=>25.0, 'y'=>200.0, 'w'=>170.0, 'h'=>118.0];
                 $BLEED   = 1.5;
@@ -891,21 +795,107 @@ public function saveCogOutput(Request $request)
 
                 if ($corPng) {
                     $tmp = $this->makeCoverFitTemp($corPng, $COR_BOX['w'], $COR_BOX['h'], $COR_BIAS_Y);
-                    if ($tmp) {
-                        $pdf->Image($tmp, $COR_BOX['x'] - $BLEED/2, $COR_BOX['y'] - $BLEED/2, $COR_BOX['w'] + $BLEED, $COR_BOX['h'] + $BLEED);
-                        @unlink($tmp);
-                    } else {
-                        $this->placeContain($pdf, $corPng, $COR_BOX);
-                    }
+                    if ($tmp) { $pdf->Image($tmp, $COR_BOX['x'] - $BLEED/2, $COR_BOX['y'] - $BLEED/2, $COR_BOX['w'] + $BLEED, $COR_BOX['h'] + $BLEED); @unlink($tmp); }
+                    else { $this->placeContain($pdf, $corPng, $COR_BOX); }
                 }
                 if ($cogPng) {
                     $tmp = $this->makeCoverFitTemp($cogPng, $COG_BOX['w'], $COG_BOX['h'], $COG_BIAS_Y);
-                    if ($tmp) {
-                        $pdf->Image($tmp, $COG_BOX['x'] - $BLEED/2, $COG_BOX['y'] - $BLEED/2, $COG_BOX['w'] + $BLEED, $COG_BOX['h'] + $BLEED);
-                        @unlink($tmp);
-                    } else {
-                        $this->placeContain($pdf, $cogPng, $COG_BOX);
+                    if ($tmp) { $pdf->Image($tmp, $COG_BOX['x'] - $BLEED/2, $COG_BOX['y'] - $BLEED/2, $COG_BOX['w'] + $BLEED, $COG_BOX['h'] + $BLEED); @unlink($tmp); }
+                    else { $this->placeContain($pdf, $cogPng, $COG_BOX); }
+                }
+
+                // === Robust Program Chair + Dean resolution ===
+                try {
+                    // Resolve designation IDs (fallback to known constants from your DB)
+                    $CHAIR_ID = \App\Models\Designation::whereIn('Designation_name', [
+                        'Program Chairperson','Department Chairperson','Chairperson'
+                    ])->value('Designation_id') ?? 12;
+
+                    $DEAN_ID = \App\Models\Designation::whereIn('Designation_name', [
+                        'Dean','College Dean','Dean of College'
+                    ])->value('Designation_id') ?? 10;
+
+                    $campusId  = $curriculumAy->Campus_id  ?? null;
+                    $collegeId = $curriculumAy->College_id ?? null;
+                    $programId = $curriculumAy->Program_id ?? null;
+                    $majorId   = $curriculumAy->Major_id   ?? null;
+
+                    $compose = function ($u) {
+                        if (!$u) return '';
+                        $t = trim((string)($u->Title ?? ''));
+                        $f = strtoupper((string)($u->First_name ?? ''));
+                        $mi = $u->Middle_name ? strtoupper(substr((string)$u->Middle_name, 0, 1)).'.' : '';
+                        $l = strtoupper((string)($u->Last_name ?? ''));
+                        return trim($t.' '.$f.' '.($mi ? $mi.' ' : '').$l);
+                    };
+
+                    // Program Chair — try exact, then relax scope progressively.
+                    $chair = \App\Models\UserDesignation::with('user')
+                        ->where('designation_id', $CHAIR_ID)
+                        ->where('college_id', $collegeId)
+                        ->when($campusId,  fn($q)=>$q->where('campus_id',  $campusId))
+                        ->orderByRaw('(CASE WHEN program_id = ? THEN 0 ELSE 1 END)', [$programId])
+                        ->orderByRaw('(CASE WHEN major_id   = ? THEN 0 ELSE 1 END)', [$majorId])
+                        ->first();
+
+                    if (!$chair) {
+                        // fallback: same college, any program/major
+                        $chair = \App\Models\UserDesignation::with('user')
+                            ->where('designation_id', $CHAIR_ID)
+                            ->where('college_id', $collegeId)
+                            ->orderBy('UserDesignation_id','desc')
+                            ->first();
                     }
+
+                    $chairName     = $compose($chair?->user) ?: 'N/A';
+                    $chairPosition = 'Department Chairperson, ' . ('ITE Program');
+
+                    // Dean — prefer NULL program/major (true college dean), but accept filled ones
+                    $dean = \App\Models\UserDesignation::with('user')
+                        ->where('designation_id', $DEAN_ID)
+                        ->where('college_id', $collegeId)
+                        ->when($campusId, fn($q)=>$q->where('campus_id', $campusId))
+                        ->orderByRaw('(CASE WHEN program_id IS NULL THEN 0 ELSE 1 END)')
+                        ->orderByRaw('(CASE WHEN major_id   IS NULL THEN 0 ELSE 1 END)')
+                        ->first();
+
+                    if (!$dean) {
+                        // ultimate fallback: any dean in this college
+                        $dean = \App\Models\UserDesignation::with('user')
+                            ->where('designation_id', $DEAN_ID)
+                            ->where('college_id', $collegeId)
+                            ->orderBy('UserDesignation_id','desc')
+                            ->first();
+                    }
+
+                    $deanName     = $compose($dean?->user) ?: 'N/A';
+                    $deanPosition = 'Dean, ' . ($college ?: 'College');
+
+                    // small college-abbr stamps
+                    $pdf->SetXY(138, 238);     $pdf->SetFont('Times', '', 10); $pdf->Write(0, $collegeAbbr ?: '???');
+                    $pdf->SetXY(187.5, 242.2); $pdf->SetFont('Times', '', 10); $pdf->Write(0, $collegeAbbr ?: '???');
+                    $pdf->SetXY(192, 246.8);   $pdf->SetFont('Times', '', 10); $pdf->Write(0, $collegeAbbr ?: '???');
+
+                    // student name & section
+                    $pdf->SetFont('Times', 'B', 12);
+                    $pdf->SetXY(53, 263.5); $pdf->Write(0, "$first $middleInitial $last");
+                    $pdf->SetFont('Times', '', 11);
+                    $pdf->SetXY(53, 268);   $pdf->Write(0, $section ?: '');
+
+                    // chair (Verified by)
+                    $pdf->SetFont('Times', 'B', 12);
+                    $pdf->SetXY(53, 281.5); $pdf->Write(0, $chairName);
+                    $pdf->SetFont('Times', '', 11);
+                    $pdf->SetXY(53, 286.5); $pdf->Write(0, $chairPosition);
+
+                    // dean (Approved by) – slight right block
+                    $pdf->SetFont('Times', 'B', 12);
+                    $pdf->SetXY(53, 301.5); $pdf->Write(0, $deanName);
+                    $pdf->SetFont('Times', '', 11);
+                    $pdf->SetXY(53, 306.5); $pdf->Write(0, $deanPosition);
+
+                } catch (\Throwable $e) {
+                    \Log::warning('DLFJ page2 role fill failed', ['err'=>$e->getMessage()]);
                 }
             }
 
@@ -921,6 +911,8 @@ public function saveCogOutput(Request $request)
             return response()->json(['error'=>'PDF build failed','message'=>$e->getMessage()],500);
         }
     }
+
+
 
     public function regenerateDeanListForm() { abort(410, 'Legacy generator disabled. Use generateDeanListFormFromJson.'); }
     public function generateDeanListForm()   { abort(410, 'Legacy generator disabled. Use generateDeanListFormFromJson.'); }
@@ -1367,127 +1359,7 @@ public function saveCogOutput(Request $request)
         return implode(PHP_EOL, $lines);
     }
 
-    private function mapHeaderToMeta(array $header, array $meta = []): array
-    {
-        $meta['fullname']      = $meta['fullname']      ?? ($header['Fullname']       ?? '');
-        $meta['srcode']        = $meta['srcode']        ?? ($header['SRCODE']         ?? '');
-        $meta['college']       = $meta['college']       ?? ($header['College']        ?? '');
-        $meta['program']       = $meta['program']       ?? ($header['Program']        ?? '');
-        $meta['semester']      = $meta['semester']      ?? ($header['Semester']       ?? '');
-        $meta['year_level']    = $meta['year_level']    ?? ($header['Year Level']     ?? '');
-        $meta['academic_year'] = $meta['academic_year'] ?? ($header['Academic Year']  ?? '');
-        return $meta;
-    }
-
-    /* ===================== PDF TEXT (OCR) ===================== */
-
-    private function pdfToText(string $pdfPath): string
-    {
-        if (!is_file($pdfPath)) return '';
-
-        $bin = env('PDFTOTEXT_PATH') ?: $this->findBinary('pdftotext');
-        if (!$bin || !file_exists($bin)) {
-            Log::warning('pdftotext not found. Skipping PDF OCR.', ['env' => env('PDFTOTEXT_PATH')]);
-            return '';
-        }
-
-        try {
-            $out = sys_get_temp_dir().DIRECTORY_SEPARATOR.'txt_'.uniqid().'.txt';
-            $cmd = [$bin, '-layout', '-nopgbrk', $pdfPath, $out];
-            $this->run($cmd, 90);
-
-            $text = is_file($out) ? (string) @file_get_contents($out) : '';
-            @unlink($out);
-            return trim(str_replace("\r","",$text));
-        } catch (\Throwable $e) {
-            Log::warning('pdfToText failed', ['err'=>$e->getMessage()]);
-            return '';
-        }
-    }
-
-    /* ===================== VALIDATION (QR vs OCR) ===================== */
-    // UPDATED: tolerant split + strict per-code grade comparison that matches your UI
-
-    public function validateCogFromText(Request $req)
-    {
-
-            // Read the raw POST data
-    $rawText = $request->getContent(); // This will contain the text from your .txt files
-
-    // Now you can parse the raw text and validate it
-    $parsedData = $this->parseCogText($rawText);
-
-        $raw = (string) $req->input('text', '');
-        if ($raw === '') {
-            return response()->json(['ok' => false, 'reason' => 'Empty payload'], 422);
-        }
-
-        // Normalize CRLF, NBSP/thin-space/BOM
-        $norm = str_replace("\r", '', $raw);
-        $norm = preg_replace("/\x{00A0}|\x{202F}|\x{FEFF}/u", ' ', $norm);
-
-        // Split on any "=== OCR TEXT ===" style delimiter (tolerant)
-        $parts = preg_split('/\n\s*=+\s*OCR\s*TEXT\s*=+\s*\n/i', $norm, 2);
-        if (!$parts || count($parts) < 2) {
-            return response()->json(['ok' => false, 'reason' => 'Missing OCR section'], 422);
-        }
-        $qrBlock  = trim($parts[0]);
-        $ocrBlock = trim($parts[1]);
-
-        // Parse QR (markdown table) and OCR (markdown or fixed-width)
-        $qrRows  = $this->parseMarkdownTableRows($qrBlock);
-        $ocrRows = $this->parseMarkdownTableRows($ocrBlock);
-        if (!$ocrRows) $ocrRows = $this->parseFixedWidthOcrRows($ocrBlock);
-
-        if (!$qrRows)  return response()->json(['ok'=>false,'reason'=>'No QR rows found'], 422);
-        if (!$ocrRows) return response()->json(['ok'=>false,'reason'=>'No OCR rows found'], 422);
-
-        // Compare by course code (grades normalized: 150→1.50, etc.)
-        $diff = $this->diffRowsByCode($qrRows, $ocrRows);
-
-        return response()->json([
-            'ok'         => empty($diff['mismatches']) && empty($diff['missing']) && empty($diff['extra']),
-            'mismatches' => $diff['mismatches'], // [{code,title,qr,ocr}]
-            'missing'    => $diff['missing'],    // present in QR but not in OCR
-            'extra'      => $diff['extra'],      // present in OCR but not in QR
-        ]);
-    }
-
-    public function parseCogText($rawText)
-{
-    // Split the raw text into lines
-    $lines = explode("\n", $rawText);
-    $meta = [];
-    $grades = [];
-
-    // Parse the header (e.g., fullname, SRCODE, etc.)
-    foreach ($lines as $line) {
-        if (preg_match('/Fullname\s*:\s*(.*)/', $line, $matches)) {
-            $meta['fullname'] = $matches[1];
-        } elseif (preg_match('/SRCODE\s*:\s*(.*)/', $line, $matches)) {
-            $meta['srcode'] = $matches[1];
-        }
-        // Continue for other meta fields like College, Program, etc.
-    }
-
-    // Parse the grades table
-    foreach ($lines as $line) {
-        if (preg_match('/(\d+)\s+([A-Za-z0-9]+)\s+(.+)\s+(\d+)\s+(\d\.\d{2})\s+([A-Za-z0-9-]+)\s+(.+)/', $line, $matches)) {
-            $grades[] = [
-                'index' => $matches[1],
-                'course_code' => $matches[2],
-                'course_title' => $matches[3],
-                'units' => $matches[4],
-                'grade' => $matches[5],
-                'section' => $matches[6],
-                'instructor' => $matches[7],
-            ];
-        }
-    }
-
-    return ['meta' => $meta, 'grades' => $grades];
-}
-
+    /* ===================== OCR/QR PARSERS (ROWS + GRADES) ===================== */
 
     private function parseMarkdownTableRows(string $block): array
     {
@@ -1514,13 +1386,11 @@ public function saveCogOutput(Request $request)
         return $rows;
     }
 
-    /** Robust parser for fixed-width OCR tables (pdftotext -layout). */
     private function parseFixedWidthOcrRows(string $block): array
     {
         $lines = preg_split('/\R/', $block);
         if (!$lines) return [];
 
-        // Find header line
         $hdrIdx = null;
         foreach ($lines as $i => $l) {
             if (preg_match('/#\s+Course\s+Code\s+Course\s+Title\s+Units\s+Grade\s+Section\s+Instructor/i', $l)) {
@@ -1600,7 +1470,6 @@ public function saveCogOutput(Request $request)
             return $rows;
         }
 
-        // last resort: forgiving regex scan
         for ($i = $startIdx; $i < count($lines); $i++) {
             $line = rtrim($lines[$i], "\r\n");
             if (trim($line) === '' || preg_match('/^\s*[-\u2500]+/u', $line)) continue;
@@ -1621,8 +1490,6 @@ public function saveCogOutput(Request $request)
         }
         return $rows;
     }
-
-    
 
     private function normGrade(string $g): string
     {
@@ -1658,12 +1525,204 @@ public function saveCogOutput(Request $request)
             }
         }
 
-        $missing = []; // in QR but not in OCR
+        $missing = [];
         foreach ($qrBy as $k => $qr) if (!isset($ocrBy[$k])) $missing[] = $qr;
 
-        $extra = [];   // in OCR but not in QR
+        $extra = [];
         foreach ($ocrBy as $k => $ocr) if (!isset($qrBy[$k])) $extra[] = $ocr;
 
         return compact('mismatches','missing','extra');
+    }
+
+    /* ===================== “GRADES-ONLY” + PARSE MIRROR HELPERS ===================== */
+
+    private function normalizeGradeStrict(?string $g): string
+    {
+        $t = strtoupper(trim((string)$g));
+        if ($t === '100') return '1.00';
+        if ($t === '150') return '1.50';
+        if ($t === '200') return '2.00';
+        if (is_numeric($t)) return number_format((float)$t, 2, '.', '');
+        $t = preg_replace('/[^0-9.]/', '', $t ?? '');
+        return $t !== '' && is_numeric($t) ? number_format((float)$t, 2, '.', '') : '';
+    }
+
+    /** Write “grades-only” list (one per line) for the two canonical files. */
+    private function writeGradesOnlyFiles(array $qrRows, array $ocrRows): array
+    {
+        $dir = storage_path('app/cog');
+        File::ensureDirectoryExists($dir);
+
+        $qrGrades  = array_values(array_filter(array_map(fn($r)=>$this->normalizeGradeStrict($r['grade'] ?? ''), $qrRows)));
+        $ocrGrades = array_values(array_filter(array_map(fn($r)=>$this->normalizeGradeStrict($r['grade'] ?? ''), $ocrRows)));
+
+        $qrTxt  = implode("\n", $qrGrades)  . "\n";
+        $ocrTxt = implode("\n", $ocrGrades) . "\n";
+
+        $qrPath  = $dir.DIRECTORY_SEPARATOR.'cog_output.txt';
+        $ocrPath = $dir.DIRECTORY_SEPARATOR.'cog_ocr_output.txt';
+
+        File::put($qrPath,  $qrTxt,  LOCK_EX);
+        File::put($ocrPath, $ocrTxt, LOCK_EX);
+
+        // optional “full” copies (same content here)
+        File::put($dir.DIRECTORY_SEPARATOR.'cog_output.full.txt',     $qrTxt,  LOCK_EX);
+        File::put($dir.DIRECTORY_SEPARATOR.'cog_ocr_output.full.txt', $ocrTxt, LOCK_EX);
+
+        return compact('qrPath','ocrPath');
+    }
+
+    /** Extract grades from a markdown table block. */
+    private function parseGradesOnlyFromMarkdown(string $text): array
+    {
+        $out = [];
+        foreach (preg_split('/\R/', $text) as $line) {
+            if (preg_match('/^\|\s*\d+\s*\|[^|]*\|[^|]*\|\s*\d+\s*\|\s*([0-9.]+)\s*\|/u', trim($line), $m)) {
+                $out[] = $this->normalizeGradeStrict($m[1]);
+            }
+        }
+        return array_values(array_filter($out));
+    }
+
+    /** Extract grades from OCR-ish spaced text. */
+    private function parseGradesOnlyFromPlain(string $text): array
+    {
+        $out = [];
+        foreach (preg_split('/\R/', $text) as $raw) {
+            $line = trim(preg_replace('/\s{2,}/', ' ', $raw));
+            if ($line === '') continue;
+
+            if (preg_match('/^\d+\s+.+?\s+\d{1,2}\s+([0-9.]{1,5}|100|150|200)\s+[A-Za-z0-9-]+(?:\s|$)/', $line, $m)) {
+                $out[] = $this->normalizeGradeStrict($m[1]); continue;
+            }
+            if (preg_match_all('/(?:^|\s)([0-9]\.[0-9]{1,4}|100|150|200)(?:\s|$)/', $line, $all)) {
+                $last = end($all[1]);
+                if ($last !== false) $out[] = $this->normalizeGradeStrict($last);
+            }
+        }
+        return array_values(array_filter($out));
+    }
+
+    private function parseGradesOnlySmart(string $text): array
+    {
+        $mk = $this->parseGradesOnlyFromMarkdown($text);
+        if (!empty($mk)) return $mk;
+        return $this->parseGradesOnlyFromPlain($text);
+    }
+
+    /** Save parsed grades to parse_qr_output.txt & parse_ocr_output.txt (markdown table). */
+    private function writeParsedMirrors(array $qrGrades, array $ocrGrades): array
+    {
+        $dir = storage_path('app/cog');
+        File::ensureDirectoryExists($dir);
+
+        $mk = function(array $grades): string {
+            $lines = ["|  #  | Grade |", "| --- | ------|"];
+            foreach ($grades as $i => $g) {
+                $lines[] = sprintf("|  %d  |  %s  |", $i+1, $this->normalizeGradeStrict($g));
+            }
+            return implode(PHP_EOL, $lines) . PHP_EOL;
+        };
+
+        $qrPath  = $dir.DIRECTORY_SEPARATOR.'parse_qr_output.txt';
+        $ocrPath = $dir.DIRECTORY_SEPARATOR.'parse_ocr_output.txt';
+
+        File::put($qrPath,  $mk($qrGrades),  LOCK_EX);
+        File::put($ocrPath, $mk($ocrGrades), LOCK_EX);
+
+        return compact('qrPath','ocrPath');
+    }
+
+    /** Read cog_output.txt & cog_ocr_output.txt, parse, then write parse mirrors. */
+    private function updateParseMirrorsFromSources(): array
+    {
+        $dir = storage_path('app/cog');
+        $qrSrc  = $dir.DIRECTORY_SEPARATOR.'cog_output.txt';
+        $ocrSrc = $dir.DIRECTORY_SEPARATOR.'cog_ocr_output.txt';
+
+        $qrRaw  = is_file($qrSrc)  ? (string) file_get_contents($qrSrc)  : '';
+        $ocrRaw = is_file($ocrSrc) ? (string) file_get_contents($ocrSrc) : '';
+
+        $qrGrades  = $this->parseGradesOnlySmart($qrRaw);
+        if (empty($qrGrades)) {
+            $qrGrades = array_values(array_filter(array_map('trim', preg_split('/\R/', $qrRaw ?? ''))));
+        }
+        $ocrGrades = $this->parseGradesOnlySmart($ocrRaw);
+        if (empty($ocrGrades)) {
+            $ocrGrades = array_values(array_filter(array_map('trim', preg_split('/\R/', $ocrRaw ?? ''))));
+        }
+
+        return $this->writeParsedMirrors($qrGrades, $ocrGrades);
+    }
+
+    /* ===================== PDF TEXT (OCR) + CLEANERS ===================== */
+
+    private function pdfToText(string $pdfPath): string
+    {
+        if (!is_file($pdfPath)) return '';
+
+        $bin = env('PDFTOTEXT_PATH') ?: $this->findBinary('pdftotext');
+        if (!$bin || !file_exists($bin)) {
+            Log::warning('pdftotext not found. Skipping PDF OCR.', ['env' => env('PDFTOTEXT_PATH')]);
+            return '';
+        }
+
+        try {
+            $out = sys_get_temp_dir().DIRECTORY_SEPARATOR.'txt_'.uniqid().'.txt';
+            $cmd = [$bin, '-layout', '-nopgbrk', $pdfPath, $out];
+            $this->run($cmd, 90);
+
+            $text = is_file($out) ? (string) @file_get_contents($out) : '';
+            @unlink($out);
+            return trim(str_replace("\r","",$text));
+        } catch (\Throwable $e) {
+            Log::warning('pdfToText failed', ['err'=>$e->getMessage()]);
+            return '';
+        }
+    }
+
+    /* ===================== (Optional) Raw validator kept for completeness ===================== */
+
+    public function validateCogFromText(Request $request)
+    {
+        $raw = (string) $request->input('text', '');
+        if ($raw === '') {
+            return response()->json(['ok' => false, 'reason' => 'Empty payload'], 422);
+        }
+
+        $norm = str_replace("\r", '', $raw);
+        $norm = preg_replace("/\x{00A0}|\x{202F}|\x{FEFF}/u", ' ', $norm);
+
+        $parts = preg_split('/\n\s*=+\s*OCR\s*TEXT\s*=+\s*\n/i', $norm, 2);
+        if (!$parts || count($parts) < 2) {
+            return response()->json(['ok' => false, 'reason' => 'Missing OCR section'], 422);
+        }
+        $qrBlock  = trim($parts[0]);
+        $ocrBlock = trim($parts[1]);
+
+        $qrRows  = $this->parseMarkdownTableRows($qrBlock);
+        $ocrRows = $this->parseMarkdownTableRows($ocrBlock);
+        if (!$ocrRows) $ocrRows = $this->parseFixedWidthOcrRows($ocrBlock);
+
+        if (!$qrRows)  return response()->json(['ok'=>false,'reason'=>'No QR rows found'], 422);
+        if (!$ocrRows) return response()->json(['ok'=>false,'reason'=>'No OCR rows found'], 422);
+
+        $diff = $this->diffRowsByCode($qrRows, $ocrRows);
+
+        return response()->json([
+            'ok'         => empty($diff['mismatches']) && empty($diff['missing']) && empty($diff['extra']),
+            'mismatches' => $diff['mismatches'],
+            'missing'    => $diff['missing'],
+            'extra'      => $diff['extra'],
+        ]);
+    }
+
+    private function cleanOcrText(string $ocrText): string
+    {
+        $ocrText = preg_replace('/\d{1,2}\/\d{1,2}\/\d{4}, \d{1,2}:\d{2} [APap]{2}/', '', $ocrText);
+        $ocrText = preg_replace('/https?:\/\/[^\s]+/', '', $ocrText);
+        $ocrText = preg_replace('/\*\* NOTHING FOLLOWS \*\*/', '', $ocrText);
+        $ocrText = preg_replace('/\s+/', ' ', $ocrText);
+        return trim($ocrText);
     }
 }

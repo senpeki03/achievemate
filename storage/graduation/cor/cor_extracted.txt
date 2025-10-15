@@ -1,0 +1,48 @@
+Reference No. BatStateU-FO-REG-1	Effectivity: May 18, 2022	Revision No. 02
+Republic of the Philippines
+BATANGAS STATE UNIVERSITY
+The National Engineering University
+ARASOF-Nasugbu Campus
+R. Martinez St., Brgy. Bucana, Nasugbu Batangas
+College of Informatics and Computing Sciences
+SECOND, 2024-2025
+REGISTRATION FORM
+SR Code:22-77832	Sex: MALE
+Name: TAMPIS, JAZTIN SHANE A.	Program:BS Information Technology -BA/THIRD
+COURSE CODE	COURSE TITLE	UNIT(S)
+SECTION
+IT 321Human-Computer Interaction	3 (IT-BA-3201)
+BAT 403Fundamentals of Enterprise Data Management	3 (IT-BA-3201)
+BAT 404Analytics Techniques and Tools	3 (IT-BA-3201)
+IT 323Information Assurance and Security	3 (IT-BA-3201)
+IT 325IT Project Management	3 (IT-BA-3201)
+IT 322Advanced Systems Integration and Architecture	3 (IT-BA-3201)
+IT 324Capstone Project 1	3 (IT-BA-3201)
+  	21
+Scholarship/s:
+Higher Education Support Program : Free Tuition 2024
+(*) Discount has been deducted.
+Tuition Fee Discount=4,641.00
+Assessment Discount=5,615.00
+ASSESSMENT
+Tuition Fee (221.00/unit)4,641.00
+Library Fee 622.00
+Registration Fee 260.00
+Athletic Fee 380.00
+Publication Fee 380.00
+Medical / Dental Fee380.00
+Guidance Fee 260.00
+Laboratory Fee 751.00
+Cultural Fee 173.00
+Internet Fee 300.00
+Security*	173.00
+HEMF (86.00/unit)*1,806.00
+SCUAA	130.00
+10,256.00
+DISCOUNT	(10,256.00)
+TOTAL(PHP)	0.00
+* under appeal
+Approved by:
+ERWIN R. ABIAD
+HEAD, REGISTRATION
+Date : 01/06/2025

@@ -1,255 +1,102 @@
 <?php
-
+// app/Observers/ApplicationObserver.php
 namespace App\Observers;
 
 use App\Models\Application;
-use App\Models\Portfolio;                 // ⬅️ NEW
-use App\Models\StudentNotification;
-use App\Mail\DeansListApprovedMail;
-use App\Services\CertificateImageService;
-use Illuminate\Support\Facades\DB;
+use App\Models\StudentManage;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
+use App\Mail\DeansListApprovedMail;
 
 class ApplicationObserver
 {
     public function updated(Application $app): void
     {
-        // Only when Status actually becomes “Approved”
-        if (!$app->wasChanged('Status')) return;
-        if (strcasecmp((string) $app->Status, 'Approved') !== 0) return;
-
-        /* ---------------- 1) Student + Program (defensive) ---------------- */
-        $student = DB::table('student_manage')->where('Student_id', $app->Student_id)->first();
-
-        $studentName = 'Student';
-        $programLine = '';
-        if ($student) {
-            $studentName = trim(
-                ($student->First_name ?? '') . ' ' .
-                ($student->Middle_name ?? '') . ' ' .
-                ($student->Last_name ?? '')
-            ) ?: 'Student';
-
-            $programLine = $student->Program_name ?? $student->Course ?? '';
-        }
-
-        /* ---------------- 2) AY / Semester (defensive) -------------------- */
-        $semester = '';
-        $schoolYear = '';
-        try {
-            $schema = DB::getSchemaBuilder();
-            $semCol = $schema->hasColumn('curriculum_ay', 'Semester')    ? 'Semester'
-                    : ($schema->hasColumn('curriculum_ay', 'semester')    ? 'semester' : null);
-            $syCol  = $schema->hasColumn('curriculum_ay', 'School_year') ? 'School_year'
-                    : ($schema->hasColumn('curriculum_ay', 'school_year') ? 'school_year' : null);
-
-            if ($semCol || $syCol) {
-                $ay = DB::table('student_manage as sm')
-                    ->leftJoin('curriculum as c', 'c.Curriculum_id', '=', 'sm.Curriculum_id')
-                    ->leftJoin('curriculum_ay as cay', 'cay.CurriculumAy_id', '=', 'c.CurriculumAy_id')
-                    ->where('sm.Student_id', $app->Student_id)
-                    ->selectRaw(
-                        ($semCol ? "COALESCE(cay.$semCol,'')" : "''") . " as sem, " .
-                        ($syCol  ? "COALESCE(cay.$syCol,'')"  : "''") . " as sy"
-                    )
-                    ->first();
-
-                $semester   = $ay->sem ?? '';
-                $schoolYear = $ay->sy  ?? '';
-            }
-        } catch (\Throwable $e) {
-            Log::warning('AY lookup skipped', ['app_id' => $app->Application_id, 'err' => $e->getMessage()]);
-        }
-
-        /* ---------------- 3) Generate PNG certificate --------------------- */
-        $pngAbs = null;                                     // absolute path returned by the service
-        $outRel = 'cor/cert_' . (int) $app->Application_id . '.png'; // relative path on the "public" disk
-        $certUrl = null;                                    // public URL for UI/email
+        // only when status transitions to Approved
+        $was = $app->getOriginal('Status');
+        $now = $app->Status;
+        if ($was === 'Approved' || $now !== 'Approved') return;
 
         try {
-            if (!extension_loaded('gd')) {
-                Log::warning('Skipping PNG generation (GD extension missing)', [
-                    'app_id' => $app->Application_id,
-                ]);
-            } else {
-                /** @var CertificateImageService $cert */
-                $cert = app(CertificateImageService::class);
+            // load student + login + program/college for email + details
+            $student = StudentManage::with(['login','program.college'])
+                ->where('Student_id', $app->Student_id)
+                ->first();
 
-                // Prefer Poppler-produced page if available; fallback to static template
-                $templateAbs = $this->resolveTemplateAbs($app);
+            // username in `login` table is the email
+            $email = $student?->login?->username;  // <— THIS is your email
 
-                if (!$templateAbs || !is_file($templateAbs)) {
-                    Log::warning('Template PNG missing', ['template' => $templateAbs]);
-                } else {
-                        $pngAbs = $cert->makeDeansCertPng([
-                            'app_id'        => (int) $app->Application_id,
-                            'student_name'  => $studentName,
-                            'program'       => $programLine,
-                            'gwa'           => $app->GWA ?? $app->gwa ?? '',
-                            'semester'      => $semester,
-                            'school_year'   => $schoolYear,
-                            'date_conferred'=> now()->format('F d, Y'),
-                            'template_png'  => $templateAbs,
-                            'out_rel'       => $outRel,
-                        ]);
+            // safety fallbacks if you also mirror email on StudentManage
+            $email = $email ?? $student?->username ?? $student?->email ?? null;
 
-                    if (!Storage::disk('public')->exists($outRel)) {
-                        Log::warning('PNG not created on public disk', [
-                            'app_id' => $app->Application_id,
-                            'rel'    => $outRel,
-                            'abs'    => $pngAbs,
-                        ]);
-                        $pngAbs = null;
-                        $outRel = null;
-                    } else {
-                        $certUrl = Storage::disk('public')->url($outRel);
-                        Log::info('Cert: PNG generated', [
-                            'app_id' => $app->Application_id,
-                            'rel'    => $outRel,
-                            'abs'    => $pngAbs,
-                            'url'    => $certUrl,
-                        ]);
-                    }
-                }
-            }
-        } catch (\Throwable $e) {
-            Log::error('PNG certificate generation failed', [
-                'app_id' => $app->Application_id,
-                'err'    => $e->getMessage(),
-            ]);
-            $pngAbs = null;
-            $outRel = null;
-        }
-
-        /* ---------------- 3.5) UPSERT to portfolios ----------------------- */
-        // UI reads from portfolios and/or notifications. Ensure portfolios has the relative path.
-        try {
-            if ($outRel) {
-                Portfolio::updateOrCreate(
-                    [
-                        'Student_id' => (int) $app->Student_id,
-                        'type'       => 'DeanLister',
-                        'title'      => 'Dean’s Lister',
-                    ],
-                    [
-                        'description'      => 'Auto-added on approval',
-                        'certificate_path' => $outRel, // RELATIVE (e.g., cor/cert_44.png)
-                        'badge_path'       => null,
-                    ]
-                );
-                Log::info('Portfolio upserted with cert path', [
-                    'student_id' => (int) $app->Student_id,
-                    'app_id'     => (int) $app->Application_id,
-                    'rel'        => $outRel,
-                ]);
-            }
-        } catch (\Throwable $e) {
-            Log::error('Portfolio upsert failed', [
-                'app_id' => $app->Application_id,
-                'err'    => $e->getMessage(),
-            ]);
-        }
-
-        /* ---------------- 4) In-app notification -------------------------- */
-        try {
-            StudentNotification::create([
-                'Student_id'  => (int) $app->Student_id,
-                'type'        => 'deans_lister_award',
-                'title'       => "Dean’s Lister Award",
-                'message'     => "You qualified for Dean’s Lister. Tap to claim your badge and certificate.",
-                'data'        => [
-                    'application_id'   => (int) $app->Application_id,
-                    'certificate_path' => $outRel,  // ⬅️ RELATIVE for controller check
-                    'certificate_url'  => $certUrl, // optional convenience for links
-                    'badge_path'       => 'assets/badges/deans_lister.png',
-                    'semester'         => $semester,
-                    'school_year'      => $schoolYear,
-                    'program'          => $programLine,
-                ],
-                'claim_token' => Str::random(40),
-                'claimable'   => true,
-                'is_read'     => false,
-            ]);
-        } catch (\Throwable $e) {
-            Log::error('Creating StudentNotification failed', [
-                'app_id' => $app->Application_id,
-                'err'    => $e->getMessage(),
-            ]);
-        }
-
-        /* ---------------- 5) Email (attach if present) -------------------- */
-        try {
-            $to = DB::table('login as l')
-                ->join('student_manage as sm', 'sm.Login_id', '=', 'l.Login_id')
-                ->where('sm.Student_id', $app->Student_id)
-                ->value('l.username');
-
-            if (!$to || !str_contains($to, '@')) {
-                Log::warning('No valid login.username to email', [
+            if (!$email) {
+                Log::warning('DeansList mail: missing login email', [
                     'student_id' => $app->Student_id,
-                    'resolved'   => $to,
-                    'app_id'     => $app->Application_id,
+                    'application_id' => $app->Application_id ?? $app->id,
                 ]);
                 return;
             }
 
-            $mailable = new DeansListApprovedMail($studentName, $certUrl);
+            // ——— Build data for your existing Mailable ———
+            $studentName = $student?->Fullname
+                         ?? $student?->full_name
+                         ?? trim(($student?->FirstName ?? '').' '.($student?->LastName ?? ''))
+                         ?: 'Student';
 
-            if ($outRel && Storage::disk('public')->exists($outRel)) {
-                $mailable->attachFromStorageDisk(
-                    'public',
-                    $outRel,
-                    'deans_certificate.png',
-                    ['mime' => 'image/png']
-                );
-            }
+            $studentNo   = $student?->Student_no
+                         ?? $student?->student_no
+                         ?? (string)($student?->Student_id ?? $app->Student_id);
 
-            Mail::to($to)->send($mailable);
-            Log::info('DeansListApprovedMail sent', ['to' => $to, 'app_id' => $app->Application_id]);
-        } catch (\Throwable $e) {
-            Log::error('Email send failed', ['app_id' => $app->Application_id, 'err' => $e->getMessage()]);
-        }
-    }
+            $programName = $student?->program?->Program_name
+                         ?? $student?->program_name
+                         ?? '—';
 
-    /**
-     * Resolve the ABSOLUTE path to the template PNG to render on:
-     * - Prefer the Poppler-generated page saved as Application->cor_png_basename (REL path under storage/app).
-     * - Handle odd suffix variants (.png, .page1.png, .png.page1.png).
-     * - Fallback to public/img/cert/dean-template.png if none found.
-     */
-    protected function resolveTemplateAbs(Application $app): ?string
-    {
-        // If you saved the Poppler output basename (recommended)
-        $rel = (string) ($app->cor_png_basename ?? '');
-        if ($rel !== '') {
-            $rel = ltrim($rel, '/');
-            if (!str_starts_with($rel, 'cor/')) {
-                $rel = 'cor/' . $rel;
-            }
+            $collegeName = $student?->program?->college?->College_name
+                         ?? $student?->college?->College_name
+                         ?? '—';
 
-            // try exact first
-            $cand = Storage::path($rel);
-            if (is_file($cand)) return $cand;
+            $yearLevel   = (string)($app->YearLevel ?? $app->year_level ?? $student?->YearLevel ?? '—');
 
-            // try common variants when basename was stored without final suffixes
-            $base = preg_replace('/(\.png)?(\.page\d+)?(\.png)?$/i', '', $rel);
-            $variants = [
-                $base . '.png.page1.png',
-                $base . '.png.page1',
-                $base . '.page1.png',
-                $base . '.png',
+            $gwaVal      = $app->GWA ?? $app->gwa ?? null;
+            $gwaTxt      = is_numeric($gwaVal) ? number_format((float)$gwaVal, 2) : '—';
+
+            $rankTxt     = $app->rank ?? $app->distinction ?? 'Dean’s Lister';
+            $termTxt     = $app->term ?? (now()->month <= 5 ? '2nd Semester' : '1st Semester');
+            $ayTxt       = $app->ay   ?? sprintf('%d-%d', now()->year, now()->addYear()->year);
+
+            $downloadLink = route('dean.certificate.download', [
+                'application' => $app->Application_id ?? $app->id,
+            ]);
+
+            $data = [
+                'studentName'        => $studentName,
+                'studentId'          => $studentNo,
+                'program'            => $programName,
+                'yearLevel'          => $yearLevel,
+                'college'            => $collegeName,
+                'gwa'                => $gwaTxt,
+                'rankOrDistinction'  => $rankTxt,
+                'term'               => $termTxt,
+                'ay'                 => $ayTxt,
+                'downloadLink'       => $downloadLink,
+                'universityName'     => config('app.university_name', 'Your University'),
+                'deanName'           => config('app.dean_name', 'Dean'), // don’t rely on auth() in observers
+                'deanTitle'          => config('app.dean_title', 'Dean'),
+                'systemName'         => config('app.name'),
+                'supportEmail'       => config('mail.from.address'),
             ];
-            foreach ($variants as $v) {
-                $p = Storage::path($v);
-                if (is_file($p)) return $p;
-            }
-        }
 
-        // Fallback: static template in public
-        $fallback = public_path('img/cert/dean-template.png');
-        return is_file($fallback) ? $fallback : null;
+            Mail::to($email)->send(new DeansListApprovedMail($data));
+
+            Log::info('DeansList mail sent', [
+                'to' => $email,
+                'application_id' => $app->Application_id ?? $app->id
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Email send failed', [
+                'app_id' => $app->Application_id ?? $app->id,
+                'err'    => $e->getMessage()
+            ]);
+        }
     }
 }

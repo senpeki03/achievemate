@@ -1,0 +1,115 @@
+/* Page base */
+body {
+  background-color: #f5f7fb;
+  font-family: "Poppins", sans-serif;
+}
+
+/* Optional header inside content (layout handles the global navbar) */
+.page-header {
+  background-color: #fff;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  margin: 10px auto 0;
+  max-width: 950px;
+  border: 1px solid #e8eef7;
+}
+
+/* Card */
+.profile-container {
+  max-width: 950px;
+  margin: 20px auto 30px;
+  background: #fff;
+  border-radius: 15px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  padding: 30px;
+}
+
+/* Header block */
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 25px;
+  border-bottom: 2px solid #e8eef7;
+  padding-bottom: 20px;
+}
+
+/* Avatar + camera */
+.profile-img-container {
+  position: relative;
+  width: 130px;
+  height: 130px;
+}
+
+.profile-img {
+  width: 130px;
+  height: 130px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 3px solid #002b5b;
+}
+
+.camera-icon {
+  position: absolute;
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #002b5b;
+  color: white;
+  border-radius: 50%;
+  padding: 8px;
+  cursor: pointer;
+  font-size: 18px;
+  transition: 0.3s;
+}
+.camera-icon:hover { background-color: #004080; }
+.camera-icon input { display: none; }
+
+/* Texts */
+.profile-details h4 {
+  margin: 0;
+  color: #002b5b;
+  font-weight: 600;
+}
+.profile-details p {
+  margin: 4px 0;
+  color: #555;
+}
+.highlight { color: #d32f2f; font-weight: 500; }
+
+/* Table */
+.info-table {
+  margin-top: 25px;
+  width: 100%;
+  border-collapse: collapse;
+}
+.info-table th {
+  width: 30%;
+  background-color: #e9f0fa;
+  padding: 12px 15px;
+  color: #002b5b;
+  font-weight: 600;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+.info-table td {
+  background-color: #f9fbff;
+  padding: 12px 15px;
+  border-bottom: 1px solid #ddd;
+}
+
+/* Buttons */
+.btn-edit, .btn-save {
+  margin-top: 20px;
+  border-radius: 10px;
+  padding: 8px 20px;
+}
+.btn-edit {
+  background-color: #002b5b;
+  color: white;
+}
+.btn-edit:hover { background-color: #004080; }
+.btn-save {
+  background-color: #198754;
+  color: white;
+}
+.btn-save:hover { background-color: #157347; }

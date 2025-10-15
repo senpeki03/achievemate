@@ -108,7 +108,7 @@ class DeansHonorListController extends Controller
         // FIX 2: restrict Program Chair to setting only "Verified"
         $request->validate([
             'id'     => 'required|integer|exists:application,Application_id',
-            'status' => 'required|in:Verified',
+            'status' => 'required|in:For Approval',
         ]);
 
         $application = Application::find($request->id);
@@ -116,8 +116,7 @@ class DeansHonorListController extends Controller
             return response()->json(['message' => 'Application not found'], 404);
         }
 
-        // FIX 3: write to the correct column name directly
-        $application->Status = 'Verified';
+        $application->Status = 'For Approval';
         $application->save();
 
         return response()->json(['ok' => true, 'message' => 'Status updated successfully']);
@@ -131,7 +130,7 @@ class DeansHonorListController extends Controller
         ]);
 
         Application::whereIn('Application_id', $data['application_ids'])
-            ->update(['Status' => 'Verified']);
+            ->update(['Status' => 'For Approval']);
 
         return response()->json(['ok' => true, 'message' => 'Selected applications verified.']);
     }

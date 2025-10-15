@@ -11,7 +11,7 @@
       <thead class="table-light">
         <tr>
           <th style="width:60px;">#</th>
-          <th style="width:35%;">File</th>
+          <th style="width:35%;">Type</th>
           <th style="width:12%;">GWA</th>
           <th style="width:12%;">Rank</th>
           <th>Status</th>

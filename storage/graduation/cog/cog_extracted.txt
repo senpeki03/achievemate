@@ -1,0 +1,92 @@
+REPORT OF GRADES
+SRCODE: 22-77832
+FULLNAME: TAMPIS, JAZTIN SHANE APOLONIO
+BS INFORMATION TECHNOLOGY
+SUMMER AY 2024-2025
+Code	Description	Credits Grade	Instructor
+IT 331 Application Development and Emerging Technologies	3 INC	HERNANDEZ, OLIVER M.
+IT 332 Integrative Programming and Technologies	3 1.75 CONCEPCION, ROMEO JR. A.
+Total Subjects : 2	GWA : 1.7500
+SECOND SEMESTER AY 2024-2025
+Code	Description	Credits Grade	Instructor
+IT 322 Advanced Systems Integration and Architecture	3 1.75 PAYTAREN, ALBERT V.
+BAT 404Analytics Techniques and Tools	3 2.00 ATIENZA, ALFREDO V. JR
+IT 324 Capstone Project 1	3 2.50 SALAC, RENZ MERVIN A.
+BAT 403Fundamentals of Enterprise Data Management	3 2.75 SALAC, DJOANNA MARIE V.
+IT 321 Human-Computer Interaction	3 1.50 DE JESUS, NOELYN M.
+IT 323 Information Assurance and Security	3 1.75 HERNANDEZ, OLIVER M.
+IT 325 IT Project Management	3 2.50 SAMONTE, BENJIE R.
+Total Subjects : 7	GWA : 2.1071
+FIRST SEMESTER AY 2024-2025
+Code	Description	Credits Grade	Instructor
+GEd 107 Ethics	3 2.25 JAPAY, MARIA VANETTE O.
+BAT 402Fundamentals of Analytics Modeling	3 2.00 ATIENZA, ALFREDO V. JR
+BAT 401Fundamentals of Business Analytics	3 2.75 SALAC, DJOANNA MARIE V.
+IT 313 System Analysis and Design	3 2.25 SAMONTE, BENJIE R.
+IT 311 Systems Administration and Maintenance	3 2.00 DE JESUS, NOELYN M.
+IT 312 Systems Integration and Architecture	3 2.00 HERNANDEZ, OLIVER M.
+IT 314 Web Systems and Technologies	3 1.50 MAGSINO, JASON C.
+Total Subjects : 7	GWA : 2.1071
+SECOND SEMESTER AY 2023-2024
+Code	Description	Credits Grade	Instructor
+IT 222 Advanced Database Management System	3 3.00 SALAC, DJOANNA MARIE V.
+IT 223 Computer Networking 2	3 2.00 MERCADO, ALBERT S.
+MATH 408Data Analysis	3 1.75 MAAÑO, JOHN DENVER M.
+ES 101 Environmental Sciences	3 2.25 MERCADO, ALBERT S.
+IT 221 Information Management	3 2.50 SAMONTE, BENJIE R.
+GEd 106 Purposive Communication	3 2.50 GARCIA, LORIE JOY C.
+PE 104 Team Sports	2 1.25 ANDINO, JOHN LESTER O.
+GEd 101 Understanding the Self	3 2.50 JOSE, RODELON G.
+Total Subjects : 8	GWA : 2.2609
+FIRST SEMESTER AY 2023-2024
+Code	Description	Credits Grade	Instructor
+CS 121 Advanced Computer Programming	3 INC/3.00 ROXAS, MELVIN B.
+Litr 102ASEAN Literature	3 2.00 MARASIGAN, MARIBEL E.
+Phy 101Calculus-Based Physics	3 2.25 ACOSTA, ERNANI ALDRIN N.
+IT 212 Computer Networking 1	3 2.00 MERCADO, ALBERT S.
+IT 211 Database Management System	3 2.25 MERCADO, BILL JERICKO C.
+Republic of the Philippines
+BATANGAS STATE UNIVERSITY
+The National Engineering University
+ARASOF-Nasugbu Campus
+R. Martinez St., Brgy. Bucana, Nasugbu, Batangas, Philippines 4231
+Tel Nos.: (+63 43) 416-0350 local 114 | +639190790672
+Email Address: registrar.nasugbu@g.batstate-u.edu.ph | Website Address: https://www.batstate-u.edu.ph
+Office of the RegistrarINC 1.75 1.75 2.00 2.50 2.75 1.50 1.75 2.50 2.25 2.00 2.75 2.25 2.00 2.00 1.50 3.00 2.00 1.75 2.25 2.50 2.50 1.25 2.50 INC/3.00 2.00 2.25 2.00 2.25 
+10/14/25, 11:41 AM	about:blank
+about:blank	1/2
+
+CpE 405Discrete Mathematics	3 2.00 MAAÑO, JOHN DENVER M.
+PE 103 Individual and Dual Sports	2 1.25 BENTIR, JETHRO D.
+CS 211Object-Oriented Programming	3 2.25 MADRIAGA, INOCENCIO
+Total Subjects : 8	GWA : 2.1630
+SECOND SEMESTER AY 2022-2023
+Code	Description	Credits Grade	Instructor
+CS 111 Computer Programming	3 1.75 DE JESUS, NOELYN M.
+CS 131 Data Structures and Algorithms	3 2.25 ESTILO, KRISTINE GRACE B.
+Fili 102Filipino sa Iba't-ibang Disiplina	3 2.50 CAPACIA, GELEEN P.
+MATH 111Linear Algebra	3 2.00 MAAÑO, JOHN DENVER M.
+NSTP 121National Service Training Program 2	3 1.00 MONTANO, FLORIDO L.
+GEd 105 Readings in Philippine History	3 2.50 BATACLAO, AUDREY K.
+PE 102 Rhythmic Activities	2 1.25 MANALO, JESSA M.
+GEd 109 Science, Technology and Society	3 3.00 TIBAYAN, JAY-C D.
+Total Subjects : 8	GWA : 2.0652
+FIRST SEMESTER AY 2022-2023
+Code	Description	Credits Grade	Instructor
+GEd 108 Art Appreciation	3 2.50 NOLLORA, ANGELICA LOUISSE M.
+IT 111 Introduction to Computing	3 2.75 SECRETO, BLANCHE C.
+Fili 101Kontekstwalisadong Komunikasyon sa Filipino	3 2.50 ILAGAN, RACHEL R.
+GEd 103 Life and Works of Rizal	3 2.50 ROSALES, ANDREALYN R.
+GEd 102 Mathematics in the Modern World	3 2.00 MAAÑO, JOHN DENVER M.
+NSTP 111National Service Training Program 1	3 1.50 MONTANO, FLORIDO L.
+PE 101 Physical Fitness, Gymnastics and Aerobics	2 1.50 BENTIR, JETHRO D.
+GEd 104 The Contemporary World	3 2.50 BATACLAO, AUDREY K.
+Total Subjects : 8	GWA : 2.2500
+General Weighted Average (GWA) 2.1515
+*** NOT VALID WITHOUT UNIVERSITY DRY SEAL ***
+REGISTRAR - ARASOF
+Printed By
+10/14/2025
+Date2.00 1.25 2.25 1.75 2.25 2.50 2.00 1.00 2.50 1.25 3.00 2.50 2.75 2.50 2.50 2.00 1.50 1.50 2.50 
+10/14/25, 11:41 AM	about:blank
+about:blank	2/2

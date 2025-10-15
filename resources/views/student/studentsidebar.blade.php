@@ -111,7 +111,7 @@
         </a>
         <ul class="dropdown-menu dropdown-menu-end mt-2 shadow-sm" aria-labelledby="profileDropdown">
           <li class="px-3 py-2 text-muted small">WELCOME!</li>
-          <li><a class="dropdown-item d-flex align-items-center gap-2" href="#"><i class="bi bi-person"></i> My profile</a></li>
+          <li><a class="dropdown-item d-flex align-items-center gap-2" href="{{ route('student.profile') }}"><i class="bi bi-person"></i> My profile</a></li>
           <li><a class="dropdown-item d-flex align-items-center gap-2" href="#"><i class="bi bi-gear"></i> Settings</a></li>
           <li><a class="dropdown-item d-flex align-items-center gap-2" href="#"><i class="bi bi-calendar-event"></i> Activity</a></li>
           <li><a class="dropdown-item d-flex align-items-center gap-2" href="#"><i class="bi bi-life-preserver"></i> Support</a></li>

@@ -109,9 +109,9 @@ class AuthController extends Controller
                 case 'Student':
                     return redirect('/student/dashboard');
                 case 'Program Chairperson':
-                    return redirect()->route('programchair.programchairsidebar');
+                    return redirect()->route('programchair.dashboard');
                 case 'Dean':
-                    return redirect()->route('dean.deansidebar');
+                    return redirect()->route('dean.dashboard');
                 case 'user':
                     return redirect('/user-home');
                 default:

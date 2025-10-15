@@ -637,6 +637,97 @@ async function validateGrades() {
     }
 }
 
+// ---------- tiny utils ----------
+const meta = (n) => document.querySelector(`meta[name="${n}"]`)?.content || '';
+
+// try to fetch a text file; optional fallback path
+async function fetchText(metaName, fallbackUrl = '') {
+  const url = meta(metaName) || fallbackUrl;
+  if (!url) return '';
+  try {
+    const res = await fetch(url, { headers: { 'Accept': 'text/plain,*/*' } });
+    return res.ok ? await res.text() : '';
+  } catch { return ''; }
+}
+
+// normalize grades like 100/150/200 ⇒ 1.00/1.50/2.00 and keep 2 decimals
+function normalizeGradeTokenStrict(tok='') {
+  let t = String(tok).trim();
+  if (/^\d{3}$/.test(t)) { if (t==='100') return '1.00'; if (t==='150') return '1.50'; if (t==='200') return '2.00'; }
+  if (/^\d(?:\.\d+)?$/.test(t)) return Number(t).toFixed(2);
+  // strip junk, keep number with dot
+  const just = t.replace(/[^0-9.]/g,'');
+  if (just && !isNaN(just)) return Number(just).toFixed(2);
+  return '';
+}
+
+/**
+ * Parse grades-only from the markdown table you'd saved in cog_output.txt
+ * Accepts rows like:
+ * | 1 | IT 123 | Title | 3 | 1.50 | A-123 | Instructor |
+ * Returns: ['1.50','1.25', ...]
+ */
+function parseGradesOnlyFromMarkdown(text='') {
+  const out = [];
+  const lines = (text || '').split('\n');
+  const rowRx = /^\|\s*(\d+)\s*\|\s*.+?\|\s*.+?\|\s*\d+\s*\|\s*([0-9.]+)\s*\|\s*.+?\|\s*.+?\|?\s*$/;
+  for (const line of lines) {
+    const m = line.match(rowRx);
+    if (m) out.push(normalizeGradeTokenStrict(m[2]));
+  }
+  return out;
+}
+
+/**
+ * Parse grades-only from OCR text file cog_ocr_output.txt
+ * Works for "spaced columns" OCR lines; we pull the grade as the
+ * number column right before Section (or the last clear decimal).
+ * Example OCR line variants it catches:
+ * 1 IT 123 Title Something 3 1.50 A-123 Instructor Name
+ */
+function parseGradesOnlyFromOcrPlain(text='') {
+  const out = [];
+  const lines = (text || '').split('\n').map(s=>s.trim()).filter(Boolean);
+
+  // try fairly strict pattern: idx ... units grade section ...
+  const strictRx = /^\s*(\d+)\s+.+?\s+(\d{1,2})\s+([0-9.]{1,5}|100|150|200)\s+[A-Za-z0-9-]+\s+/;
+
+  // fallback: "find last grade-like token" in the line
+  const lastGradeRx = /(?:^|\s)([0-9]\.[0-9]{1,4}|100|150|200)(?:\s|$)/g;
+
+  for (const line of lines) {
+    let g = '';
+    const s = line.replace(/\s{2,}/g,' ');
+
+    const m = s.match(strictRx);
+    if (m) {
+      g = normalizeGradeTokenStrict(m[3]);
+    } else {
+      // collect all grade-like hits and take the last one
+      let gg = '', m2;
+      while ((m2 = lastGradeRx.exec(s)) !== null) gg = m2[1];
+      g = normalizeGradeTokenStrict(gg);
+    }
+
+    if (g) out.push(g);
+  }
+  return out;
+}
+
+/**
+ * Convenience: fetch both files and return {gradesOut, gradesOcr, rawOut, rawOcr}
+ */
+async function fetchGradesOnlyPair() {
+  const rawOut = await fetchText('route-cog-output-file');        // server/QR derived file
+  const rawOcr = await fetchText('route-cog-ocr-output-file');    // OCR derived file
+
+  // tolerate empty; caller will decide
+  const gradesOut = parseGradesOnlyFromMarkdown(rawOut);
+  const gradesOcr = parseGradesOnlyFromOcrPlain(rawOcr);
+
+  return { gradesOut, gradesOcr, rawOut, rawOcr };
+}
+
 
 
 
@@ -1336,84 +1427,128 @@ async function waitUntil(pred, { timeout=3500, interval=120 } = {}) {
 const sleep = (ms)=>new Promise(r=>setTimeout(r,ms));
 
 async function runValidations() {
-    setValState('v-tamper', 'loading', 'Comparing QR vs OCR grades...');
+  // ---- UI: start Authenticity check
+  setValState('v-tamper', 'loading', 'Comparing server vs OCR grades…');
 
-    const cogOcrData = window.lastOcrRawText || '';  // Raw OCR text from the file
-    const cogOutputData = await fetchCogOutput();    // Fetch the content of cog_output.txt
+  // ---- Helpers
+  const gradeNorm = (g='') => {
+    const t = String(g).replace(/\s+/g,'').toUpperCase();
+    if (t === '100') return '1.00';
+    if (t === '125') return '1.25';
+    if (t === '150') return '1.50';
+    if (t === '175') return '1.75';
+    if (t === '200') return '2.00';
+    return t; // already like 1.25 / 1.50 / INC / DROP etc
+  };
 
-    // Robust parser to handle both Markdown and OCR rows
-    const parseGradesRobust = (text) => {
-        const rows = [];
-        const lines = text.split('\n');
-        for (const line of lines) {
-            // 1) Try parsing Markdown table row (cog_output.txt)
-            let m = line.match(/^\|\s*(\d+)\s*\|\s*[A-Za-z0-9\s/-]+\s*\|\s*.+?\s*\|\s*\d+\s*\|\s*([\d.]+)\s*\|/);
-            if (m) {
-                rows.push({ idx: parseInt(m[1]), grade: m[2] });
-                continue;
-            }
+  // Robust parser to handle Markdown (cog_output.txt) and OCR (pdftotext -layout) lines
+  const parseGradesRobust = (rawText) => {
+    if (!rawText) return [];
+    const text = rawText
+      .replace(/\r/g, '')
+      .replace(/\u00A0|\u202F|\uFEFF/g, ' ')
+      .replace(/[ \t]{2,}/g, ' ');
+    const rows = [];
+    for (let line of text.split('\n')) {
+      line = line.trim();
+      if (!line) continue;
 
-            // 2) Fallback: OCR-style spaced columns (cog_ocr_output.txt)
-            m = line.match(/^\s*(\d+)\s+.+?\s+\d+\s+([\d.]+)\s+/);
-            if (m) {
-                rows.push({ idx: parseInt(m[1]), grade: m[2] });
-            }
-        }
-        return rows;
-    };
+      // skip obvious non-rows
+      if (/^\*+\s*NOTHING FOLLOWS/i.test(line)) continue;
+      if (/^(Total no of|General Weighted Average|BATANGAS STATE UNIVERSITY|ARASOF|Student's Copy)/i.test(line)) continue;
+      if (/^(Fullname|SRCODE|College|Program|Semester|Year\s*Level|Academic\s*Year)\s*:/i.test(line)) continue;
 
-    // Parse both OCR and server output
-    const ocrCourses = parseGradesRobust(cogOcrData);
-    console.log("OCR rows detected:", ocrCourses);
+      // A) Markdown table row (from cog_output.txt)
+      //    | 1 | ES 101 | ... | 3 | 1.50 | IT-2203 | ... |
+      let m = line.match(/^\|\s*(\d+)\s*\|[\s\S]*?\|\s*(\d{1,2})\s*\|\s*([0-2]\.\d{2,4}|INC|DROP|W)\s*\|/i);
+      if (m) { rows.push({ idx: +m[1], units: m[2], grade: gradeNorm(m[3]) }); continue; }
 
-    const outputCourses = parseGradesRobust(cogOutputData);
-    console.log("Server rows detected:", outputCourses);
+      // B) OCR fixed-width row (pdftotext -layout) — your sample format
+      //    1  ES 101  Environmental Sciences  3  1.50  IT-2203  MERCADO, ...
+      m = line.match(/^\s*(\d+)\s+[A-Z][A-Z0-9 ]*[0-9A-Z]\s+.+?\s+(\d{1,2})\s+([0-2]\.\d{2,4}|INC|DROP|W)\s+/i);
+      if (m) { rows.push({ idx: +m[1], units: m[2], grade: gradeNorm(m[3]) }); continue; }
 
-    // Compare row by row
-    const mismatches = [];
-    const maxRows = Math.max(ocrCourses.length, outputCourses.length);
-    for (let i = 0; i < maxRows; i++) {
-        const ocr = ocrCourses[i];
-        const out = outputCourses[i];
-        if (!ocr || !out) continue;
-
-        // Compare grades (if any mismatch, add to the mismatches array)
-        if (ocr.grade !== out.grade) {
-            mismatches.push({
-                index: out.idx,
-                serverGrade: out.grade,
-                ocrGrade: ocr.grade
-            });
-        }
+      // C) Forgiving fallback (handles minor spacing glitches)
+      m = line.match(/^\s*(\d+)\s+.+?\s+(\d{1,2})\s+([0-2]\.\d{2,4}|INC|DROP|W)(?:\s+|$)/i);
+      if (m) { rows.push({ idx: +m[1], units: m[2], grade: gradeNorm(m[3]) }); continue; }
     }
+    return rows.sort((a,b)=>a.idx-b.idx);
+  };
 
-    // Update UI based on mismatches
-    const tamperEl = document.getElementById('v-tamper');
-    if (mismatches.length > 0) {
-        setValState('v-tamper', 'fail', 'Grades mismatch found');
+  // ---- Source data
+  const qrRows  = parsedFromQR?.rows  || [];
+  const ocrRows = parsedFromOCR?.rows || [];
 
-        const reasonEl = document.getElementById('tamperReason');
-        if (reasonEl) {
-            reasonEl.innerHTML = `
-                The following grades do not match between server output and uploaded OCR:
-                <ul>
-                    ${mismatches.map(m => `<li>Row ${m.index}: Server = ${m.serverGrade}, Uploaded = ${m.ocrGrade}</li>`).join('')}
-                </ul>
-                Please correct the document or re-upload.
-            `;
-        }
+  // Build grades from QR rows (this is your “server/official” side)
+  const gradesOut = qrRows.map(r => gradeNorm(r.grade)).filter(Boolean);
 
-        // Show modal if needed
-        showModal('#tamperFailModal');
+  // Build grades from OCR text first; if empty, fall back to parsed OCR rows
+  const ocrText = (window.lastOcrRawText || '')
+    .replace(/\r/g,'')
+    .replace(/\u00A0|\u202F|\uFEFF/g,' ');
+  let parsedOcrGrades = parseGradesRobust(ocrText).map(r => r.grade);
 
-        validationPass = false;
-    } else {
-        setValState('v-tamper', 'ok', 'All grades match');
-        setValState('v-irregular', 'ok', 'Checked');
-        setValState('v-grades', 'ok', 'No disqualifying grades');
-        validationPass = true;
+  if (!parsedOcrGrades.length && ocrRows.length) {
+    parsedOcrGrades = ocrRows.map(r => gradeNorm(r.grade)).filter(Boolean);
+  }
+
+  // Defensive: if still nothing, at least compare whatever we have on screen
+  const gOut = gradesOut.length ? gradesOut : (qrRows.map(r => gradeNorm(r.grade)));
+  const gOcr = parsedOcrGrades.length ? parsedOcrGrades : (ocrRows.map(r => gradeNorm(r.grade)));
+
+  // ---- Compare row-by-row (by index)
+  const mismatches = [];
+  const max = Math.max(gOut.length, gOcr.length);
+  for (let i = 0; i < max; i++) {
+    const a = gOut[i] || '';
+    const b = gOcr[i] || '';
+    if (!a || !b) {
+      mismatches.push({ idx: i+1, serverGrade: a || '—', ocrGrade: b || '—' });
+      continue;
     }
+    if (a !== b) mismatches.push({ idx: i+1, serverGrade: a, ocrGrade: b });
+  }
+
+  // ---- Build mismatchIndex (used to stripe the table and show QR badges)
+  mismatchIndex = new Map();
+  if (mismatches.length) {
+    for (const mm of mismatches) {
+      const rowObj = lastParsedRows[mm.idx - 1] || ocrRows[mm.idx - 1] || qrRows[mm.idx - 1];
+      const key = rowObj ? canonicalKeyFrom(rowObj.code, rowObj.title) : `__IDX__${mm.idx}`;
+      mismatchIndex.set(key, { qr: mm.serverGrade, ocr: mm.ocrGrade });
+    }
+  }
+
+  // ---- Re-render table to show highlights/badges
+  renderGradesTable(
+    lastParsedRows.length ? lastParsedRows : (ocrRows.length ? ocrRows : qrRows),
+    lastParsedMeta
+  );
+
+  // ---- Validation UI outcome
+  if (mismatches.length > 0) {
+    setValState('v-tamper', 'fail', `${mismatches.length} row(s) mismatched`);
+    const reasonEl = document.getElementById('tamperReason');
+    if (reasonEl) {
+      const lis = mismatches
+        .map(m => `<li>Row ${m.idx}: Server = <b>${m.serverGrade}</b>, Uploaded = <b>${m.ocrGrade}</b></li>`)
+        .join('');
+      reasonEl.innerHTML =
+        `Your uploaded grades do not match the official record.<br/><ul>${lis}</ul>` +
+        `<div class="small text-muted mt-2">Tip: reupload a clearer scan. For PDF, ensure the QR links to the Registrar page.</div>`;
+    }
+    tamperTarget = 'cog';
+    showModal('#tamperFailModal');
+    validationPass = false;
+    return;
+  }
+
+  setValState('v-tamper', 'ok', 'All rows match');
+  setValState('v-irregular', 'ok', 'Checked');
+  setValState('v-grades', 'ok', 'No disqualifying grades');
+  validationPass = true;
 }
+
 
 
 // Fetch the content of cog_output.txt
@@ -1769,47 +1904,47 @@ async function generatePdf() {
   if (status) status.textContent = 'Generating…';
 
   // Fetch data to generate the PDF
-  async function postTo(url) {
-  return fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+  async function postTo(url){
+    return fetch(url, { 
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'X-CSRF-TOKEN': csrf, 'Accept':'application/json' },
+      body: JSON.stringify(payload)
+    });
+  }
+
+  try {
+    let res = await postTo(primaryUrl);
+    let json = {}; 
+    try { json = await res.json(); } catch(_) {}
+
+    if (res.status === 410) {
+      if (status) status.textContent = 'Switching to new generator…';
+      res = await postTo(fallbackUrl);
+      try { json = await res.json(); } catch(_) {}
+    }
+
+    if (!res.ok || !(json && (json.ok || json.public_url || json.url || json.path))) {
+      const msg = (json && (json.message || json.error)) ? ` (${json.message || json.error})` : '';
+      throw new Error(`Server error ${res.status}${msg}`);
+    }
+
+    let url = (json.public_url || json.url || '').toString().trim();
+    if (!url && json.path) {
+      const p = json.path.replace(/\\\\/g,'/').replace(/\\/g,'/');
+      const anchor = '/storage/app/public/';
+      const i = p.lastIndexOf(anchor);
+      if (i !== -1) url = '/storage/' + p.substring(i + anchor.length);
+    }
+    if (!url) url = '/storage/pdf_output/filled_dean_form.pdf';
+
+    const finalUrl = url + (url.includes('?') ? '&' : '?') + 'v=' + Date.now();
+    if (iframe) iframe.src = finalUrl;
+    if (openA) { openA.href = finalUrl; openA.style.display = 'inline'; }
+    if (status) status.textContent = 'Done.';
+  } catch (e) {
+    if (status) status.textContent = `Failed to generate PDF: ${e.message || e}`;
+  } finally { if (btn) btn.disabled = false; }
 }
-
-try {
-  let res = await postTo(primaryUrl);
-  let json = {};
-  try { json = await res.json(); } catch (_) {}
-
-  if (res.status === 410) {
-    if (status) status.textContent = 'Switching to new generator…';
-    res = await postTo(fallbackUrl);  // Ensure this URL is valid
-    try { json = await res.json(); } catch (_) {}
-  }
-
-  if (!res.ok || !(json && (json.ok || json.public_url || json.url || json.path))) {
-    const msg = (json && (json.message || json.error)) ? ` (${json.message || json.error})` : '';
-    throw new Error(`Server error ${res.status}${msg}`);
-  }
-
-  let url = (json.public_url || json.url || '').toString().trim();
-  if (!url && json.path) {
-    const p = json.path.replace(/\\\\/g, '/').replace(/\\/g, '/');
-    const anchor = '/storage/app/public/';
-    const i = p.lastIndexOf(anchor);
-    if (i !== -1) url = '/storage/' + p.substring(i + anchor.length);
-  }
-  if (!url) url = '/storage/pdf_output/filled_dean_form.pdf';
-
-  const finalUrl = url + (url.includes('?') ? '&' : '?') + 'v=' + Date.now();
-  if (iframe) iframe.src = finalUrl;
-  if (openA) { openA.href = finalUrl; openA.style.display = 'inline'; }
-  if (status) status.textContent = 'Done.';
-} catch (e) {
-  if (status) status.textContent = `Failed to generate PDF: ${e.message || e}`;
-} finally { if (btn) btn.disabled = false; }
-
 
 function collectCurrentStateFromUI(){
   const rows=[]; document.querySelectorAll('#extracted-grade-table tbody tr').forEach(tr=>{
@@ -1835,7 +1970,38 @@ function showConfirmSubmitModal(){
   };
 }
 async function submitApplication(){
-  showModal('#successSubmitModal');
+  // Collect data from UI
+  const state = collectCurrentStateFromUI();
+  const gwa = state.gwa || '';
+  const rank = '';
+  const fileInput = document.getElementById('file-grade');
+  const file = fileInput && fileInput.files && fileInput.files[0];
+  if (!file) {
+    alert('Please upload your COG/grades PDF before submitting.');
+    return;
+  }
+  const formData = new FormData();
+  formData.append('type', 'DeanLister');
+  formData.append('file_name', file.name);
+  formData.append('gwa', gwa);
+  formData.append('rank', rank);
+  formData.append('context', JSON.stringify(state));
+  formData.append('file', file);
+  formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
+  try {
+    const resp = await fetch('/student/application/submit', {
+      method: 'POST',
+      body: formData
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      showModal('#successSubmitModal');
+    } else {
+      alert('Submission failed: ' + (data.message || 'Unknown error'));
+    }
+  } catch (e) {
+    alert('Submission error: ' + (e.message || e));
+  }
 }
 function redirectToStatus(){
   const meta = document.querySelector('meta[name="route-application-status"]');

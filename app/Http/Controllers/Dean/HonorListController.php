@@ -71,7 +71,7 @@ class HonorListController extends Controller
             ->whereHas('student.curriculum.curriculumAy', function ($q) use ($programId) {
                 $q->where('Program_id', $programId);
             })
-            ->whereIn('Status', ['Verified', 'Approved'])
+            ->whereIn('Status', ['For Approval', 'Approved'])
             ->orderBy('GWA')                // table has no created_at, so sort by GWA first
             ->orderBy('Application_id')     // stable tie-breaker
             ->get();
@@ -122,9 +122,9 @@ class HonorListController extends Controller
             return response()->json(['message' => 'Application not found'], 404);
         }
 
-        if (!in_array($app->Status, ['Verified', 'Approved'], true)) {
+        if (!in_array($app->Status, ['For Approval', 'Approved'], true)) {
             return response()->json([
-                'message' => 'Only applications verified by the Program Chair can be approved.'
+                'message' => 'Only applications endorsed by the Program Chair can be approved.'
             ], 422);
         }
 

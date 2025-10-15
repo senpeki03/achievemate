@@ -14,7 +14,7 @@ class GraduationForm extends Model
 
     protected $fillable = [
         'Student_id',
-        'Birthdate',
+        'Birtdate',
         'PlaceofBirth',
         'HomeAddress',
         'ZIP_Code',
@@ -25,7 +25,7 @@ class GraduationForm extends Model
     ];
 
     protected $casts = [
-        'Birthdate' => 'date',
+        'Birtdate' => 'date',
         'ZIP_Code'  => 'integer',
     ];
 

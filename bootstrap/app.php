@@ -2,6 +2,9 @@
 
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\EnsureUserType;   // ✅ correct class name & import
+// use App\Http\Middleware\RedirectIfAlreadyApplied; // <- only if you have it
+
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -14,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // web stack
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
         $middleware->web(append: [
@@ -21,11 +25,11 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);
-    })
-    ->withMiddleware(function (Middleware $middleware) {
-        // create an alias you can use on routes
+
+        // aliases
         $middleware->alias([
-            'already.applied' => RedirectIfAlreadyApplied::class,
+            'usertype' => EnsureUserType::class,      // ✅
+            // 'already.applied' => RedirectIfAlreadyApplied::class, // only if it exists
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
