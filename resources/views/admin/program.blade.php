@@ -171,7 +171,7 @@
     <div class="modal-content border-0 shadow rounded-4">
       <div class="modal-body py-5 px-4 text-center" style="height: 300px;">
         <img src="https://cdn.iconscout.com/icon/premium/png-256-thumb/exclamation-mark-4667807-3870807.png?f=webp&w=256" style="width: 60px;" class="mb-3" />
-        <h5 class="fw-bold text-dark mb-4">Are you sure you want to add this college?</h5>
+        <h5 class="fw-bold text-dark mb-4">Are you sure you want to add this Program?</h5>
         <div class="d-flex justify-content-center gap-3">
           <button class="btn btn-secondary px-4" data-bs-dismiss="modal">No</button>
           <button class="btn btn-primary px-4" onclick="submitAddProgram()">Yes</button>
@@ -206,7 +206,7 @@
     <div class="modal-content border-0 shadow rounded-4">
       <div class="modal-body py-5 px-4 text-center" style="height: 300px;">
         <img src="https://cdn.iconscout.com/icon/premium/png-256-thumb/exclamation-mark-4667807-3870807.png?f=webp&w=256" style="width: 60px;" class="mb-3" />
-        <h5 class="fw-bold text-dark mb-4">Are you sure you want to delete this college?</h5>
+        <h5 class="fw-bold text-dark mb-4">Are you sure you want to delete this Program?</h5>
         <div class="d-flex justify-content-center gap-3">
           <button class="btn btn-secondary px-4" data-bs-dismiss="modal">No</button>
           <button class="btn btn-danger px-4" onclick="submitDeleteProgram()">Yes</button>

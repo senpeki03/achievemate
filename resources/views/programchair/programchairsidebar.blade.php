@@ -14,6 +14,11 @@
   $hasAy = \App\Models\CurriculumAy::query()->exists();
 @endphp
 
+@php
+  $isAnnouncementActive = $isAnnouncementActive
+      ?? request()->routeIs('programchair.announcements*');
+@endphp
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -37,7 +42,7 @@
   <!-- SIDEBAR -->
   <div class="sidebar collapsed" id="sidebar">
     <div class="sidebar-header sidebar-logo">
-      <img src="{{ asset('img/AchieveMate02.png') }}" alt="Logo">
+      <img src="{{ asset('img/achievemate.png') }}" alt="Logo">
       <i class="bi bi-list burger" id="burgerToggle" role="button" aria-label="Toggle sidebar"></i>
     </div>
 
@@ -58,6 +63,15 @@
          class="card-body py-3 px-4 d-flex align-items-center gap-4 nav-link text-decoration-none rounded-4 {{ $currentRoute === 'programchair.deanshonorlist' ? 'custom-bg-primary' : '' }}">
         <i class="bi bi-person-check fs-6 {{ $currentRoute === 'programchair.deanshonorlist' ? 'text-white' : '' }}"></i>
         <span class="fw-semibold small ms-1 {{ $currentRoute === 'programchair.deanshonorlist' ? 'text-white' : 'text-dark' }}">Dean's Honor List</span>
+      </a>
+    </div>
+
+    <!-- Graduation (single) -->
+    <div class="card shadow-sm border-0 m-2">
+      <a href="{{ route('programchair.graduation') }}"
+         class="card-body py-3 px-4 d-flex align-items-center gap-4 nav-link text-decoration-none rounded-4 {{ $currentRoute === 'programchair.graduation' ? 'custom-bg-primary' : '' }}">
+        <i class="bi bi-person-check fs-6 {{ $currentRoute === 'programchair.graduation' ? 'text-white' : '' }}"></i>
+        <span class="fw-semibold small ms-1 {{ $currentRoute === 'programchair.graduation' ? 'text-white' : 'text-dark' }}">Graduation</span>
       </a>
     </div>
 
@@ -159,12 +173,31 @@
         </div>
       </div>
       <div class="icons">
-        <i class="bi bi-bell text-white"></i>
+        {{-- 🔔 Notification icon → punta sa pgnotification (Program Chair notifications) --}}
+        <a href="{{ route('programchair.notifications.index') }}" class="text-decoration-none position-relative me-3">
+          <i class="bi bi-bell text-white"></i>
+          @if(isset($unreadCount) && $unreadCount > 0)
+            <span
+              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+              style="font-size: 0.6rem;">
+              {{ $unreadCount }}
+            </span>
+          @endif
+        </a>
+
         <i class="bi bi-files text-white"></i>
       </div>
       <div class="dropdown profile">
         <a href="#" class="d-flex align-items-center gap-2 text-decoration-none dropdown-toggle" id="profileDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-          <img src="{{ asset('img/profile-placeholder.png') }}" alt="Profile" class="rounded-circle" width="36" height="36" style="cursor: pointer;">
+          <img
+              src="{{ route('programchair.profile.photo', ['_v' => now()->timestamp]) }}"
+              alt="Profile"
+              class="rounded-circle"
+              width="36"
+              height="36"
+              style="cursor: pointer;"
+              onerror="this.onerror=null;this.src='{{ asset('img/profile-placeholder.png') }}';"
+            />
           <div class="text-white">
             <span class="fw-semibold d-block text-white">
               Hi, {{ session('First_name') }} {{ session('Last_name') }}!
@@ -176,7 +209,7 @@
         </a>
         <ul class="dropdown-menu dropdown-menu-end mt-2 shadow-sm" aria-labelledby="profileDropdown">
           <li class="px-3 py-2 text-muted small">WELCOME!</li>
-          <li><a class="dropdown-item d-flex align-items-center gap-2" href="#"><i class="bi bi-person"></i> My profile</a></li>
+          <li><a class="dropdown-item d-flex align-items-center gap-2" href="{{ route('programchair.profile') }}"><i class="bi bi-person"></i> My profile</a></li>
           <li><a class="dropdown-item d-flex align-items-center gap-2" href="#"><i class="bi bi-gear"></i> Settings</a></li>
           <li><a class="dropdown-item d-flex align-items-center gap-2" href="#"><i class="bi bi-calendar-event"></i> Activity</a></li>
           <li><a class="dropdown-item d-flex align-items-center gap-2" href="#"><i class="bi bi-life-preserver"></i> Support</a></li>
@@ -216,7 +249,7 @@
         sidebar.classList.add('collapsed');
         topbarWrapper.classList.add('collapsed');
         body.classList.add('sidebar-collapsed');
-        // ✅ Auto-close submenus whenever the sidebar collapses
+        // Auto-close submenus whenever the sidebar collapses
         collapseAllSubmenus();
       }
 
@@ -234,7 +267,7 @@
         if (!stickOpen) expandSidebar();
       });
       sidebar.addEventListener('mouseleave', () => {
-        if (!stickOpen) collapseSidebar(); // closes submenus too
+        if (!stickOpen) collapseSidebar();
       });
 
       // Burger stick/unstick toggle
@@ -243,7 +276,7 @@
         if (stickOpen) {
           expandSidebar();
         } else {
-          collapseSidebar(); // will also close submenus
+          collapseSidebar();
         }
       });
 

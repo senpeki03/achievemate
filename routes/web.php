@@ -5,14 +5,18 @@ use App\Http\Controllers\AuthController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-
+use Illuminate\Session\Middleware\StartSession;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
+use App\Http\Middleware\EncryptCookies;
+use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 /* ===============================
  * CONTROLLER USES
  * =============================== */
 // ADMIN
-use App\Http\Controllers\admin\UserListController;
-use App\Http\Controllers\admin\UserImportController;
-use App\Http\Controllers\admin\SystemLogsController;
+use App\Http\Controllers\Admin\UserListController;
+use App\Http\Controllers\Admin\UserImportController;
+use App\Http\Controllers\Admin\SystemLogsController;
 use App\Http\Controllers\Admin\CampusController;
 use App\Http\Controllers\Admin\CollegeController;
 use App\Http\Controllers\Admin\ProgramController;
@@ -23,14 +27,15 @@ use App\Http\Controllers\Admin\UserDesignationController;
 
 // REGISTRAR
 use App\Http\Controllers\Registrar\Controller;
-use App\Http\Controllers\Registrar\StudentImportController;
-use App\Http\Controllers\Registrar\ListController; // ✅ Added missing import
 use App\Http\Controllers\Registrar\DashboardController;
 use App\Http\Controllers\Registrar\DashboardRegistrarController;
 use App\Http\Controllers\Registrar\StudentUploadController;
 use App\Http\Controllers\Registrar\StudentController;
-use App\Http\Controllers\Registrar\StudentManageListController;
 use App\Http\Controllers\Registrar\StudentListController;
+use App\Http\Controllers\Registrar\GraduationListController;
+
+
+
 
 // STUDENT
 use App\Http\Controllers\Student\DashboardStudentController;
@@ -54,7 +59,13 @@ use App\Http\Controllers\Student\StudentPdfController;
 use App\Http\Controllers\Student\GraduationFormController;
 use App\Http\Middleware\VerifyCsrfToken;
 use App\Http\Controllers\Student\StudentProfileController;
-
+use App\Http\Controllers\Student\GraduationRequirementController;
+use App\Http\Controllers\Student\GraduationStatusController;
+use App\Http\Controllers\Student\LatinHonorsController;
+use App\Http\Controllers\Student\LatinController;
+use App\Http\Controllers\Student\CogParseController;
+use App\Http\Controllers\Student\StudentGradeController;
+use App\Http\Controllers\Student\ViewGradeController;
 
 
 // PROGRAM CHAIRPERSON
@@ -66,6 +77,11 @@ use App\Http\Controllers\Programchair\CurriculumCollegeController;
 use App\Http\Controllers\Programchair\DashboardProgramchairController;
 use App\Http\Controllers\Programchair\RankController;
 use App\Http\Controllers\Programchair\DeansHonorListReportController;
+use App\Http\Controllers\Programchair\ProgramchairProfileController;
+use App\Http\Controllers\Programchair\GraduationController;
+use App\Http\Controllers\Programchair\PostingController;
+use App\Http\Controllers\Programchair\ProgramChairNotificationController;
+use App\Http\Controllers\Programchair\GraduationReportController;
 
 // DEAN
 use App\Http\Controllers\Dean\DeanSidebarController;
@@ -73,7 +89,7 @@ use App\Http\Controllers\Dean\HonorListController;
 use App\Http\Controllers\Dean\ApplicationNotifController;
 use App\Http\Controllers\Dean\DeanDashboardController;
 use App\Http\Controllers\Dean\DeansHonorListReportController as DeanReport;
-
+use App\Http\Controllers\Dean\DeanProfileController;
 
 // EXTRA (appeared mid-file originally — lifting to top to keep tidy)
 use App\Http\Controllers\Dean\DeanApplicationController;
@@ -168,33 +184,29 @@ Route::middleware(['web'])->group(function () {
 /* ===============================
  * REGISTRAR
  * =============================== */
-Route::delete('/students/{id}', [StudentListController::class, 'destroy'])->name('students.destroy');
-Route::put('/students/{id}', [ListController::class, 'update']);
-Route::get('/college/{department}', [ListController::class, 'showYearList'])->name('registrar.year.list');
-Route::get('/college/{department}/year', [ListController::class, 'showYearList'])->name('registrar.yearlist');
-Route::get('/registrar/yearlist', [ListController::class, 'yearList'])->name('registrar.yearlist');
-Route::get('/registrar/college', [ListController::class, 'collegeList'])->name('registrar.studentlist');
-Route::get('/college/{department}/year/{year}', [ListController::class, 'showStudentsByYear'])->name('registrar.students.by.year');
-Route::get('/college/{department}/year/{year}/track', [ListController::class, 'showTrackList'])->name('registrar.track');
-Route::get('/college/{department}/year/{year}/track/{track}', [ListController::class, 'showStudentsByTrack'])->name('registrar.students.by.track');
-Route::get('/students/create', [StudentImportController::class, 'create'])->name('students.create');
-Route::post('/students', [StudentImportController::class, 'store'])->name('students.store');
-Route::get('/registrar/studentmanagement/add', [StudentImportController::class, 'create'])->name('students.create');
-Route::post('/registrar/studentmanagement/store', [StudentImportController::class, 'store'])->name('students.store');
-Route::get('/check-email', function (\Illuminate\Http\Request $request) {
-    $exists = \App\Models\Student::where('email', $request->email)->exists();
-    return response()->json(['exists' => $exists]);
-});
+
 Route::get('/registrar/dashboard', [DashboardRegistrarController::class, 'index'])->name('registrar.dashboard');
 
 Route::middleware(['web'])->group(function () {
     Route::get('/registrar/student', [StudentController::class, 'index'])->name('registrar.student');
     Route::get('/registrar/studentlist', [StudentController::class, 'studentList'])->name('registrar.studentlist');
-    Route::post('/registrar/student/assign-year', [StudentController::class, 'assignYear'])->name('student.assign.year');
+    Route::post('/registrar/student/assign-year', [StudentController::class, 'assignYear'])->name('student.assign.year'); 
+    Route::get('/registrar/curricula/options',[StudentController::class, 'curriculumOptions'])->name('registrar.curriculum.options');
     Route::delete('/registrar/studentlist/delete/{id}', [StudentListController::class, 'destroy'])->name('registrar.studentlist.delete');
 });
 
-Route::middleware(['web'])->group(function () {
+Route::middleware(['web', 'auth'])
+    ->prefix('registrar')
+    ->name('registrar.')
+    ->group(function () {
+    Route::get('/graduationlist', [GraduationListController::class, 'index'])->name('graduationlist');
+    Route::get('/graduationlist/students', [GraduationListController::class, 'students'])->name('graduationlist.students');
+    Route::delete('/graduationlist/{id}', [GraduationListController::class, 'destroy'])->name('graduationlist.destroy');
+    Route::post('/graduationlist/evaluate', [GraduationListController::class, 'evaluate'])->name('graduationlist.evaluate');
+
+});
+
+Route::middleware(['web','auth'])->group(function () {
     Route::get('/registrar/studentupload', [StudentUploadController::class, 'showUploadForm'])->name('registrar.studentupload');
     Route::post('/registrar/student/upload-csv', [StudentUploadController::class, 'uploadCSV'])->name('student.upload.csv');
 
@@ -224,59 +236,142 @@ Route::middleware(['web', 'auth'])
     ->name('student.')
     ->group(function () {
         Route::get('/dashboard', [DashboardStudentController::class, 'index'])->name('dashboard');
-
         Route::controller(NotificationController::class)->group(function () {
-            Route::get('/notifications', 'showNotifications')->name('notifications');
-            Route::post('/notifications/markAsRead', 'markAsRead')->name('notifications.markAsRead');
+        Route::get('/notifications', 'showNotifications')->name('notifications');
+        Route::post('/notifications/markAsRead', 'markAsRead')->name('notifications.markAsRead');
         });
-
         Route::get('/application', [ApplicationController::class, 'showApplication'])->name('application');
         Route::post('/application/submit', [ApplicationController::class, 'submitApplication'])->name('application.submit');
         Route::post('/application', [ApplicationController::class, 'store'])->name('application.submit');
-
         Route::post('/pdf/generate', [ApplicationController::class, 'regenerateDeanListForm'])->name('pdf.generate'); // intentionally 410
-        Route::post('/pdf/generate-json', [ApplicationController::class, 'generateDeanListFormFromJson'])->name('pdf.generate.json');
-
-        Route::post('/qr/resolve', [ApplicationController::class, 'resolveQr'])->name('qr.resolve');
-
-        Route::post('/cor/upload', [PdfUploadController::class, 'upload'])->name('cor.upload');
-        Route::post('/cog/upload', [CogUploadController::class, 'upload'])->name('cog.upload');
-
+        Route::post('/pdf/generate-json', [ApplicationController::class, 'generateDeanListFormFromJson'])->name('pdf.generate.json');        
         Route::post('/upload-attachments', [ApplicationController::class, 'uploadAttachments'])->name('upload.attachments');
         Route::post('/attachments', [AttachmentsController::class, 'store'])->name('attachments.store');
         Route::post('/save-cor-output', [ApplicationController::class, 'saveCorOutput'])->name('save-cor-output');
-        Route::post('/save-cog-debug',  [ApplicationController::class, 'saveCogDebug'])->name('save-cog-debug');
         Route::post('/save-cog-output', [ApplicationController::class, 'saveCogOutput'])->name('save-cog-output');
-        Route::post('/js-error',        [ApplicationController::class, 'logJsError'])->name('log-js-error');
-
+        Route::get('/cog/output', [ApplicationController::class, 'getCogOutputFile'])->name('cog.output');
+        Route::post('/cog/debug', function (\Illuminate\Http\Request $r) {
+            \Illuminate\Support\Facades\Storage::disk('local')
+            ->append('cog/debug_log.txt', ($r->input('text') ?? '')."\n---\n");
+            return response()->json(['ok' => true]);
+        })->name('cog.debug');
+        Route::get('/cog/ocr-output', [ApplicationController::class, 'getCogOcrOutputFile'])->name('cog.ocr-output');
+        Route::get('/cor/output', [ApplicationController::class, 'getCorOutputFile'])->name('cor.output');
+        Route::get('/cor/output.txt', [ApplicationController::class, 'getCorOutputFile'])->name('cor.output.txt');
+        Route::get('/cog/output.txt', [ApplicationController::class, 'getCogOutputFile'])->name('cog.output.txt');
+        Route::post('/validate-grades', [ApplicationController::class, 'validateGrades'])->name('validate-grades');
+        Route::get('/cog/debug-status', [ApplicationController::class, 'cogDebugStatus'])->name('cog.debugStatus');
         Route::post('/curriculum/subjects', [StudentCurriculumController::class, 'subjects'])->name('curriculum.subjects');
-
+        Route::post('/js-error', [ApplicationController::class, 'logJsError'])->name('log-js-error');
+        Route::get('/cog/parse-qr', [ApplicationController::class, 'getParseQrGrades'])->name('cog.qrGradesOnly');
+        Route::get('/cog/parse-ocr', [ApplicationController::class, 'getParseOcrGrades'])->name('cog.ocrGradesOnly');
         Route::get('/applicationstatus', [ApplicationStatusController::class, 'index'])->name('application.status');
         Route::delete('/application/{id}', [ApplicationStatusController::class, 'destroy'])->name('application.destroy');
-
+        Route::get('/check-cor-cog-codes', [ApplicationController::class, 'checkCorCogCodes'])->name('checkCorCogCodes');
+        Route::get('/cog/academic-info', [ApplicationController::class, 'getCogAcademicInfo'])->name('cog.academic-info');
+        Route::post('/validate-application-period', [ApplicationController::class, 'validateApplicationPeriod'])->name('validate.application-period');
+        Route::post('/cor/upload', [PdfUploadController::class, 'upload'])->name('cor.upload');
+        Route::post('/cog/upload', [CogUploadController::class, 'upload'])->name('cog.upload');
         Route::get('/portfolio', [PortfolioController::class, 'index'])->name('portfolio');
-
         Route::get('/cert/deans/{application}', [CertificateController::class, 'preview'])->name('cert.deans.preview');
         Route::get('/cert/deans/{application}/download', [CertificateController::class, 'download'])->name('cert.deans.download');
-
         Route::get('/graduation-form',  [GraduationFormController::class, 'show'])->name('graduation.show');
         Route::post('/graduation-form', [GraduationFormController::class, 'store'])->name('graduation.store');
-        Route::post('/cor/upload', [GraduationFormController::class, 'uploadCor'])->name('cor.upload');
-        Route::post('/cog/upload', [GraduationFormController::class, 'uploadCog'])->name('cog.upload');
+        Route::post('/cor-upload', [GraduationFormController::class, 'uploadCor'])->name('graduation.cor.upload');
+        Route::post('/cog-upload', [GraduationFormController::class, 'uploadCog'])->name('graduation.cog.upload');
+        Route::get('/cog/extracted', [GraduationFormController::class, 'cogExtractedTitles'])->name('cog.extracted');
+        Route::get('/debug-cor-detection', [GraduationFormController::class, 'debugCorDetection']);
+        Route::get('/curriculum/subjects', [GraduationFormController::class, 'curriculumSubjects'])->name('graduation.curriculum.subjects');
+        Route::post('/graduation-form/save', [GraduationFormController::class,'saveFields'])->name('graduationform.save');
+            Route::prefix('graduation')->group(function () {
+            Route::get('/status', [GraduationStatusController::class, 'show'])->name('graduation.status');
+            Route::get('/status/print', [GraduationStatusController::class, 'printStatus'])->name('graduation.status.print');
+            Route::get('/documents/download/{documentType}', [GraduationStatusController::class, 'downloadDocuments'])->name('graduation.documents.download');
+            Route::post('/requirements/save',[GraduationStatusController::class, 'saveRequirement'])->name('graduation.requirements.save');
+            Route::delete('/requirements',[GraduationStatusController::class, 'destroyRequirement'])->name('graduation.requirements.destroy');
 
-
+        });
+        Route::post('/graduation-form/generate-pdf', [GraduationFormController::class,'generateGradPdf'])->name('graduationform.generate');
+        Route::post('/graduation/requirements', [GraduationRequirementController::class, 'store'])->name('graduation.requirements.store');
+        Route::post('/graduation/evaluate-cor', [GraduationFormController::class, 'evaluateGraduationFromCor'])->name('graduation.evaluate-cor');
+        Route::get('/graduation/evaluation', [GraduationFormController::class, 'getGraduationEvaluation'])->name('graduation.evaluation');
+        Route::post('/latin/store', [LatinController::class, 'store'])->name('latin.store');
+        Route::post('/student/graduationform/generate-consent', [GraduationFormController::class, 'generateConsentPdf'])
+            ->name('student.graduationform.generateConsent')
+            ->middleware('auth'); 
         Route::post('/cog/validate-from-text', [ApplicationController::class, 'validateCogFromText'])->name('cog.validateFromText');
-
         Route::get('/parse-grades', [ApplicationController::class, 'parseAndSaveGrades']);
         Route::get('/compare-grades', [ApplicationController::class, 'compareGrades']);
-
         Route::get('/profile', [StudentProfileController::class, 'index'])->name('profile');
+        Route::get('/profile/photo', [StudentProfileController::class, 'photo'])->name('profile.photo');
+        Route::post('/profile/save', [StudentProfileController::class, 'save'])->name('profile.save');
+        Route::get('/latin', [LatinHonorsController::class, 'index'])->name('latin');
+        Route::post('/latin/generate', [LatinHonorsController::class, 'generate'])->name('latin.generate');
+        Route::post('/latin-honors/consent-generate', [LatinHonorsController::class, 'generate'])->name('latin-honors.consent.generate');
+        Route::get('/studentgrade', [StudentGradeController::class, 'index'])->name('studentgrade');
+        Route::get('/studentgrade/preview/image', [StudentGradeController::class, 'getSavedPng'])->name('studentgrade.preview.image');
+        Route::get('/grade', fn () => view('student.studentgrade'))->name('studentgrade.view');
+        Route::post('/upload-cog-preview', [StudentGradeController::class, 'uploadPreview'])->name('upload.preview');
+        Route::post('/qr/save',   [StudentGradeController::class, 'storeQrOutput'])->name('save-qr-output');
+        Route::get ('/qr/output', [StudentGradeController::class, 'qrOutput'])->name('qr.output');
+        Route::get('/cog/output-studentgrade', [StudentGradeController::class, 'cogOutput'])->name('cog.output.studentgrade');
+        Route::post('/grades/save', [StudentGradeController::class, 'storeFromCog'])->name('grades.store');            
+        Route::get('/debug-storage', [StudentGradeController::class, 'debugStorage']);
+        Route::get('/upload-grade', [StudentGradeController::class, 'index'])->name('studentgrade');
+        Route::prefix('grades')->name('grades.')->group(function () {
+            Route::get('/',     [ViewGradeController::class, 'index'])->name('index');
+            Route::get('/view', [ViewGradeController::class, 'index'])->name('view'); // UI page
+            Route::get('/modal',      [ViewGradeController::class, 'getGradesModal'])->name('modal');
+            Route::get('/copy-modal', [ViewGradeController::class, 'getCopyOfGradesModal'])->name('copy-modal');
+            Route::get('/all-modal',  [ViewGradeController::class, 'getAllGradesModal'])->name('all-modal');
+            Route::get('/upload',  [ViewGradeController::class, 'redirectToUpload'])->name('upload');
+            Route::post('/upload', [ViewGradeController::class, 'uploadGrades'])->name('upload.store');
+            Route::get('/all',  [ViewGradeController::class, 'showAllGrades'])->name('all');
+            Route::get('/copy', [ViewGradeController::class, 'showCopyOfGrades'])->name('copy');
+            Route::get('/debug', [ViewGradeController::class, 'debugGrades'])->name('debug');
+            Route::get('/years', [ViewGradeController::class, 'getStudentAcademicYears'])->name('years');
+            Route::post('/send-auto-verification-code', [ViewGradeController::class, 'sendAutoVerificationCode'])->name('send-auto-verification-code');
+            Route::post('/resend-verification-code', [ViewGradeController::class, 'resendVerificationCode'])->name('resend-verification-code');
+            Route::post('/verify-code', [ViewGradeController::class, 'verifyCode'])->name('verify-code');
+});
+        Route::post('/change-password', [StudentProfileController::class, 'changePassword'])->name('password.change');
     });
 
-// Outside student group
-Route::get('/student/cog/output', [ApplicationController::class,'getCogOutputFile'])->name('student.cog.output');
-Route::get('/student/cog/ocr-output', [ApplicationController::class,'getCogOcrOutputFile'])->name('student.cog.ocrOutput');
-Route::post('/student/cog/refresh-parse', [ApplicationController::class, 'refreshParseMirrors'])->name('student.cog.refreshParse');
+        Route::get('/student/grades/image/{studentId}', function($studentId) {
+            try {
+                $gradesRecord = \App\Models\Grades::where('Student_id', $studentId)->first();
+                
+                if (!$gradesRecord || empty($gradesRecord->image)) {
+                    return response()->json(['error' => 'No image found for student'], 404);
+                }
+
+                return response($gradesRecord->image)
+                    ->header('Content-Type', 'image/png')
+                    ->header('Content-Length', strlen($gradesRecord->image))
+                    ->header('Cache-Control', 'no-cache, no-store, must-revalidate');
+                    
+            } catch (\Exception $e) {
+                return response()->json(['error' => $e->getMessage()], 500);
+            }
+        });
+
+    Route::post('student/qr/resolve', [QrResolverController::class, 'resolve'])
+        ->name('student.qr.resolve')
+        ->withoutMiddleware([
+            // remove the whole web group in one go
+            'web',
+
+            // and explicitly remove the framework classes in case your app adds them directly
+            \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class,
+            \Illuminate\Cookie\Middleware\EncryptCookies::class,
+            \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+            \Illuminate\Session\Middleware\StartSession::class,
+            \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+        ])
+        ->middleware('throttle:20,1');
+
+
 
 Route::get('/media/{path}', function (string $path) {
     $clean = ltrim(str_replace('\\','/',$path), '/');
@@ -309,14 +404,6 @@ Route::get('/media/{path}', function (string $path) {
     return response()->file($found);
 })->where('path', '.*')->name('media');
 
-/* ===============================
- * DEAN EXTRA + AWARDS / CLAIM
- * (keeping your lines; just positioned together)
- * =============================== */
-Route::middleware(['auth', 'role:dean'])->group(function () {
-    Route::post('/dean/application/update-status', [DeanApplicationController::class, 'updateStatus'])->name('dean.application.update-status');
-    Route::post('/dean/application/bulk-approve', [DeanApplicationController::class, 'bulkApprove'])->name('dean.application.bulk-approve');
-});
 
 Route::get('/awards/claim/{token}', [\App\Http\Controllers\Student\AwardClaimController::class, 'claim'])
     ->middleware(['web','auth'])
@@ -352,8 +439,6 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/rso/graduation/{app}/endorse',     [RsoGraduationController::class, 'endorse'])->name('rso.graduation.endorse');
         Route::post('/rso/graduation/{app}/notify',      [RsoGraduationController::class, 'notifyStudent'])->name('rso.graduation.notify');
         Route::post('/rso/graduation/req/{req}/check',   [RsoGraduationController::class, 'checkRequirement'])->whereNumber('req')->name('rso.graduation.req.check');
-
-        Route::get('/validate-grades', [ApplicationController::class, 'parseAndValidateGrades']);
     });
 });
 
@@ -385,49 +470,123 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/programchair/students-by-program/{programId}', [DeansHonorListController::class, 'getStudentsByProgram'])->name('programchair.students.by.program');
     Route::post('/programchair/application/update-status', [DeansHonorListController::class, 'updateStatus'])->name('programchair.application.update-status');
     Route::post('/programchair/application/bulk-verify', [DeansHonorListController::class, 'bulkVerify'])->name('programchair.application.bulk-verify');
+    Route::get('/programchair/dashboard', [DashboardProgramchairController::class, 'index'])->name('programchair.dashboard');
+    Route::get('/programchair/graduation', [GraduationController::class, 'index'])->name('programchair.graduation');
+    Route::get('/programchair/graduation/report', [GraduationReportController::class, 'generateReport'])->name('programchair.graduation.report');
 });
 
-Route::middleware(['auth'])->prefix('programchair')->name('programchair.')->group(function () {
-    Route::get('deanshonorlist/report/{program}', [DeansHonorListReportController::class, 'download'])->name('deanshonorlist.report');
+    Route::middleware(['auth', 'usertype:Program Chairperson'])->group(function () {
+        Route::get('/programchair/notifications', [ProgramChairNotificationController::class, 'index'])->name('programchair.notifications.index');
+        Route::post('/programchair/notifications/mark-as-read', [ProgramChairNotificationController::class, 'markAsRead'])->name('programchair.notifications.markAsRead');
     });
-Route::get('/programchair/dashboard', [DashboardProgramchairController::class, 'index'])->name('programchair.dashboard');
 
-Route::middleware(['web'])->group(function () {
+
+Route::middleware(['auth'])->prefix('programchair')->name('programchair.')->group(function () {
+    Route::get('/deans-honor-list/options/{program}',[DeansHonorListReportController::class, 'options'])->name('deans-honor-list.options');
+    Route::get('/deans-honor-list/report/{program}',[DeansHonorListReportController::class, 'download'])->name('deans-honor-list.report');
+    Route::get('/deans-honor-list/download/{programId}', [PostingController::class, 'download'])->name('deans-honor-list.download');
+    });
+
+
+Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/programchair/post', [PostController::class, 'index'])->name('programchair.post.index'); // <--- view form
     Route::post('/programchair/post', [PostController::class, 'store'])->name('programchair.post');       // <--- form submission
 });
-Route::middleware(['web'])->group(function () {
-    Route::get('/programchair/curriculum', [CurriculumController::class, 'entry'])->name('programchair.curriculum');
-    Route::post('/programchair/curriculum/insert', [CurriculumController::class, 'insert'])->name('curriculum.insert');
-    Route::delete('/programchair/curriculum/{id}', [CurriculumController::class, 'destroy'])->name('curriculum.destroy');
-    Route::get('/programchair/curriculumupload', [CurriculumCollegeController::class, 'showUploadForm'])->name('programchair.curriculumupload');
-    Route::post('/curriculum/upload', [CurriculumCollegeController::class, 'upload'])->name('curriculum.upload');
-    Route::get('/curriculum/view/{curriculum_id}', [CurriculumCollegeController::class, 'view'])->name('curriculum.view');
-    Route::delete('/programchair/curriculum-ay/{id}', [CurriculumCollegeController::class, 'destroyAy'])->whereNumber('id')->name('curriculumay.destroy');
-});
+
+Route::middleware(['auth'])
+    ->prefix('programchair')
+    ->name('programchair.')
+    ->group(function () {
+        // Landing for curriculum module (now uses entry())
+        Route::get('/curriculum', [CurriculumController::class, 'entry'])
+            ->name('curriculum');
+
+        // Create AY (moved inside the group so name is programchair.curriculum.insert)
+        Route::post('/curriculum/insert', [CurriculumController::class, 'insert'])
+            ->name('curriculum.insert');
+
+        // Upload page + actions
+        Route::get('/curriculumupload', [CurriculumCollegeController::class, 'showUploadForm'])
+            ->name('curriculumupload');
+
+        Route::post('/curriculum/upload', [CurriculumCollegeController::class, 'upload'])
+            ->name('curriculum.upload');
+
+        Route::get('/curriculum/view/{curriculum_id}', [CurriculumCollegeController::class, 'view'])
+            ->name('curriculum.view');
+
+        Route::delete('/curriculum/{curriculum_id}', [CurriculumCollegeController::class, 'destroy'])
+            ->name('curriculum.destroy');
+
+        Route::delete('/curriculum-ay/{id}', [CurriculumCollegeController::class, 'destroyAy'])
+            ->name('curriculumay.destroy');
+    });
+
+// Keep this OUTSIDE the group because your blades call route('curriculum.insert') (no programchair. prefix)
+Route::post('/curriculum/insert', function (Illuminate\Http\Request $request) {
+    $validated = $request->validate([
+        'campus_id'     => 'required|exists:campus,Campus_id',
+        'college_id'    => 'required|exists:college,College_id',
+        'program_id'    => 'required|exists:program,Program_id',
+        'major_id'      => 'nullable|exists:major,Major_id',
+        'academic_year' => 'required|string|max:20',
+    ]);
+
+    $record = \App\Models\CurriculumAy::create([
+        'Campus_id'     => $validated['campus_id'],
+        'College_id'    => $validated['college_id'],
+        'Program_id'    => $validated['program_id'],
+        'Major_id'      => $validated['major_id'] ?? null,
+        'Academic_year' => $validated['academic_year'],
+    ]);
+
+    return response()->json([
+        'success'  => true,
+        'message'  => 'Curriculum AY created.',
+        'redirect' => route('programchair.curriculumupload'),
+        'record'   => $record,
+    ]);
+})->name('curriculum.insert');
+
 
 Route::middleware(['web'])->group(function () {
     Route::get('/programchair/rank', [RankController::class, 'index'])->name('programchair.rank');
     Route::post('/programchair/rank/save', [RankController::class, 'save'])->name('programchair.rank.save');
 });
 
-/* ===============================
- * DEAN (original block kept; only arranged)
- * =============================== */
+    Route::get('/programchair/profile',        [ProgramchairProfileController::class, 'show'])->name('programchair.profile');
+    Route::get('/programchair/profile/photo',  [ProgramchairProfileController::class, 'photo'])->name('programchair.profile.photo');
+    Route::post('/programchair/profile/save',  [ProgramchairProfileController::class, 'save'])->name('programchair.profile.save');
 Route::middleware(['web', 'auth'])
     ->prefix('dean')
     ->name('dean.')
     ->group(function () {
-        Route::get('/deansidebar', [DeanSidebarController::class, 'index'])->name('deansidebar');
-        Route::get('/honorlist/{campusId?}', [HonorListController::class, 'index'])->name('honorlist');
-        Route::get('/programs/{collegeId}', [HonorListController::class, 'getProgramsByCollege'])->name('programs');
-        Route::get('/students-by-program/{programId}', [HonorListController::class, 'getStudentsByProgram'])->name('students.by.program');
-        Route::get('/application/view/{id}', [HonorListController::class, 'viewFile'])->name('application.view');
 
-        // ---- Notifications / approvals (single + bulk) ----
-        Route::post('/application/update-status', [ApplicationNotifController::class, 'updateStatus'])->name('application.update-status');
-        Route::post('/application/bulk-approve', [ApplicationNotifController::class, 'bulkApprove'])->name('application.bulk-approve');
-    });
+        Route::get('/deansidebar', [DeanSidebarController::class, 'index'])
+            ->name('deansidebar');
+
+        Route::get('/honorlist/{campusId?}', [HonorListController::class, 'index'])
+            ->name('honorlist');
+
+        Route::get('/programs/{collegeId}', [HonorListController::class, 'getProgramsByCollege'])
+            ->name('programs');
+
+        Route::get('/students-by-program/{programId}', [HonorListController::class, 'getStudentsByProgram'])
+            ->name('students.by.program');
+
+        Route::get('/application/view/{id}', [HonorListController::class, 'viewFile'])
+            ->name('application.view');
+
+        // ===== Dean – approve (single + bulk) =====
+        Route::post('/application/update-status', [DeanApplicationController::class, 'updateStatus'])
+            ->name('application.update-status');
+
+        Route::post('/application/bulk-approve', [DeanApplicationController::class, 'bulkApprove'])
+            ->name('application.bulk-approve');
+    }); 
+    Route::get('/dean/profile',        [DeanProfileController::class, 'show'])->name('dean.profile');
+    Route::get('/dean/profile/photo',  [DeanProfileController::class, 'photo'])->name('dean.profile.photo');
+    Route::post('/dean/profile/save',  [DeanProfileController::class, 'save'])->name('dean.profile.save');
 
 
 Route::middleware(['web','auth','usertype:Dean'])

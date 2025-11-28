@@ -3,48 +3,200 @@
 
 @section('content')
 @php use Illuminate\Support\Str; @endphp
-<style>
-  .card-soft { border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,.06); }
 
-  .avatar {
-    width:110px; height:110px; border-radius:12px;
-    background:#e9ecef; display:flex; align-items:center; justify-content:center;
+<style>
+  /* ===== HERO HEADER (BG IMAGE + GLASS EFFECT + DIAGONAL) ===== */
+
+  .student-hero-wrapper {
+    position: relative;
+    width: 100%;
+    min-height: 180px;
+    border-radius: 18px;
+    overflow: hidden;
+    background: #7A0000 url('{{ asset("img/bg.jpg") }}') no-repeat center center;
+    background-size: cover;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+    border: 1px solid #e8e8e8;
+    margin-bottom: 1.5rem;
   }
 
-  /* Header typography tweaks */
-  .header-name   { font-size:1.35rem; line-height:1.2; margin-top:-4px; }   /* ↑ a bit larger & nudged up */
-  .header-prog   { font-size:.95rem;  line-height:1.2; letter-spacing:.2px; }
-  .header-year   { font-size:.95rem;  line-height:1.2; letter-spacing:.2px; margin-top:2px; }
+  /* Semi-transparent white layer para hindi lumubog text sa image */
+  .student-hero-tint {
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.78);
+    z-index: 1;
+  }
 
-  .badge-pill { border-radius:999px; padding:.4rem .75rem; font-weight:600; }
+  /* Red + yellow diagonal at the bottom */
+  .student-hero-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 90px;
+    background: linear-gradient(to right, #c8102e 0%, #c8102e 55%, #f9b233 55%, #f9b233 100%);
+    clip-path: polygon(0 0, 100% 90%, 100% 100%, 0 100%);
+    z-index: 2;
+  }
+
+  .student-hero-content {
+    position: relative;
+    z-index: 3;
+    padding: 1.5rem 2rem;
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+    color: #111;
+  }
+
+  .student-photo-wrap {
+    width: 120px;
+    height: 140px;
+    border-radius: 4px;
+    border: 3px solid #fff;
+    overflow: hidden;
+    background: #ffffff;
+    box-shadow: 0 3px 8px rgba(0,0,0,.20);
+  }
+
+  .student-photo-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .student-icons {
+    display: flex;
+    gap: .4rem;
+    margin-top: .4rem;
+  }
+
+  .student-icon-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    border: none;
+    background: #f1f1f1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    color:#555;
+    transition: .2s;
+  }
+
+  .student-icon-btn:hover {
+    background:#e1e1e1;
+  }
+
+  .student-info h4 {
+    margin: 0;
+    font-weight: 700;
+    font-size: 1.25rem;
+    letter-spacing: .03em;
+    color:#111;
+  }
+
+  .info-line {
+    color:#222;
+    font-size: .92rem;
+    margin-top: 2px;
+  }
+
+  .info-line i {
+    font-size: .6rem;
+    margin-right: 4px;
+    color:#222;
+  }
+
+  .badge-enrolled {
+    display: inline-block;
+    padding: .28rem .75rem;
+    background: #16a34a;
+    color: white;
+    border-radius: 999px;
+    font-size: .75rem;
+    margin-top: .5rem;
+    font-weight: 600;
+  }
+
+  /* ===== OTHER CARDS ===== */
+  .card-soft { border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,.06); }
   .thumb { aspect-ratio: 4/3; width:100%; object-fit:cover; border-radius:10px; }
+  .badge-pill { border-radius:999px; padding:.4rem .75rem; font-weight:600; }
   .list-dot::before { content:'• '; color:#6c757d; }
 </style>
 
 <div class="container py-3">
 
-  {{-- 1) Header --}}
-  <div class="card card-soft p-3 mb-3">
-    <div class="d-flex align-items-center gap-3">
-      <div class="avatar">
-        <i class="bi bi-person fs-1 text-secondary"></i>
-      </div>
-      <div class="d-flex flex-column">
-        {{-- NAME (UPPERCASE, slightly larger, moved up) --}}
-        <div class="fw-bold header-name">{{ Str::upper($studentName ?? 'Student') }}</div>
-        {{-- PROGRAM (UPPERCASE) --}}
-        <div class="text-muted header-prog">
-          {{ Str::upper($studentProgram ?? '—') }}
+  {{-- =======================
+       STUDENT HEADER HERO
+     ======================= --}}
+  <div class="student-hero-wrapper">
+    <div class="student-hero-tint"></div>
+    <div class="student-hero-overlay"></div>
+
+    <div class="student-hero-content">
+
+      {{-- PHOTO + ICONS --}}
+      <div>
+        <div class="student-photo-wrap">
+          <img src="{{ $photoUrl }}" alt="Student photo">
         </div>
-        {{-- YEAR LEVEL (UPPERCASE) ON ITS OWN LINE --}}
-        <div class="text-muted header-year">
-          YEAR {{ Str::upper($studentYearLevel ?? '—') }}
+
+        <div class="student-icons">
+          <button type="button" class="student-icon-btn" title="Email"><i class="bi bi-envelope"></i></button>
+          <button type="button" class="student-icon-btn" title="Edit profile"><i class="bi bi-pencil"></i></button>
         </div>
       </div>
+
+      {{-- INFO --}}
+      <div class="student-info flex-grow-1">
+
+        {{-- NAME --}}
+        <h4>{{ $studentName }}</h4>
+
+        {{-- FIRST SEMESTER AY ... --}}
+        <div class="info-line">
+          <i class="bi bi-caret-right-fill"></i>
+          {{ $semesterLabel }}
+        </div>
+
+        {{-- COLLEGE + CAMPUS --}}
+        <div class="info-line">
+          <i class="bi bi-caret-right-fill"></i>
+          {{ $course?->college?->College_name ?? 'College not set' }}
+          @if($course?->campus)
+            - {{ $course->campus->Campus_name }}
+          @endif
+        </div>
+
+        {{-- PROGRAM + YEAR LEVEL --}}
+        <div class="info-line">
+          <i class="bi bi-caret-right-fill"></i>
+          <strong>{{ $course?->program?->Program_name ?? $studentProgram }}</strong>
+          – {{ Str::upper($studentYearLevel) }}
+        </div>
+
+        {{-- MAJOR (optional) --}}
+        @if($course?->major)
+          <div class="info-line">
+            <i class="bi bi-caret-right-fill"></i>
+            {{ $course->major->Major_name }}
+          </div>
+        @endif
+
+        <span class="badge-enrolled">{{ $enrollmentStatus }}</span>
+
+      </div>
+
     </div>
   </div>
 
-  {{-- 2) List of Badges --}}
+  {{-- =======================
+       LIST OF BADGES
+     ======================= --}}
   <div class="card card-soft p-3 mb-3">
     <div class="d-flex align-items-center justify-content-between mb-2">
       <h5 class="mb-0 fw-bold">List of Badges</h5>
@@ -55,8 +207,9 @@
     @if(!empty($badges) && count($badges))
       <div class="d-flex flex-wrap gap-3">
         @foreach($badges as $b)
-          {{-- $b['icon'] is already a full /storage/... or http(s) URL --}}
-          <img src="{{ $b['icon'] }}" alt="badge" style="height:40px">
+          <img src="{{ $b['img'] ?? asset('img/cert/badge_silver.png') }}" 
+               alt="{{ $b['label'] ?? 'Badge' }}" 
+               style="height:40px">
         @endforeach
       </div>
     @else
@@ -65,7 +218,9 @@
   </div>
 
   <div class="row g-3">
-    {{-- 3) Certificate gallery --}}
+    {{-- =======================
+         Certificate gallery
+       ======================= --}}
     <div class="col-lg-6">
       <div class="card card-soft p-3 h-100">
         <h5 class="fw-bold mb-3">Certificates</h5>
@@ -99,7 +254,9 @@
       </div>
     </div>
 
-    {{-- 4) List of Achievements --}}
+    {{-- =======================
+         List of Achievements
+       ======================= --}}
     <div class="col-lg-6">
       <div class="card card-soft p-3 h-100">
         <h5 class="fw-bold mb-3">List of Achievements</h5>
@@ -135,7 +292,9 @@
     </div>
   </div>
 
-  {{-- Optional: list view with buttons --}}
+  {{-- =======================
+       List view of certificates
+     ======================= --}}
   @if(!empty($deansCertificates) && count($deansCertificates))
     <h5 class="mt-4 fw-bold">Dean’s Lister Certificates</h5>
     <ul class="list-group mb-4">

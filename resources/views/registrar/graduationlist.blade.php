@@ -1,0 +1,131 @@
+@extends('registrar.registrarsidebar')
+
+@section('content')
+<div class="container py-4">
+
+  @php
+    $level           = $level ?? 'college';
+    $campusId        = $campusId ?? $userCampusId ?? null;
+    $collegeId       = $collegeId ?? null;
+    $programId       = $programId ?? null;
+    $userCampusName  = $userCampusName ?? 'Your Campus';
+
+    $backHref = null;
+    $backText = 'Back';
+
+    if ($level === 'program') {
+      $backHref = route('registrar.graduationlist', [
+        'level'     => 'college',
+        'campus_id' => $campusId,
+      ]);
+      $backText = 'Back to Colleges';
+    } elseif ($level === 'major') {
+      $backHref = route('registrar.graduationlist', [
+        'level'      => 'program',
+        'campus_id'  => $campusId,
+        'college_id' => $collegeId,
+      ]);
+      $backText = 'Back to Programs';
+    }
+
+    $rows        = collect($rows ?? []);
+    $hasRows     = $rows->sum('total') > 0;
+  @endphp
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-2">
+      @if($backHref)
+        <a href="{{ $backHref }}" class="btn btn-outline-light rounded-3">
+          <i class="bi bi-arrow-left-circle me-1"></i> {{ $backText }}
+        </a>
+      @endif
+      <div class="d-flex flex-column">
+        <h3 class="fw-bold text-white mb-1">{{ $title ?? 'Graduation List' }}</h3>
+        <span class="text-light small">Campus: <strong>{{ $userCampusName }}</strong></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      @if(!$hasRows)
+        <div class="d-flex align-items-center justify-content-center" style="height:70vh;">
+          <div class="text-center">
+            <div class="mx-auto mb-4">
+              <img src="{{ asset('img/box2.png') }}" alt="Empty Box" style="width:110px;height:auto;opacity:0.9;">
+            </div>
+            <h5 class="fw-semibold mb-2">No Graduating Students</h5>
+            <p class="text-muted mb-0">
+              There are currently no Fourth-Year students with graduation forms and
+              requirements for this
+              {{ $level === 'college' ? 'campus/college' : ($level === 'program' ? 'program' : 'major') }}.
+            </p>
+          </div>
+        </div>
+      @else
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th style="width:64px">#</th>
+                <th>
+                  @if($level === 'college')
+                    College
+                  @elseif($level === 'program')
+                    Program
+                  @else
+                    Major
+                  @endif
+                </th>
+                <th class="text-end">No. of Graduating Students (Fourth Year)</th>
+              </tr>
+            </thead>
+            <tbody>
+              @foreach($rows as $i => $row)
+                @php
+                  if ($level === 'college') {
+                    $href = route('registrar.graduationlist', [
+                      'level'      => 'program',
+                      'campus_id'  => $campusId,
+                      'college_id' => $row->id,
+                    ]);
+                  } elseif ($level === 'program') {
+                    $href = route('registrar.graduationlist', [
+                      'level'      => 'major',
+                      'campus_id'  => $campusId,
+                      'college_id' => $collegeId,
+                      'program_id' => $row->id,
+                    ]);
+                  } else {
+                    // Major → detailed list
+                    $href = route('registrar.graduationlist.students', [
+                      'campus_id'  => $campusId,
+                      'college_id' => $collegeId,
+                      'program_id' => $programId,
+                      'major_id'   => $row->id ?? 0,  // 0 = no major
+                    ]);
+                  }
+                @endphp
+                <tr class="clickable-row" data-href="{{ $href }}" style="cursor:pointer;">
+                  <td>{{ $i + 1 }}</td>
+                  <td class="fw-semibold">{{ $row->name }}</td>
+                  <td class="text-end">{{ number_format((int) $row->total) }}</td>
+                </tr>
+              @endforeach
+            </tbody>
+          </table>
+        </div>
+      @endif
+    </div>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.clickable-row').forEach(row => {
+  row.addEventListener('click', () => {
+    const href = row.getAttribute('data-href');
+    if (href) window.location.href = href;
+  });
+});
+</script>
+@endsection

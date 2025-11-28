@@ -2,8 +2,8 @@
 /* @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap'); */
 
 :root {
-  --sidebar-bg: #004aad;
-  --hover-bg: #000070;
+  --sidebar-bg: #d2232a;
+  --hover-bg: #d2232a;
   --text-white: #fff;
   --text-black: #000;
 }
@@ -92,7 +92,7 @@
 
 .logo-chie,
 .logo-emate {
-  color: #004aad;
+  color: #d2232a;
   font-weight: 900;
   font-size: 22px;
 }
@@ -340,7 +340,7 @@
 
 .main-header .actions i {
   font-size: 18px;
-  color: #1c2b49;
+  color: #d2232a;
   cursor: pointer;
 }
 
@@ -359,7 +359,7 @@
 }
 
 thead.custom-thead tr th {
-  background-color: #004aad !important;
+  background-color: #d2232a !important;
   color: white !important;
 }
 

@@ -5,7 +5,7 @@ namespace App\Services;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\ImageManager;
-use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\Drivers\Imagick\Driver as ImagickDriver;
 use Intervention\Image\Typography\FontFactory;
 use App\Models\Application;
 
@@ -15,7 +15,7 @@ class CertificateImageService
 
     public function __construct()
     {
-        $this->im = new ImageManager(new Driver());
+        $this->im = new ImageManager(new ImagickDriver());
     }
 
     public function makeDeansCertPng(array $data): ?string
@@ -31,6 +31,11 @@ class CertificateImageService
             $img = $this->im->read($template);
             $W = $img->width();
             $H = $img->height();
+
+            Log::info('Cert: template loaded', [
+                'template_realpath' => realpath($template),
+                'size' => "{$W}x{$H}",
+            ]);
 
             // ---------- Auto-enrich missing fields (Program/Sem/AY) ----------
             try {
@@ -90,37 +95,46 @@ class CertificateImageService
                 $gwa = $n > 0 ? $n : null;
             }
 
-            // ---------- Fonts ----------
-            $envRegular = env('CERT_FONT_REGULAR');
-            $envBold    = env('CERT_FONT_BOLD');
-
-            $fontRegular = $this->firstFont(array_filter([
-                $envRegular,
-                'C:/Windows/Fonts/arial.ttf',
-                'C:/Windows/Fonts/calibri.ttf',
-                '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
-                resource_path('fonts/Inter-Regular.ttf'),
-                resource_path('fonts/Poppins-Regular.ttf'),
+            // ---------- Fonts (project fonts → env → system) ----------
+            $projectFontDir = base_path('storage/app/fonts');
+            $fontRegular = $this->firstFont([
+                $projectFontDir.'/DejaVuSans.ttf',
+                $projectFontDir.'/Montserrat-Regular.ttf',
                 resource_path('fonts/Montserrat-Regular.ttf'),
-            ]));
+                env('CERT_FONT_REGULAR'),
+                '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+            ]);
 
-            $fontBold = $this->firstFont(array_filter([
-                $envBold,
-                'C:/Windows/Fonts/arialbd.ttf',
-                'C:/Windows/Fonts/calibrib.ttf',
-                '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
-                resource_path('fonts/Inter-Bold.ttf'),
-                resource_path('fonts/Poppins-Bold.ttf'),
+            $fontBold = $this->firstFont([
+                $projectFontDir.'/DejaVuSans-Bold.ttf',
+                $projectFontDir.'/Montserrat-Bold.ttf',
                 resource_path('fonts/Montserrat-Bold.ttf'),
-            ]));
+                env('CERT_FONT_BOLD'),
+                '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+            ]);
 
             $fontItalic = $this->firstFont([
-                'C:/Windows/Fonts/ariali.ttf',
-                '/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf',
-                resource_path('fonts/Inter-Italic.ttf'),
-                resource_path('fonts/Poppins-Italic.ttf'),
+                $projectFontDir.'/DejaVuSans-Oblique.ttf',
+                $projectFontDir.'/Montserrat-Italic.ttf',
                 resource_path('fonts/Montserrat-Italic.ttf'),
+                '/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf',
             ]) ?: $fontRegular;
+
+            if (!$fontRegular || !is_file($fontRegular)) {
+                Log::error('Cert: fontRegular missing/unreadable', ['fontRegular' => $fontRegular]);
+                return null;
+            }
+            if (!$fontBold || !is_file($fontBold)) {
+                Log::error('Cert: fontBold missing/unreadable', ['fontBold' => $fontBold]);
+                return null;
+            }
+
+            Log::info('Cert: fonts selected', [
+                'regular' => $fontRegular,
+                'bold'    => $fontBold,
+                'italic'  => $fontItalic,
+                'project_font_dir' => $projectFontDir,
+            ]);
 
             // ---------- Colors ----------
             $ink       = '#202327';
@@ -128,11 +142,9 @@ class CertificateImageService
             $accentRed = '#d61f26';
             $shadow    = 'rgba(0,0,0,0.35)';
 
-            // ---------- Layout ----------
-            $panelLeftPct  = 0.450;
-            $xFineShiftPx  = -12;
-
-            $X = (int) round($panelLeftPct * $W) + $xFineShiftPx;
+            // ---------- Layout - MOVED FURTHER LEFT ----------
+            // Use a fixed left position instead of detection for more control
+            $X = (int) round($W * 0.43); // Moved from ~54% to 45% - much further left
 
             $yTop      = (int) round(0.235 * $H);
             $yName     = $yTop + (int) round(0.035 * $H);
@@ -142,30 +154,24 @@ class CertificateImageService
             $yDeanName = $yDate + (int) round(0.13 * $H);
             $yDeanTit  = $yDeanName + (int) round(0.038 * $H);
 
-            // ↓↓↓ Smaller fonts (one more step down) to match your sample cert
-            $fsName     = max(28, (int) round($H * 0.048)); // big red name
-            $fsProgram  = max(15, (int) round($H * 0.024)); // italic program
-            $fsPara     = max(15, (int) round($H * 0.024)); // paragraph lines
-            $fsDate     = max(15, (int) round($H * 0.026)); // date
-            $fsDeanName = max(17, (int) round($H * 0.028)); // dean name
-            $fsDeanTit  = max(16, (int) round($H * 0.022)); // dean title
+            $fsName     = max(28, (int) round($H * 0.048));
+            $fsProgram  = max(15, (int) round($H * 0.024));
+            $fsPara     = max(15, (int) round($H * 0.024));
+            $fsDate     = max(15, (int) round($H * 0.026));
+            $fsDeanName = max(17, (int) round($H * 0.028));
+            $fsDeanTit  = max(16, (int) round($H * 0.022));
 
-            // Extra gap between Name and Program (more spacing)
             $nameProgramExtraGapPx = max(12, (int) round($H * 0.018));
             $yProgram += $nameProgramExtraGapPx;
 
-            // Push the paragraph block a bit further down
-            $paraExtraDownPx = (int) round($H * 0.012);  // ~1.2% of page height
+            $paraExtraDownPx = (int) round($H * 0.012);
             $yParaTop += $paraExtraDownPx;
 
-
-            // Autoscale BIG name (rough char-based heuristic)
             $lenName = mb_strlen($studentName);
             if     ($lenName > 42) $fsName = max(36, $fsName - 10);
             elseif ($lenName > 34) $fsName = max(40, $fsName - 6);
             elseif ($lenName > 28) $fsName = max(44, $fsName - 2);
 
-            // Long program → shrink a bit
             if (mb_strlen($program) > 60) {
                 $fsProgram = (int) max(18, $fsProgram - 6);
             }
@@ -194,7 +200,7 @@ class CertificateImageService
 
             $parts = [];
             if ($semester !== '') $parts[] = $semester;
-            if ($ay !== '—')       $parts[] = "AY {$ay}";
+            if ($ay !== '—')      $parts[] = "AY {$ay}";
             $line4 = 'for the ' . implode(', ', $parts) . '.';
 
             // ---------- Draw ----------
@@ -228,8 +234,11 @@ class CertificateImageService
             $this->text($img, $deanName,  $X, $yDeanName, $fsDeanName, $fontBold ?: $fontRegular, $accentRed, 'left', 'top');
             $this->text($img, $deanTitle, $X, $yDeanTit,  $fsDeanTit,  $fontRegular, $ink,       'left', 'top');
 
+            // ---------- Add Notes Footer ----------
+            $this->addNotesFooter($img, $W, $H, $fontRegular, $fontItalic);
+
             if (env('CERT_DEBUG', false)) {
-                $dbg = "DBG prog='".mb_substr($program,0,40)."' sem='{$semester}' ay='{$ay}'";
+                $dbg = "DBG prog='".mb_substr($program,0,40)."' sem='{$semester}' ay='{$ay}' X={$X}";
                 $this->text($img, $dbg, (int)round($W*0.04), (int)round($H*0.96), 16, $fontRegular, '#555', 'left', 'top');
             }
 
@@ -250,7 +259,13 @@ class CertificateImageService
                 return null;
             }
 
-            Log::info('Cert: PNG generated', ['rel' => $rel, 'student' => $studentName, 'program' => $program, 'ay' => $ay]);
+            Log::info('Cert: PNG generated', [
+                'rel'     => $rel,
+                'student' => $studentName,
+                'program' => $program,
+                'ay'      => $ay,
+                'anchorX' => $X,
+            ]);
             return $rel;
 
         } catch (\Throwable $e) {
@@ -260,6 +275,54 @@ class CertificateImageService
                 'line' => $e->getLine()
             ]);
             return null;
+        }
+    }
+
+    /**
+     * Add Notes footer to the certificate
+     */
+    private function addNotesFooter($img, int $W, int $H, string $fontRegular, ?string $fontItalic): void
+    {
+        try {
+            // Footer text
+            $notesText = "Notes: Not Official Document";
+            
+            // Calculate position - bottom center of the certificate
+            $footerY = $H - 40; // 40px from bottom
+            $footerX = $W / 2;  // Center horizontally
+            
+            // Font size - smaller than main text but readable
+            $footerFontSize = max(12, (int) round($H * 0.018));
+            
+            // Color - red as requested
+            $footerColor = '#d61f26'; // Same red as accentRed
+            
+            // Add subtle shadow for better readability
+            $footerShadow = 'rgba(0,0,0,0.3)';
+            
+            // Draw the footer text
+            $this->text(
+                $img, 
+                $notesText, 
+                (int)$footerX, 
+                $footerY, 
+                $footerFontSize, 
+                $fontItalic ?: $fontRegular, 
+                $footerColor, 
+                'center', 
+                'top', 
+                $footerShadow
+            );
+            
+            Log::info('Cert: Notes footer added', [
+                'text' => $notesText,
+                'position' => "{$footerX},{$footerY}",
+                'font_size' => $footerFontSize,
+                'color' => $footerColor
+            ]);
+            
+        } catch (\Throwable $e) {
+            Log::warning('Cert: Failed to add notes footer', ['err' => $e->getMessage()]);
         }
     }
 
@@ -312,7 +375,7 @@ class CertificateImageService
                           string $align='left', string $valign='top', ?string $shadow=null): void
     {
         if ($shadow) {
-            $img->text($text, $x+2, $y+2, function (FontFactory $f) use ($font,$size,$align,$valign,$shadow) {
+            $img->text($text, $x+1, $y+1, function (FontFactory $f) use ($font,$size,$align,$valign,$shadow) {
                 if ($font && is_file($font)) $f->filename($font);
                 $f->size($size); $f->color($shadow); $f->align($align); $f->valign($valign);
             });
@@ -355,5 +418,12 @@ class CertificateImageService
         $ay = preg_replace('/\s*[-–—]\s*/u', ' – ', $ay);
         $ay = preg_replace('/\s+/', ' ', $ay);
         return $ay;
+    }
+
+    // Simplified - just use fixed position instead of detection
+    private function detectRightPanelX($img, int $W, int $H): ?int
+    {
+        // Always use 45% from left for more left-aligned text
+        return (int) round($W * 0.45);
     }
 }

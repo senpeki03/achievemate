@@ -14,12 +14,11 @@ class EnsureUserType
 
         // Not logged in?
         if (!$user) {
-            // redirect to login or abort 403; choose one
-            return redirect()->route('login'); // or: abort(403);
+            return redirect()->route('login');
         }
 
-        // Normalize both sides to avoid case / whitespace issues
-        $actual = trim(mb_strtolower((string)($user->usertype ?? '')));
+        // Normalize both sides (case-insensitive)
+        $actual   = trim(mb_strtolower((string)($user->usertype ?? '')));
         $expected = trim(mb_strtolower($expected));
 
         if ($actual !== $expected) {

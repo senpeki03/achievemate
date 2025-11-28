@@ -20,15 +20,16 @@ class UserDesignation extends Model
         'Designation_id',
         'User_id',
         'Login_id',
-
     ];
+
+    protected $appends = ['full_name'];
     
     public function user()
     {
         return $this->belongsTo(\App\Models\UserManage::class, 'User_id', 'User_id');
     }
 
-     public function login()
+    public function login()
     {
         return $this->belongsTo(Login::class, 'Login_id', 'Login_id');
     }
@@ -38,7 +39,7 @@ class UserDesignation extends Model
         return $this->belongsTo(\App\Models\Designation::class, 'Designation_id', 'Designation_id');
     }
 
-        public function campus()
+    public function campus()
     {
         return $this->belongsTo(Campus::class, 'Campus_id', 'Campus_id');
     }
@@ -58,4 +59,11 @@ class UserDesignation extends Model
         return $this->belongsTo(Major::class, 'Major_id', 'Major_id');
     }
 
+    public function getFullNameAttribute(): string
+    {
+        $mi = $this->Middle_name ? (' ' . mb_substr($this->Middle_name, 0, 1) . '.') : '';
+        $title = $this->Title ? ($this->Title . ' ') : '';
+        return trim($title . $this->First_name . $mi . ' ' . $this->Last_name);
+    }
 }
+

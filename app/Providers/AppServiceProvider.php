@@ -5,7 +5,9 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Auth;
 use App\Models\PostRecipient;
+use App\Models\ApplicationRecipient;
 use App\Models\Application;
 use App\Observers\ApplicationObserver;
 
@@ -19,12 +21,13 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         /**
-         * Share unread notifications ONLY when the student sidebar renders.
-         * Adjust the view names below to match your actual sidebar blade path(s).
+         * ============================
+         *  STUDENT UNREAD NOTIFICATIONS
+         * ============================
          */
         View::composer([
             'student.studentsidebar',           // e.g. resources/views/student/studentsidebar.blade.php
-            'student.partials.studentsidebar',  // keep/remove depending on your structure
+            'student.partials.studentsidebar',  // depende kung gamit mo ito
         ], function ($view) {
             // Never run heavy DB work during CLI (migrate, tinker, queue:work)
             if (app()->runningInConsole()) {
@@ -83,6 +86,45 @@ class AppServiceProvider extends ServiceProvider
 
             $view->with('unreadCount', (int) $unread);
         });
+
+        /**
+         * ==============================
+         *  PROGRAM CHAIR UNREAD APPLICATIONS
+         * ==============================
+         */
+        View::composer('programchair.*', function ($view) {
+            if (app()->runningInConsole()) {
+                $view->with('unreadCount', 0);
+                return;
+            }
+
+            $unread = 0;
+
+            try {
+                $login = Auth::user(); 
+
+                if (
+                    $login &&
+                    mb_strtolower((string) $login->usertype) === 'program chairperson' &&
+                    $login->userDesignation
+                ) {
+                    $userManageId = $login->userDesignation->User_id;
+
+                    if ($userManageId) {
+                        $unread = \App\Models\ApplicationRecipient::where('User_id', $userManageId)
+                            ->where('is_read', 0)
+                            ->count();
+                    }
+                }
+
+            } catch (\Throwable $e) {
+                $unread = 0;
+            }
+
+            // ALWAYS pass unreadCount to ALL programchair views
+            $view->with('unreadCount', (int) $unread);
+        });
+
 
         // Keep your model observers and other boot logic
         Application::observe(ApplicationObserver::class);

@@ -2,194 +2,151 @@
 
 namespace App\Http\Controllers\Student;
 
-use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
+use App\Http\Controllers\Controller;
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\RequestException;
 
 class QrResolverController extends Controller
 {
-    public function resolve(Request $request)
-    {
-        $payload = trim((string)$request->input('payload', ''));
-        if ($payload === '') {
-            return response()->json(['error' => 'Empty payload'], 422);
-        }
-
-        // 1) If payload is base64 JSON → decode directly
-        $decoded = $this->tryDecodeBase64Json($payload);
-        if ($decoded) {
-            return response()->json($decoded);
-        }
-
-        // 2) If raw JSON → return as-is
-        $json = json_decode($payload, true);
-        if (is_array($json)) {
-            return response()->json($json);
-        }
-
-        // 3) If URL (typical: dione viewer) → fetch server-side and parse HTML
-        if (!preg_match('~^https?://~i', $payload)) {
-            return response()->json(['error' => 'Unsupported QR payload'], 422);
-        }
-
-        // --- Guardrail vs SSRF
-        $u = parse_url($payload);
-        if (!isset($u['scheme'], $u['host']) || !in_array($u['scheme'], ['http','https'])) {
-            return response()->json(['error' => 'Invalid URL'], 422);
-        }
-        // Allow only BatStateU domains (adjust if needed)
-        if (!preg_match('/(\.|^)batstate-u\.edu\.ph$/i', $u['host'])) {
-            return response()->json(['error' => 'Blocked host'], 422);
-        }
-
-        try {
-            $resp = Http::timeout(20)
-                ->retry(2, 500)
-                ->withHeaders([
-                    'User-Agent' => 'AchieveMate/QRResolver (+https://your.domain)',
-                    'Accept'     => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                ])
-                ->get($payload);
-
-            if (!$resp->ok()) {
-                return response()->json(['error' => 'Upstream returned '.$resp->status()], 502);
-            }
-
-            $html = (string)$resp->body();
-
-            $parsed = $this->parseGradesHtml($html);
-            if (empty($parsed['grades'])) {
-                return response()->json(['error' => 'Could not parse grades from page'], 422);
-            }
-
-            // optional audit
-            $name = 'cog/qr_resolved_'.now()->format('Ymd_His').'_'.Str::random(4).'.json';
-            Storage::put($name, json_encode($parsed, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE));
-
-            return response()->json($parsed);
-
-        } catch (\Throwable $e) {
-            Log::error('QR resolve failed', ['err'=>$e->getMessage()]);
-            return response()->json(['error' => 'Resolve failed', 'message'=>$e->getMessage()], 500);
-        }
+  public function resolve(Request $request)
+  {
+    $qrUrl = trim((string) $request->input('payload', ''));
+    if ($qrUrl === '' || !preg_match('~^https?://~i', $qrUrl)) {
+      return response()->json([
+        'ok' => false,
+        'error' => 'bad_payload',
+        'message' => 'Payload must be a full http(s) URL.',
+      ], 422);
     }
 
-    private function tryDecodeBase64Json(string $s): ?array
-    {
-        // tolerate URL-safe base64
-        $s2 = strtr($s, '-_', '+/');
-        if (preg_match('~^[A-Za-z0-9+/=]+$~', $s2)) {
-            $bin = base64_decode($s2, true);
-            if ($bin !== false) {
-                $j = json_decode($bin, true);
-                if (is_array($j)) return $j;
-            }
-        }
-        return null;
+    $client = new Client([
+      'timeout' => 20,
+      'allow_redirects' => ['max' => 10, 'strict' => false, 'referer' => true],
+      'headers' => [
+        'User-Agent'      => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118 Safari/537.36',
+        'Accept'          => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language' => 'en-US,en;q=0.9',
+      ],
+      'http_errors' => false,
+      'verify' => true,
+    ]);
+
+    try {
+      $res = $client->get($qrUrl);
+    } catch (RequestException $e) {
+      Log::warning('QR fetch failed', ['url' => $qrUrl, 'err' => $e->getMessage()]);
+      return response()->json([
+        'ok' => false,
+        'error' => 'fetch_failed',
+        'message' => $e->getMessage(),
+        'qr_url' => $qrUrl,
+      ], 200);
     }
 
-    private function parseGradesHtml(string $html): array
-    {
-        // Quick plain-text capture for header + totals
-        $text = trim(preg_replace('/\s+/', ' ', strip_tags($html)));
+    $status = $res->getStatusCode();
+    $ct     = strtolower($res->getHeaderLine('Content-Type') ?: '');
+    $body   = (string) $res->getBody();
 
-        $grab = function(string $rx) use ($text) {
-            if (preg_match($rx, $text, $m)) return trim($m[1]);
-            return '';
-        };
-
-        $header = [
-            'Fullname'      => $grab('/Fullname\s*:\s*(.+?)\s+SRCODE/i'),
-            'SRCODE'        => $grab('/SRCODE\s*:\s*([0-9\-]+)/i'),
-            'College'       => $grab('/College\s*:\s*(.+?)\s+Academic\s+Year/i'),
-            'Academic Year' => $grab('/Academic\s*Year\s*:\s*([0-9\-]+)/i'),
-            'Program'       => $grab('/Program\s*:\s*(.+?)\s+Semester/i'),
-            'Semester'      => $grab('/Semester\s*:\s*([A-Z ]+)/i'),
-            'Year Level'    => $grab('/Year\s*Level\s*:\s*([A-Za-z0-9]+)/i'),
-        ];
-
-        $gwa         = $grab('/General\s*Weighted\s*Average\s*\(GWA\)\s*([0-9.]+)/i');
-        $totalUnits  = $grab('/Total\s*no\s*of\s*Units\s*([0-9.]+)/i');
-        $totalCourse = $grab('/Total\s*no\s*of\s*Course\s*([0-9]+)/i');
-
-        // DOM parse for rows
-        libxml_use_internal_errors(true);
-        $dom = new \DOMDocument();
-        $dom->loadHTML($html);
-        $xpath = new \DOMXPath($dom);
-        $trs = $xpath->query('//tr');
-
-        $grades = [];
-        foreach ($trs as $tr) {
-            /** @var \DOMElement $tr */
-            $tds = [];
-            foreach ($tr->getElementsByTagName('td') as $td) {
-                $tds[] = trim(preg_replace('/\s+/', ' ', $td->textContent));
-            }
-            if (count($tds) < 6) continue;
-
-            // Heuristic: [#, code, title, units, grade, section, instructor]
-            // Sometimes first col is '#'
-            $cols = $tds;
-
-            // detect header/total rows
-            $joined = strtoupper(implode(' ', $cols));
-            if (str_contains($joined, 'COURSE CODE') || str_contains($joined, 'NOTHING FOLLOWS') ||
-                str_contains($joined, 'TOTAL NO OF UNITS') || str_contains($joined, 'GENERAL WEIGHTED AVERAGE')) {
-                continue;
-            }
-
-            // map
-            if (count($cols) >= 7) {
-                [$idx, $code, $title, $units, $grade, $section, $instructor] = array_pad($cols, 7, '');
-            } else {
-                // some variants merge idx/code → adjust
-                $idx = $cols[0] ?? '';
-                $code = $cols[1] ?? '';
-                $title = $cols[2] ?? '';
-                $units = $cols[3] ?? '';
-                $grade = $cols[4] ?? '';
-                $section = $cols[5] ?? '';
-                $instructor = $cols[6] ?? '';
-            }
-
-            // sanity: valid course code
-            if (!preg_match('/^[A-Z]{2,}\s*-?[A-Z]{0,3}\s*\d{2,4}[A-Z]?$/', $code)) {
-                // try to split if code + title stuck
-                if (preg_match('/^([A-Z]{2,}\s*-?[A-Z]{0,3}\s*\d{2,4}[A-Z]?)\s+(.+)$/', $code, $m)) {
-                    $title = trim($m[2].' '.$title);
-                    $code  = $m[1];
-                } else {
-                    continue;
-                }
-            }
-
-            $grades[] = [
-                'name'       => trim($code.' '.$title),
-                'units'      => (float)preg_replace('/[^\d.]/','',$units),
-                'grade'      => is_numeric($grade) ? (string)$grade : preg_replace('/[^\d.]/','',$grade),
-                'section'    => $section,
-                'instructor' => $instructor,
-            ];
-        }
-
-        // compute totals if missing
-        if ($totalUnits === '' && count($grades)) {
-            $totalUnits = array_reduce($grades, fn($a,$g)=>$a + (float)$g['units'], 0);
-        }
-        if ($totalCourse === '' && count($grades)) {
-            $totalCourse = count($grades);
-        }
-
-        return [
-            'header'       => $header,
-            'grades'       => $grades,
-            'total_units'  => $totalUnits === '' ? null : (float)$totalUnits,
-            'total_courses'=> $totalCourse === '' ? null : (int)$totalCourse,
-            'gwa'          => $gwa === '' ? null : $gwa,
-        ];
+    if ($status >= 400 || $body === '') {
+      return response()->json([
+        'ok' => false,
+        'error' => 'empty_or_error',
+        'message' => "Remote returned {$status} and an empty/blocked body. Use a full JWT QR and ensure it’s public.",
+        'qr_url' => $qrUrl,
+        'content_type' => $ct,
+      ], 200);
     }
+
+    // Normalize content-type (strip charset)
+    if (($p = strpos($ct, ';')) !== false) $ct = substr($ct, 0, $p);
+
+    // If it’s a PDF, dump and run pdftotext
+    if ($ct === 'application/pdf' || preg_match('~%PDF-~', substr($body, 0, 8))) {
+      $pdfPath = storage_path('app/cog/qr_fetch.pdf');
+      $txtPath = storage_path('app/cog/cog_output.txt');
+
+      if (!is_dir(dirname($pdfPath))) @mkdir(dirname($pdfPath), 0775, true);
+      file_put_contents($pdfPath, $body);
+
+      // Requires xpdf-utils or poppler; you already have pdftotext in your env
+      $bin = trim(shell_exec('command -v pdftotext') ?? '');
+      if ($bin === '') {
+        return response()->json([
+          'ok' => false,
+          'error' => 'pdftotext_missing',
+          'message' => 'pdftotext not found on server path.',
+        ], 200);
+      }
+
+      $cmd = escapeshellcmd($bin).' -layout -nopgbrk '.escapeshellarg($pdfPath).' '.escapeshellarg($txtPath).' 2>&1';
+      $out = shell_exec($cmd);
+      $text = is_file($txtPath) ? file_get_contents($txtPath) : '';
+
+      if ($text === '') {
+        return response()->json([
+          'ok' => false,
+          'error' => 'pdftotext_empty',
+          'message' => 'PDF fetched but produced no text.',
+          'stderr' => trim((string)$out),
+        ], 200);
+      }
+
+      return response()->json([
+        'ok' => true,
+        'source' => 'pdf',
+        'qr_url' => $qrUrl,
+        'text' => $text,
+      ]);
+    }
+
+    // If it looks like JSON, see if server gave the text/html inside JSON
+    if ($ct === 'application/json') {
+      $json = json_decode($body, true);
+      if (is_array($json)) {
+        $text = $json['text'] ?? $json['html'] ?? null;
+        if (is_string($text) && $text !== '') {
+          return response()->json(['ok' => true, 'source' => 'json', 'qr_url' => $qrUrl, 'text' => strip_tags($text)]);
+        }
+      }
+    }
+
+    // Default: treat as HTML
+    $html = $body;
+    // Some servers compress without header—try to detect gzip
+    if (substr($html, 0, 2) === "\x1f\x8b") $html = gzdecode($html);
+
+    $html = trim($html);
+    if ($html === '') {
+      return response()->json([
+        'ok' => false,
+        'error' => 'html_empty',
+        'message' => 'HTML response is empty after decode — likely a protected page or SPA shell. Use the PDF endpoint if available.',
+        'qr_url' => $qrUrl,
+      ], 200);
+    }
+
+    // Extract visible text (simple fallback)
+    libxml_use_internal_errors(true);
+    $dom = new \DOMDocument();
+    $dom->loadHTML($html);
+    $xpath = new \DOMXPath($dom);
+    foreach ($xpath->query('//script|//style|//noscript') as $n) { $n->parentNode->removeChild($n); }
+    $textNodes = $xpath->query('//text()[normalize-space()]');
+    $text = '';
+    foreach ($textNodes as $n) { $text .= preg_replace('/\s+/', ' ', $n->nodeValue)." \n"; }
+    $text = trim($text);
+
+    // Save for debugging like your current flow
+    Storage::disk('local')->put('cog/cog_output.txt', $text."\n".$qrUrl."\n");
+
+    return response()->json([
+      'ok' => true,
+      'source' => 'html',
+      'qr_url' => $qrUrl,
+      'text' => $text,
+    ]);
+  }
 }
