@@ -1,0 +1,88 @@
+
+  /* Page wrapper – keep background transparent so it blends with layout */
+  .dd-root{ background:transparent; padding:24px 16px 48px; }
+
+  /* Title */
+  .dd-title{ margin:0 0 4px; font-weight:800; color:#fff; }
+  .dd-subtitle{ margin:0 0 18px; color:#fff; }
+
+  /* ================= Registrar-style KPI cards ================= */
+  .dd-kpis{
+    display:grid; gap:16px;
+    grid-template-columns: 1fr 1fr;                 /* mobile */
+  }
+  @media (min-width: 768px){  .dd-kpis{ grid-template-columns: repeat(3,1fr);} }
+  @media (min-width: 1200px){ .dd-kpis{ grid-template-columns: repeat(5,1fr);} }
+
+  .stat-modern-card{
+    border-radius: 1rem;
+    background-color: #fff;
+    border: 0;
+    box-shadow: 0 6px 20px rgba(0,0,0,.06);
+    padding: 16px 18px;
+    height: 130px;                                  /* uniform height like Registrar */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: transform .2s ease, box-shadow .2s ease;
+  }
+  .stat-modern-card:hover{
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px rgba(0,0,0,.08);
+  }
+
+  .stat-head{
+    font-size: .72rem;
+    letter-spacing:.02em;
+    color:#6b7280;
+    font-weight: 800;
+    text-transform: uppercase;
+    margin: 0 0 2px;
+  }
+  .stat-value{
+    margin: 2px 0 0;
+    font-weight: 800;
+    font-size: 1.9rem;
+    line-height: 1;
+    color:#111827;
+  }
+  .stat-sub{
+    margin: 6px 0 0;
+    color:#6b7280;
+    font-size:.86rem;
+  }
+
+  .stat-icon-circle{
+    width: 48px; height: 48px; border-radius: 9999px;
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:1.25rem;
+    box-shadow: 0 2px 6px rgba(0,0,0,.15);
+    flex-shrink: 0;
+  }
+
+  /* ================= Charts ================= */
+  .dd-charts{
+    display:grid; gap:16px; margin-top:16px;
+    grid-template-columns: 1fr;                     /* mobile */
+  }
+  @media (min-width: 992px){ .dd-charts{ grid-template-columns: repeat(2, minmax(320px,1fr)); } }
+
+  .dd-card{
+    background:#fff; border:0; border-radius:16px;
+    box-shadow:0 6px 20px rgba(0,0,0,.06);
+    padding:16px;
+  }
+  .dd-card h3{ margin:0 0 10px; color:#0f3057; font-weight:700; font-size:16px; }
+
+  /* keep canvases controlled so they never look oversized */
+  .chart-box{ height: 320px; }
+  @media (max-width: 576px){ .chart-box{ height: 260px; } }
+
+  /* ================= Table + Insights (optional) ================= */
+  .dd-bottom{ display:grid; gap:16px; grid-template-columns: 2fr 1fr; margin-top:16px; }
+  @media (max-width:1200px){ .dd-bottom{ grid-template-columns:1fr; } }
+  .dd-table, .dd-insights{ background:#fff; border:0; border-radius:16px; box-shadow:0 6px 20px rgba(0,0,0,.06); padding:16px; }
+  .dd-table table{ width:100%; border-collapse:collapse; }
+  .dd-table thead th{ background:#f3f4f6; color:#374151; font-weight:700; }
+  .dd-table th, .dd-table td{ padding:10px 12px; border-bottom:1px solid #eef2f7; }
+  .dd-insight{ border:1px dashed #d1d5db; border-radius:12px; padding:12px; margin-bottom:10px; background:#fcfcfd; }

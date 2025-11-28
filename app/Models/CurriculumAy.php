@@ -17,7 +17,7 @@ class CurriculumAy extends Model
         'College_id',
         'Program_id',
         'Major_id',
-        'Academic_year',
+        
     ];
 
     public function program()
@@ -39,6 +39,11 @@ class CurriculumAy extends Model
     public function major()
     {
         return $this->belongsTo(\App\Models\Major::class, 'Major_id', 'Major_id');
+    }
+
+    public function curriculums()
+    { 
+        return $this->hasMany(Curriculum::class, 'CurriculumAY_id', 'CurriculumAY_id'); 
     }
         
 

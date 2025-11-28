@@ -17,7 +17,8 @@ class Curriculum extends Model
     protected $fillable = [
         'CurriculumAY_id',
         'Curriculum_name',
-        'File_data'
+        'File_data',
+        'Academic_year'
     ];
 
     // Automatically extract readable filename

@@ -4,7 +4,11 @@ namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
 use App\Models\GraduationApplication;
-use App\Models\GraduationApplicationRequirement;   // ⬅️ add this
+use App\Models\GraduationApplicationRequirement;
+use App\Models\StudentManage;
+use App\Models\StudentCourse;
+use App\Models\Program;
+use App\Models\Major;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -18,16 +22,131 @@ class GraduationApplicationController extends Controller
      */
     public function create()
     {
-        $studentId = Auth::id();
+        // 🔹 Login_id ng kasalukuyang user
+        $loginId = Auth::id();
 
+        // GraduationApplication.Student_id = pwede mo pa ring gamitin as login_id
         $app = GraduationApplication::firstOrCreate(
-            ['Student_id' => $studentId, 'status' => 'draft'],
-            [] // defaults (if any) go here
+            ['Student_id' => $loginId, 'status' => 'draft'],
+            []
         );
 
-        // show resources/views/student/apply.blade.php
-        return view('student.apply', ['app' => $app]);
+        // 🔹 Build prefill (including College, Program, Major from student_course)
+        $prefill = $this->buildPrefillForStudent($loginId);
+
+        return view('student.apply', [
+            'app'                 => $app,
+            'prefill'             => $prefill,
+            'isApplicationClosed' => false, // or your own flag
+        ]);
     }
+
+    /**
+     * GET /student/graduation/my-application
+     * Reuse the same apply page with the latest app.
+     */
+    public function show()
+    {
+        $loginId = Auth::id();
+
+        $app = GraduationApplication::where('Student_id', $loginId)
+            ->latest('Graduation_id')
+            ->first();
+
+        if (! $app) {
+            $app = GraduationApplication::create([
+                'Student_id' => $loginId,
+                'status'     => 'draft',
+            ]);
+        }
+
+        $prefill = $this->buildPrefillForStudent($loginId);
+
+        return view('student.apply', [
+            'app'                 => $app,
+            'prefill'             => $prefill,
+            'isApplicationClosed' => false,
+        ]);
+    }
+
+    /**
+     * Build all prefill values for the form (including college/program/major).
+     *
+     * @param  int  $loginId   Auth::id() ng kasalukuyang user
+     */
+        protected function buildPrefillForStudent(int $loginId): array
+        {
+            // hanapin si student gamit Login_id (ito yung usual pattern sa system mo)
+            $student = StudentManage::where('Login_id', $loginId)->first();
+
+            $prefill = [
+                'surname'           => '',
+                'first_name'        => '',
+                'middle_name'       => '',
+                'ext'               => '',
+                'sr_code'           => '',
+                'birthdate'         => '',
+                'place_of_birth'    => '',
+                'contact_number'    => '',
+                'email'             => '',
+                'scholarship_grant' => '',
+                'parent1'           => '',
+                'parent1_contact'   => '',
+                'parent2'           => '',
+                'parent2_contact'   => '',
+                'zip_code'          => '',
+                'home_address'      => '',
+                'secondary_school'  => '',
+                'secondary_year'    => '',
+                'elementary_school' => '',
+                'elementary_year'   => '',
+                'college'           => '',
+                'program'           => '',
+                'major'             => '',
+            ];
+
+            if (! $student) {
+                return $prefill;
+            }
+
+            $studentId = $student->Student_id ?? null;
+
+            // basic info
+            $birthFormatted = '';
+            if (! empty($student->Birthdate)) {
+                if ($student->Birthdate instanceof \Carbon\Carbon) {
+                    $birthFormatted = $student->Birthdate->format('Y-m-d');
+                } else {
+                    $birthFormatted = date('Y-m-d', strtotime($student->Birthdate));
+                }
+            }
+
+            $prefill['surname']        = $student->LastName      ?? '';
+            $prefill['first_name']     = $student->FirstName     ?? '';
+            $prefill['middle_name']    = $student->MiddleName    ?? '';
+            $prefill['ext']            = $student->NameExtension ?? '';
+            $prefill['sr_code']        = $student->SRCODE        ?? '';
+            $prefill['birthdate']      = $birthFormatted;
+            $prefill['place_of_birth'] = $student->PlaceOfBirth  ?? '';
+            $prefill['contact_number'] = $student->ContactNumber ?? '';
+            $prefill['email']          = $student->Email         ?? '';
+
+            // course info via relations
+            if ($studentId) {
+                $studentCourse = StudentCourse::with(['college','program','major'])
+                    ->where('Student_id', $studentId)
+                    ->first();
+
+                if ($studentCourse) {
+                    $prefill['college'] = $studentCourse->college->College_name ?? '';
+                    $prefill['program'] = $studentCourse->program->Program_name ?? '';
+                    $prefill['major']   = $studentCourse->major->Major_name     ?? '';
+                }
+            }
+
+            return $prefill;
+        }
+
 
     /**
      * POST /student/graduation/apply
@@ -35,7 +154,7 @@ class GraduationApplicationController extends Controller
      */
     public function store(Request $request)
     {
-        $studentId = Auth::id();
+        $loginId = Auth::id();
 
         $v = Validator::make($request->all(), [
             'college_id'        => 'nullable|integer',
@@ -50,7 +169,7 @@ class GraduationApplicationController extends Controller
         }
 
         $app = GraduationApplication::firstOrCreate(
-            ['Student_id' => $studentId, 'status' => 'draft'],
+            ['Student_id' => $loginId, 'status' => 'draft'],
             []
         );
 
@@ -58,10 +177,9 @@ class GraduationApplicationController extends Controller
             'college_id','program_id','application_no','term_end',
             'remarks','deficiency_notes'
         ]));
-        $app->Student_id = $studentId;
+        $app->Student_id = $loginId;
         $app->save();
 
-        // Always render the same apply view you’re using
         if ($request->expectsJson()) {
             return response()->json($app);
         }
@@ -69,41 +187,18 @@ class GraduationApplicationController extends Controller
     }
 
     /**
-     * GET /student/graduation/my-application
-     * (If you use this route) show the same apply page with the latest app.
-     */
-    public function show()
-    {
-        $studentId = Auth::id();
-
-        $app = GraduationApplication::where('Student_id', $studentId)
-            ->latest('Graduation_id')
-            ->first();
-
-        if (! $app) {
-            $app = GraduationApplication::create([
-                'Student_id' => $studentId,
-                'status'     => 'draft',
-            ]);
-        }
-
-        // Reuse the same Blade (student.apply)
-        return view('student.apply', ['app' => $app]);
-    }
-
-    /**
      * POST /student/graduation/submit
      */
     public function submit(Request $request)
     {
-        $studentId = Auth::id();
+        $loginId = Auth::id();
 
-        $app = GraduationApplication::where('Student_id', $studentId)
+        $app = GraduationApplication::where('Student_id', $loginId)
             ->whereIn('status', ['draft', 'for_compliance'])
             ->latest('Graduation_id')
             ->firstOrFail();
 
-        $app->status = 'submitted';
+        $app->status       = 'submitted';
         $app->submitted_at = now();
         $app->save();
 
@@ -117,14 +212,14 @@ class GraduationApplicationController extends Controller
      */
     public function resubmit(Request $request)
     {
-        $studentId = Auth::id();
+        $loginId = Auth::id();
 
-        $app = GraduationApplication::where('Student_id', $studentId)
+        $app = GraduationApplication::where('Student_id', $loginId)
             ->where('status', 'for_compliance')
             ->latest('Graduation_id')
             ->firstOrFail();
 
-        $app->status = 'submitted';
+        $app->status         = 'submitted';
         $app->resubmitted_at = now();
         $app->save();
 
@@ -135,40 +230,30 @@ class GraduationApplicationController extends Controller
 
     /**
      * POST /student/graduation/upload/{req}
-     * Upload/replace a single requirement file.
-     *
-     * Route-model binding provides the specific requirement row.
-     * Your Requirement model should have:
-     *   belongsTo(GraduationApplication::class, 'Graduation_id', 'Graduation_id')
      */
     public function uploadRequirement(Request $request, GraduationApplicationRequirement $req)
     {
-        // Verify ownership: the requirement must belong to current student's application
-        $app = $req->application; // via relation in the model
+        $app = $req->application; // relation sa model
         if (! $app || (int) $app->Student_id !== (int) Auth::id()) {
             abort(403, 'Unauthorized');
         }
 
-        // Validate the uploaded file (10MB max; adjust as you like)
         $data = $request->validate([
             'file' => ['required', 'file', 'max:10240'],
         ]);
         $file = $data['file'];
 
-        // Store under: storage/app/public/graduation/{Graduation_id}/YYYYMMDD_HHMMSS_original.ext
         $dir  = "graduation/{$app->Graduation_id}";
         $name = now()->format('Ymd_His') . '_' . preg_replace('/\s+/', '_', $file->getClientOriginalName());
 
-        // make sure 'public' disk is linked: php artisan storage:link
         $storedPath = $file->storeAs($dir, $name, 'public');
 
-        // Update the requirement row
         $req->update([
             'file_name'  => $file->getClientOriginalName(),
-            'file_path'  => $storedPath,                // relative to public disk
+            'file_path'  => $storedPath,
             'mime_type'  => $file->getClientMimeType(),
             'size_bytes' => $file->getSize(),
-            'status'     => 'pending',                  // reset to pending after upload
+            'status'     => 'pending',
             'notes'      => null,
             'checked_by' => null,
             'checked_at' => null,

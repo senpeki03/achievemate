@@ -2,8 +2,7 @@
 
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
-use App\Http\Middleware\EnsureUserType;   // ✅ correct class name & import
-// use App\Http\Middleware\RedirectIfAlreadyApplied; // <- only if you have it
+use App\Http\Middleware\EnsureUserType;
 
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -26,10 +25,11 @@ return Application::configure(basePath: dirname(__DIR__))
             AddLinkHeadersForPreloadedAssets::class,
         ]);
 
-        // aliases
+        // ✅ aliases
         $middleware->alias([
-            'usertype' => EnsureUserType::class,      // ✅
-            // 'already.applied' => RedirectIfAlreadyApplied::class, // only if it exists
+            'usertype' => EnsureUserType::class,
+            'role'     => EnsureUserType::class,  // 🔥 ito ang kulang
+            // 'already.applied' => RedirectIfAlreadyApplied::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

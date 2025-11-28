@@ -4,6 +4,8 @@ namespace App\Http\Controllers\ProgramChair;
 
 use App\Http\Controllers\Controller;
 use App\Models\Rank;
+use App\Models\UserDesignation;
+use App\Models\UserManage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +15,6 @@ class RankController extends Controller
 {
     public function index()
     {
-        // Pull rule rows (is_rule = 1) -> pass to blade
         $rules = Rank::query()
             ->rules()
             ->orderBy('min_gwa')
@@ -55,65 +56,51 @@ class RankController extends Controller
             ->sortBy('min_gwa')
             ->values();
 
-        // Map current account to a valid user_manage.User_id (or NULL)
-        $creatorId = $this->resolveCreatorId();
+        try {
+            DB::transaction(function () use ($rules) {
+                // remove previous rules
+                Rank::query()->rules()->delete();
 
-        DB::transaction(function () use ($rules, $creatorId) {
-            // remove previous rules
-            Rank::query()->rules()->delete();
+                // insert fresh set
+                foreach ($rules as $r) {
+                    Rank::create([
+                        'is_rule' => 1,
+                        'User_id' => $this->resolveCreatorId(),
+                        'min_gwa' => $r['min_gwa'],
+                        'max_gwa' => $r['max_gwa'],
+                        'Rank'    => $r['rank_name'],
+                    ]);
+                }
+            });
 
-            // insert fresh set
-            foreach ($rules as $r) {
-                Rank::create([
-                    'is_rule' => 1,
-                    'User_id' => $creatorId,       // will be NULL if not resolvable
-                    'min_gwa' => $r['min_gwa'],
-                    'max_gwa' => $r['max_gwa'],
-                    'Rank'    => $r['rank_name'],
-                ]);
-            }
-        });
-
-        return back()->with('success', 'Rank rules saved.');
+            return back()->with('success', 'Rank rules saved.');
+            
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Failed to save rules: ' . $e->getMessage()]);
+        }
     }
 
     /**
-     * Resolve current user to a valid user_manage.User_id, else return NULL.
+     * Resolve current user to a valid user_manage.User_id via UserDesignation
      */
     private function resolveCreatorId(): ?int
     {
-        // Candidates: adjust order to match your app’s login/session
-        $candidates = [
-            session('User_id'),
-            session('user_id'),
-            session('id'),
-            optional(Auth::user())->User_id ?? null,
-            Auth::id(),
-        ];
-
-        foreach ($candidates as $raw) {
-            if ($raw === null) continue;
-            $id = is_numeric($raw) ? (int)$raw : null;
-            if (!$id) continue;
-
-            if (DB::table('user_manage')->where('User_id', $id)->exists()) {
-                return $id;
-            }
+        $user = Auth::user();
+        
+        if (!$user) {
+            return null;
         }
 
-        // Fallback by email/username (if present)
-        $email = session('email') ?? session('Email') ?? optional(Auth::user())->email;
-        if ($email) {
-            $id = DB::table('user_manage')->where('Email', $email)->value('User_id');
-            if ($id) return (int)$id;
+        // Get Login_id from authenticated user
+        $loginId = $user->Login_id ?? $user->login_id ?? $user->id ?? null;
+        
+        if (!$loginId) {
+            return null;
         }
 
-        $username = session('username') ?? session('Username') ?? optional(Auth::user())->username;
-        if ($username) {
-            $id = DB::table('user_manage')->where('Username', $username)->value('User_id');
-            if ($id) return (int)$id;
-        }
-
-        return null;
+        // Find UserDesignation by Login_id and get the User_id
+        $userDesignation = UserDesignation::where('Login_id', $loginId)->first();
+        
+        return $userDesignation ? $userDesignation->User_id : null;
     }
 }

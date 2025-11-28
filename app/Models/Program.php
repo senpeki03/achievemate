@@ -19,17 +19,17 @@ class Program extends Model
         'Program_name',
         'Created_at'
     ];
-    
 
-    // If Program hasOne Major (most likely based on your use case)
-    public function major()
-    {
-        return $this->hasOne(Major::class, 'Program_id');
-    }
-
-    // OR: if Program hasMany Majors (if there are multiple majors per program)
+    // 🔹 one program -> many majors (usually ganito)
     public function majors()
     {
-        return $this->hasMany(Major::class, 'Program_id');
+        // foreign key sa `major` table, local key sa `program`
+        return $this->hasMany(Major::class, 'Program_id', 'Program_id');
+    }
+
+    // optional kung gusto mo lang kumuha ng "primary" major
+    public function major()
+    {
+        return $this->hasOne(Major::class, 'Program_id', 'Program_id');
     }
 }

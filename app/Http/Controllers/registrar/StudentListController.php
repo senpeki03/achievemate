@@ -3,8 +3,6 @@
 namespace App\Http\Controllers\Registrar;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use App\Models\StudentManage;
 use App\Models\Login;
 
@@ -29,7 +27,4 @@ class StudentListController extends Controller
 
         return response()->json(['success' => true]);
     }
-
-
 }
-

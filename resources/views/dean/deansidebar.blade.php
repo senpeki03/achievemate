@@ -24,7 +24,7 @@
   <!-- SIDEBAR -->
   <div class="sidebar collapsed" id="sidebar">
     <div class="sidebar-header sidebar-logo">
-      <img src="{{ asset('img/AchieveMate02.png') }}" alt="Logo">
+      <img src="{{ asset('img/achievemate.png') }}" alt="Logo">
       <i class="bi bi-list burger" id="burgerToggle"></i>
     </div>
 
@@ -67,7 +67,15 @@
       </div>
       <div class="dropdown profile">
         <a href="#" class="d-flex align-items-center gap-2 text-decoration-none dropdown-toggle" id="profileDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-          <img src="{{ asset('img/profile-placeholder.png') }}" alt="Profile" class="rounded-circle" width="36" height="36" style="cursor: pointer;">
+            <img
+              src="{{ route('dean.profile.photo', ['_v' => now()->timestamp]) }}"
+              alt="Profile"
+              class="rounded-circle border border-2 border-light"
+              width="40"
+              height="40"
+              style="object-fit:cover;cursor:pointer;"
+              onerror="this.onerror=null;this.src='{{ asset('img/profile-placeholder.png') }}';"
+            >
           <div class="text-white">
             <span class="fw-semibold d-block text-white">
               Hi, {{ session('First_name') }} {{ session('Last_name') }}!
@@ -79,7 +87,11 @@
         </a>
         <ul class="dropdown-menu dropdown-menu-end mt-2 shadow-sm" aria-labelledby="profileDropdown">
           <li class="px-3 py-2 text-muted small">WELCOME!</li>
-          <li><a class="dropdown-item d-flex align-items-center gap-2" href="#"><i class="bi bi-person"></i> My profile</a></li>
+                    <li>
+              <a class="dropdown-item d-flex align-items-center gap-2" href="{{ route('dean.profile') }}">
+                <i class="bi bi-person"></i> My Profile
+              </a>
+            </li>
           <li><a class="dropdown-item d-flex align-items-center gap-2" href="#"><i class="bi bi-gear"></i> Settings</a></li>
           <li><a class="dropdown-item d-flex align-items-center gap-2" href="#"><i class="bi bi-calendar-event"></i> Activity</a></li>
           <li><a class="dropdown-item d-flex align-items-center gap-2" href="#"><i class="bi bi-life-preserver"></i> Support</a></li>

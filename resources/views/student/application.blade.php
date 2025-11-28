@@ -6,12 +6,13 @@
     $isApplicationClosed = $isApplicationClosed ?? false;
 @endphp
 
+
 <link rel="stylesheet" href="{{ asset('css/application.css') }}">
 
 <style>
   /* highlight any row where OCR grade ≠ QR grade (suspected tamper) */
-  .tampered-row { background: #fff3f3 !important; }
-  .tampered-row td { border-top-color: #f3b7b7 !important; }
+  .tampered-row { background:#fff3f3!important; }
+  .tampered-row td { border-top-color:#f3b7b7!important; }
 
   /* small badge showing official QR grade next to the uploaded grade */
   .qr-grade-badge{
@@ -19,25 +20,60 @@
     font-size:.75rem; border:1px solid #b91c1c; color:#b91c1c;
     border-radius:.4rem; background:#fff; white-space:nowrap;
   }
+
+  .cog-table, .cog-summary { width:100%; border-collapse:collapse; }
+  .cog-table th, .cog-table td, .cog-summary td { border:1px solid #444; padding:.5rem .6rem; }
+  .cog-summary td.label { font-weight:600; }
+  .cog-summary td.wide { min-width:260px; }
+  .nothing-row td { text-align:center; font-style:italic; color:#666; }
+  .val-ok { color: #198754; }
+  .val-fail { color: #dc3545; }
+  .val-muted { color: #6c757d; }
+  .spinner { 
+      display: inline-block; 
+      width: 1rem; 
+      height: 1rem; 
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      animation: spinner .75s linear infinite;
+      margin-right: 0.5rem;
+  }
+
+  @keyframes spinner {
+      to { transform: rotate(360deg); }
+  }
 </style>
+
 
 <div class="container py-4" id="applicationContainer">
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h3 class="fw-bold text-white">Application</h3>
   </div>
 
-  <meta name="csrf-token" content="{{ csrf_token() }}">
-  <meta name="route-generate-primary"  content="{{ route('student.pdf.generate') }}">
-  <meta name="route-generate-fallback" content="{{ route('student.pdf.generate.json') }}">
-  <meta name="route-application-submit" content="{{ route('student.application.submit') }}">
-  <meta name="route-application-status" content="{{ url('/student/applicationstatus') }}">
-  <meta name="route-save-cor-output" content="{{ route('student.save-cor-output') }}">
-  <meta name="route-save-cog-output" content="{{ route('student.save-cog-output') }}">
-  <meta name="route-cog-upload" content="{{ route('student.cog.upload') }}">
-  <meta name="route-cor-upload" content="{{ route('student.cor.upload') }}">
-  <meta name="route-qr-resolve" content="{{ route('student.qr.resolve') }}">
-  <meta name="route-curriculum" content="{{ route('student.curriculum.subjects') }}">
-  <meta name="route-save-cog-debug" content="{{ route('student.save-cog-debug') }}">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="route-generate-primary" content="{{ route('student.pdf.generate') }}">
+    <meta name="route-generate-fallback" content="{{ route('student.pdf.generate.json') }}">
+    <meta name="route-application-submit" content="{{ route('student.application.submit') }}">
+    <meta name="route-application-status" content="{{ route('student.application.status') }}">
+    <meta name="route-generate-pdf-json" content="{{ route('student.pdf.generate.json') }}">
+    <meta name="route-save-cor-output" content="{{ route('student.save-cor-output') }}">
+    <meta name="route-save-cog-output" content="{{ route('student.save-cog-output') }}">
+    <meta name="route-save-cog-debug" content="{{ route('student.cog.debug') }}">
+    <meta name="route-cor-output-file" content="{{ route('student.cor.output.txt') }}">
+    <meta name="route-cog-output-file" content="{{ route('student.cog.output.txt') }}">
+    <meta name="route-check-cor-cog-codes" content="{{ route('student.checkCorCogCodes') }}">
+    <meta name="route-cog-output-file"     content="{{ route('student.cog.output') }}">
+    <meta name="route-parse-qr-output-file" content="{{ route('student.cog.qrGradesOnly') }}">
+    <meta name="route-parse-ocr-output-file" content="{{ route('student.cog.ocrGradesOnly') }}">
+    <meta name="route-cog-ocr-output-file" content="{{ route('student.cog.ocr-output') }}">
+    <meta name="route-cog-upload" content="{{ route('student.cog.upload') }}">
+    <meta name="route-cor-upload" content="{{ route('student.cor.upload') }}">
+    <meta name="route-qr-resolve" content="{{ route('student.qr.resolve') }}">
+    <meta name="route-curriculum" content="{{ route('student.curriculum.subjects') }}">
+    <meta name="route-cog-academic-info" content="{{ route('student.cog.academic-info') }}">
+    <meta name="route-validate-application-period" content="{{ route('student.validate.application-period') }}">
+
 
   <form id="applicationForm" method="POST" enctype="multipart/form-data" action="javascript:void(0)">
     @csrf
@@ -116,16 +152,16 @@
           <div class="text-start step-section" id="step-3" style="display: none;">
             <h4 class="fw-bold mb-2">Upload Your Certificate of Grades (COG)</h4>
             <ul class="small text-muted mb-3">
-              <li>Accepted formats: <strong>Image (JPG/PNG)</strong> or <strong>PDF</strong></li>
+              <li>Accepted formats: <strong>PDF</strong></li>
               <li>Ensure the document is clear, complete, and official</li>
-              <li>Example filename: <code>Lastname_Firstname_COG.jpg</code> or <code>.pdf</code></li>
+              <li>Example filename: <code>Lastname_Firstname_COG.pdf</code></li>
             </ul>
             <div class="text-center">
               <input
                 type="file"
                 name="cog"
                 id="file-grade"
-                accept="image/*,application/pdf"
+                accept="application/pdf,.pdf"
                 class="form-control w-50 mx-auto"
                 required
                 onchange="handleCogUpload(this)"
@@ -137,30 +173,38 @@
 
           {{-- Step 4: Validation --}}
           <div class="text-start step-section" id="step-4" style="display:none;">
-            <p class="mb-2 text-muted">Checks performed before proceeding:</p>
+              <p class="mb-2 text-muted">Checks performed before proceeding:</p>
 
-            <div class="val-item mb-2">
-              <div class="val-left">1. Document Authenticity</div>
-              <div class="val-right" id="v-tamper">
-                <span class="spinner"></span><span class="val-muted">Validating…</span>
+              {{-- NEW: Application Period Validation --}}
+              <div class="val-item mb-2">
+                  <div class="val-left">1. Application Period Match</div>
+                  <div class="val-right" id="v-period">
+                      <span class="spinner"></span><span class="val-muted">Checking academic period…</span>
+                  </div>
               </div>
-            </div>
 
-            <div class="val-item mb-2">
-              <div class="val-left">2. Curriculum Match</div>
-              <div class="val-right" id="v-irregular">
-                <span class="spinner"></span><span class="val-muted">Checking curriculum…</span>
+              <div class="val-item mb-2">
+                  <div class="val-left">2. Document Authenticity</div>
+                  <div class="val-right" id="v-tamper">
+                      <span class="spinner"></span><span class="val-muted">Validating…</span>
+                  </div>
               </div>
-            </div>
 
-            <div class="val-item">
-              <div class="val-left">3. Grade Eligibility</div>
-              <div class="val-right" id="v-grades">
-                <span class="spinner"></span><span class="val-muted">Scanning grades…</span>
+              <div class="val-item mb-2">
+                  <div class="val-left">3. Curriculum Match</div>
+                  <div class="val-right" id="v-irregular">
+                      <span class="spinner"></span><span class="val-muted">Checking curriculum…</span>
+                  </div>
               </div>
-            </div>
 
-            <small class="text-muted d-block mt-3">You can only proceed if all validations are passed.</small>
+              <div class="val-item">
+                  <div class="val-left">4. Grade Eligibility</div>
+                  <div class="val-right" id="v-grades">
+                      <span class="spinner"></span><span class="val-muted">Scanning grades…</span>
+                  </div>
+              </div>
+
+              <small class="text-muted d-block mt-3">You can only proceed if all validations are passed.</small>
           </div>
 
           {{-- Step 5: Consent --}}
@@ -182,53 +226,53 @@
 
           {{-- Step 6: Review & Confirm --}}
           <div class="text-start step-section" id="step-6" style="display: none;">
-            <p class="mb-3 text-muted">Review your details and extracted grades before final submission.</p>
+              <p class="mb-3 text-muted">Review your details and extracted grades before final submission.</p>
 
-            <div class="row g-3 mb-3">
-              <div class="col-md-6"><label class="form-label">Fullname</label><input type="text" id="fullname" class="form-control" readonly></div>
-              <div class="col-md-6"><label class="form-label">SRCODE</label><input type="text" id="srcode" class="form-control" readonly></div>
-              <div class="col-md-6"><label class="form-label">College</label><input type="text" id="college" class="form-control" readonly></div>
-              <div class="col-md-6"><label class="form-label">Academic Year</label><input type="text" id="academic_year" class="form-control" readonly></div>
-              <div class="col-md-6"><label class="form-label">Program</label><input type="text" id="program" class="form-control" readonly></div>
-              <div class="col-md-6"><label class="form-label">Semester</label><input type="text" id="semester" class="form-control" readonly></div>
-              <div class="col-md-6"><label class="form-label">Year Level</label><input type="text" id="year_level" class="form-control" readonly></div>
-            </div>
+              <div class="row g-3 mb-3">
+                  <div class="col-md-6"><label class="form-label">Fullname</label><input type="text" id="fullname" class="form-control" readonly></div>
+                  <div class="col-md-6"><label class="form-label">SRCODE</label><input type="text" id="srcode" class="form-control" readonly></div>
+                  <div class="col-md-6"><label class="form-label">College</label><input type="text" id="college" class="form-control" readonly></div>
+                  <div class="col-md-6"><label class="form-label">Academic Year</label><input type="text" id="academic_year" class="form-control" readonly></div>
+                  <div class="col-md-6"><label class="form-label">Program</label><input type="text" id="program" class="form-control" readonly></div>
+                  <div class="col-md-6"><label class="form-label">Semester</label><input type="text" id="semester" class="form-control" readonly></div>
+                  <div class="col-md-6"><label class="form-label">Year Level</label><input type="text" id="year_level" class="form-control" readonly></div>
+              </div>
 
-            <div class="table-responsive cog-wrap">
-              <table class="cog-table" id="extracted-grade-table">
-                <thead>
-                  <tr>
-                    <th class="text-center" style="width:50px">#</th>
-                    <th style="width:130px">Course Code</th>
-                    <th>Course Title</th>
-                    <th class="text-center" style="width:70px">Units</th>
-                    <th class="text-center" style="width:80px">Grade</th>
-                    <th class="text-center" style="width:140px">Section</th>
-                    <th style="width:260px">Instructor</th>
-                  </tr>
-                </thead>
-                <tbody id="grade-table-body">
-                  <tr><td colspan="7" class="text-center text-muted">No rows detected. Please re-upload a clearer image.</td></tr>
-                </tbody>
-              </table>
-              <table class="cog-summary" id="cog-summary-table">
-                <tbody>
-                  <tr>
-                    <td class="label">Total no of Course</td>
-                    <td class="value" id="sum-courses">—</td>
-                    <td class="label">Total no of Units</td>
-                    <td class="value" id="sum-units">—</td>
-                    <td class="label wide">General Weighted Average (GWA)</td>
-                    <td class="value" id="sum-gwa">—</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+              <div class="table-responsive cog-wrap">
+                  <table class="cog-table" id="extracted-grade-table">
+                      <thead>
+                          <tr>
+                              <th class="text-center" style="width:50px">#</th>
+                              <th style="width:130px">Course Code</th>
+                              <th>Course Title</th>
+                              <th class="text-center" style="width:70px">Units</th>
+                              <th class="text-center" style="width:80px">Grade</th>
+                              <th class="text-center" style="width:140px">Section</th>
+                              <th style="width:260px">Instructor</th>
+                          </tr>
+                      </thead>
+                      <tbody id="grade-table-body">
+                          <tr><td colspan="7" class="text-center text-muted">Loading grade data...</td></tr>
+                      </tbody>
+                  </table>
+                  <table class="cog-summary" id="cog-summary-table">
+                      <tbody>
+                          <tr>
+                              <td class="label">Total no of Course</td>
+                              <td class="value" id="sum-courses">—</td>
+                              <td class="label">Total no of Units</td>
+                              <td class="value" id="sum-units">—</td>
+                              <td class="label wide">General Weighted Average (GWA)</td>
+                              <td class="value" id="sum-gwa">—</td>
+                          </tr>
+                      </tbody>
+                  </table>
+              </div>
 
-            <div class="d-flex justify-content-between align-items-center mt-3">
-              <div><span id="save-feedback" class="text-success" style="display:none;">✅ Saved successfully!</span></div>
-              <small id="paths-feedback" class="text-muted"></small>
-            </div>
+              <div class="d-flex justify-content-between align-items-center mt-3">
+                  <div><span id="save-feedback" class="text-success" style="display:none;">✅ Saved successfully!</span></div>
+                  <small id="paths-feedback" class="text-muted"></small>
+              </div>
           </div>
 
           <!-- Step 7: Generate Application -->
@@ -269,7 +313,7 @@
   <div class="modal-dialog modal-dialog-centered" style="max-width: 560px;">
     <div class="modal-content border-0 shadow rounded-4">
       <div class="modal-header border-0"><h5 class="modal-title text-success fw-bold">Congratulations!</h5></div>
-      <div class="modal-body pt-0"><p>Your application meets all the Dean’s List requirements.<br>You may now proceed to the next step.</p></div>
+      <div class="modal-body pt-0"><p>Your application meets all the Dean's List requirements.<br>You may now proceed to the next step.</p></div>
       <div class="modal-footer border-0"><button type="button" id="qualifiedContinueBtn" class="btn btn-primary">Continue</button></div>
     </div>
   </div>
@@ -279,15 +323,33 @@
 <div class="modal fade" id="notQualifiedModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered" style="max-width: 600px;">
     <div class="modal-content border-0 shadow rounded-4">
-      <div class="modal-header border-0"><h5 class="modal-title text-danger fw-bold">Not Qualified for Dean’s List</h5></div>
+      <div class="modal-header border-0"><h5 class="modal-title text-danger fw-bold">Not Qualified for Dean's List</h5></div>
       <div class="modal-body pt-0">
-        <p>Unfortunately, your application does not meet the Dean’s List requirements.</p>
+        <p>Unfortunately, your application does not meet the Dean's List requirements.</p>
         <p>Detected grade(s): <strong>2.75 / 3.00 / INC / DROP</strong>.</p>
         <p class="small text-muted mb-0">Note: Only students with grades 2.50 and above, with no INC or DROP, are eligible.</p>
       </div>
       <div class="modal-footer border-0"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">OK</button></div>
     </div>
   </div>
+</div>
+
+{{-- Application Period Mismatch Modal --}}
+<div class="modal fade" id="applicationPeriodModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 640px;">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0">
+                <h5 class="modal-title text-warning fw-bold">Application Period Mismatch</h5>
+            </div>
+            <div class="modal-body pt-0">
+                <p id="applicationPeriodMessage">Your academic period does not match any active Dean's List posting.</p>
+                <p class="small text-muted mb-0">Please check the announcement board for current application periods.</p>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">OK</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 {{-- Authenticity (Tamper) FAIL --}}
@@ -322,7 +384,7 @@
       <div class="modal-header border-0"><h5 class="modal-title text-warning fw-bold">Curriculum Mismatch Detected</h5></div>
       <div class="modal-body pt-0">
         <p>Your uploaded COR/COG do not fully match the standard curriculum sequence.</p>
-        <p>This indicates that you are classified as an irregular student, which does not meet the eligibility requirements for the Dean’s List.</p>
+        <p>This indicates that you are classified as an irregular student, which does not meet the eligibility requirements for the Dean's List.</p>
         <p class="small text-muted mb-0">Note: Only students with a regular academic load and curriculum match are qualified.</p>
       </div>
       <div class="modal-footer border-0"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">OK</button></div>
@@ -369,7 +431,13 @@
 <script src="{{ asset('vendor/pdfjs/pdf.min.js') }}"></script>
 <script>
   if (window.pdfjsLib?.GlobalWorkerOptions) {
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc = "{{ asset('vendor/pdfjs/pdf.worker.min.js') }}";
+    const localWorker = "{{ asset('vendor/pdfjs/pdf.worker.min.js') }}";
+    const cdnWorker   = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = localWorker;
+    // Soft fallback check
+    fetch(localWorker, { method: 'HEAD' })
+      .then(r => { if (!r.ok) window.pdfjsLib.GlobalWorkerOptions.workerSrc = cdnWorker; })
+      .catch(() => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = cdnWorker; });
   }
 </script>
 
@@ -379,22 +447,43 @@
 <script src="https://unpkg.com/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
 <script> QrScanner.WORKER_PATH = 'https://unpkg.com/qr-scanner@1.4.2/qr-scanner-worker.min.js'; </script>
 
-{{-- === AUTO-TRIM HELPERS === --}}
 <script>
-/* Auto-proceed to Validation once QR exists — but wait for OCR gate */
+document.addEventListener('DOMContentLoaded', function () {
+    if (typeof APP_CLOSED !== 'undefined' && APP_CLOSED) {
+        showModal('#applicationClosedModal');
+        const nextBtn = document.getElementById('next-btn');
+        if (nextBtn) nextBtn.disabled = true;
+    }
+});
+
+/* ===================== Tesseract explicit paths (robust web setup) ===================== */
+const TESS_OPTS = {
+  workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/worker.min.js',
+  corePath:   'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js',
+  langPath:   'https://tessdata.projectnaptha.com/4.0.0'
+};
+
+let matchingPostId = null;
+
+/* === AUTO-TRIM HELPERS === */
+let __autoProceedTimer = null;
 function maybeAutoProceedToValidation() {
   if (currentStep !== 3) return;
 
-  // If no global promise yet, tie it to the OCR gate so extractThenValidate will await something.
   if (!window.cogWorkDonePromise) {
     window.cogWorkDonePromise = (ocrReady || Promise.resolve()).catch(()=>{});
   }
 
-  if ((window.lastQrRawText || '').trim()) {
-    currentStep = 4;
-    updateStepperUI();
-    extractThenValidate(); // will await cogWorkDonePromise
-  }
+  clearTimeout(__autoProceedTimer);
+  __autoProceedTimer = setTimeout(() => {
+    const hasQR  = (window.lastQrRawText || '').trim().length > 0;
+    const hasOCR = (window.lastOcrRawText || '').trim().length > 0;
+    if (hasQR && hasOCR) {
+      currentStep = 4;
+      updateStepperUI();
+      extractThenValidate();
+    }
+  }, 80);
 }
 function canvasAutoTrim(srcCanvas, fuzz = 18) {
   const w = srcCanvas.width, h = srcCanvas.height;
@@ -421,6 +510,49 @@ function canvasAutoTrim(srcCanvas, fuzz = 18) {
 function canvasToBlob(canvas, mime = 'image/png', quality = 0.95) {
   return new Promise((resolve) => { canvas.toBlob((blob) => resolve(blob), mime, quality); });
 }
+
+/* ======== SAFE OCR PATCH HELPERS ======== */
+function scaleCanvasMax(src, maxEdge = 2200) {
+  const w = src?.width | 0, h = src?.height | 0;
+  if (!w || !h) return src;
+  const max = Math.max(w, h);
+  if (max <= maxEdge) return src;
+  const ratio = maxEdge / max;
+  const cw = Math.max(1, Math.round(w * ratio));
+  const ch = Math.max(1, Math.round(h * ratio));
+  const out = document.createElement('canvas');
+  out.width = cw; out.height = ch;
+  out.getContext('2d', { willReadFrequently: true }).drawImage(src, 0, 0, cw, ch);
+  return out;
+}
+function isCanvasUsable(c){ return !!(c && c.width > 0 && c.height > 0); }
+function canvasToPngBlob(canvas, quality = 0.92){
+  return new Promise((resolve, reject) => {
+    if (!isCanvasUsable(canvas)) return reject(new Error('Empty canvas'));
+    canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/png', quality);
+  });
+}
+/** Robust OCR: scale big canvases, use Blob, retry smaller; always inject TESS_OPTS */
+async function tesseractRecognizeSafe(canvas, lang = 'eng', opts = {}){
+  if (!isCanvasUsable(canvas)) throw new Error('Canvas 0×0; nothing to OCR');
+  let scaled = scaleCanvasMax(canvas, 2200);
+  try {
+    const blob = await canvasToPngBlob(scaled, 0.92);
+    const { data } = await Tesseract.recognize(blob, lang, { ...TESS_OPTS, ...opts });
+    return (data?.text || '').trim();
+  } catch(e1){
+    console.warn('OCR first attempt failed, retrying smaller…', e1);
+    try {
+      const smaller = scaleCanvasMax(scaled, 1400);
+      const blob2 = await canvasToPngBlob(smaller, 0.9);
+      const { data } = await Tesseract.recognize(blob2, lang, { ...TESS_OPTS, ...opts });
+      return (data?.text || '').trim();
+    } catch(e2){
+      console.warn('OCR second attempt failed', e2);
+      return ''; // never bubble errors; upstream UI handles empty OCR
+    }
+  }
+}
 </script>
 
 <script>
@@ -446,13 +578,13 @@ let parsedFromOCR = { meta:{}, rows:[] };
 
 /* NEW: mismatch state */
 let lastMismatches = [];
-let mismatchIndex = new Map(); // key -> { qr, ocr }
+let mismatchIndex = new Map();
 
 /* NEW: OCR readiness gate */
 let ocrReadyResolve = null;
 let ocrReady = new Promise(res => (ocrReadyResolve = res));
 
-/* ===== Modal helper (NEW) ===== */
+/* ===== Modal helper ===== */
 function showModal(selector){
   const el = document.querySelector(selector);
   if (!el) return { hide(){}, show(){} };
@@ -514,7 +646,7 @@ function goNext(){
     const ok = (f.type && f.type.startsWith('image/')) || f.type === 'application/pdf';
     if (!ok) { status.textContent = 'COG must be an image or a PDF.'; return; }
     currentStep = 4; updateStepperUI();
-    extractThenValidate(); // async
+    extractThenValidate();
     return;
   }
   if (currentStep === 4) {
@@ -528,6 +660,7 @@ function goNext(){
     if (!c1 || !c2 || !c3) { alert('Please check all consent checkboxes.'); return; }
     currentStep = 6; updateStepperUI(); return;
   }
+  if (currentStep === 6) setTimeout(fetchAndDisplayStructuredCogOutput, 100);
   if (currentStep === 6) { currentStep = 7; updateStepperUI(); generatePdf(); return; }
   if (currentStep === 7) { showConfirmSubmitModal(); return; }
   if (currentStep < 7) { currentStep++; updateStepperUI(); }
@@ -536,113 +669,71 @@ function goBack(){ if (isBusy) return; if (currentStep > 1){ currentStep--; upda
 
 /* ===== Server helpers ===== */
 function csrfToken(){ return document.querySelector('meta[name="csrf-token"]').getAttribute('content'); }
-function route(nameMeta){ return document.querySelector(`meta[name="${nameMeta}"]`)?.content || ''; }
-async function saveDebugRaw(text, source){
-  try{
-    await fetch(route('route-save-cog-debug'), {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'X-CSRF-TOKEN': csrfToken(), 'Accept':'application/json' },
-      body: JSON.stringify({ text: `[SOURCE:${source}]` + "\n" + String(text || '') })
-    });
-  }catch(e){ /* ignore */ }
+function route(nameMeta){
+  const v = document.querySelector(`meta[name="${nameMeta}"]`)?.content || '';
+  if (!v && window.console) console.debug(`[meta route missing] ${nameMeta}`);
+  return v;
 }
+async function saveDebugRaw(text, source){
+  const url =
+    (document.querySelector('meta[name="route-save-cog-output"]')?.content) ||
+    (document.querySelector('meta[name="route-save-cog-debug"]')?.content) ||
+    '';
 
-  function submitApplicationForm() {
-    const form = document.getElementById('applicationForm');
-    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-    const submitRoute = document.querySelector('meta[name="route-application-submit"]').getAttribute('content');
-    const formData = new FormData(form);
-
-    fetch(submitRoute, {
-      method: 'POST',
-      headers: {
-        'X-CSRF-TOKEN': csrfToken,  
-      },
-      body: formData  
-    })
-    .then(response => response.json())
-    .then(result => {
-      if (response.ok) {
-        alert('Application submitted successfully!');
-      } else {
-        alert('Error submitting application.');
-      }
-    })
-    .catch(error => {
-      alert('An error occurred. Please try again.');
-      console.error('Error:', error);
-    });
-  }
-  
-
-document.getElementById('applicationForm').addEventListener('submit', async function(event) {
-  event.preventDefault();  // Prevent default form submission
-  
-  // Get the CSRF token and route URL from meta tags
-  const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-  const submitRoute = document.querySelector('meta[name="route-application-submit"]').getAttribute('content');
-  
-  // Prepare form data
-  const formData = new FormData(this);
+  if (!url) return;
 
   try {
-    const response = await fetch(submitRoute, {
+    await fetch(url, {
       method: 'POST',
       headers: {
-        'X-CSRF-TOKEN': csrfToken,  // Include CSRF token
+        'Content-Type':'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+        'Accept': 'application/json'
       },
-      body: formData  // FormData will automatically handle file uploads and text fields
+      body: JSON.stringify({
+        meta:   {},
+        rows:   [],
+        totals: {},
+        pdf_text: `[SOURCE:${source}]` + "\n" + String(text || ''),
+        ocr_full: String(text || ''),
+        qr_raw: ''
+      })
     });
-
-    const result = await response.json();
-    
-    if (response.ok) {
-      console.log('Application submitted successfully:', result);
-      // Handle success (update UI, show success message, etc.)
-      alert('Application submitted successfully!');
-    } else {
-      console.error('Error submitting application:', result);
-      // Handle error (show error message)
-      alert('Error submitting application. Please try again.');
-    }
-  } catch (error) {
-    console.error('Request failed:', error);
-    // Handle network or other errors
-    alert('An error occurred. Please check your network connection and try again.');
+  } catch(e) {
+    console.warn('saveDebugRaw failed', e);
   }
-});
-
-
-async function validateGrades() {
-    const response = await fetch('/student/validate-grades', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-        },
-        body: JSON.stringify({
-            // Include any necessary data, e.g., file paths or content
-        }),
-    });
-
-    const result = await response.json();
-
-    if (result.status === 'fail') {
-        // Handle mismatches and show them
-        console.log('Mismatches:', result.mismatches);
-    } else if (result.status === 'success') {
-        alert(result.message);
-    } else {
-        alert('An error occurred.');
-    }
 }
 
-// ---------- tiny utils ----------
-const meta = (n) => document.querySelector(`meta[name="${n}"]`)?.content || '';
+async function validateGrades() {
+  const response = await fetch('/student/validate-grades', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+    },
+    body: JSON.stringify({}),
+  });
+  const result = await response.json();
+  if (result.status === 'fail') {
+    console.log('Mismatches:', result.mismatches);
+  } else if (result.status === 'success') {
+    alert(result.message);
+  } else {
+    alert('An error occurred.');
+  }
+}
 
-// try to fetch a text file; optional fallback path
-async function fetchText(metaName, fallbackUrl = '') {
-  const url = meta(metaName) || fallbackUrl;
+/* Wait until an <img> has real dimensions */
+async function ensureImageReady(img){
+  if (!img) return false;
+  if (img.complete && (img.naturalWidth || img.width)) return true;
+  try { await img.decode?.(); } catch(_) {}
+  return (img.naturalWidth || 0) > 0 && (img.naturalHeight || 0) > 0;
+}
+
+const metaTag = (n) => document.querySelector(`meta[name="${n}"]`)?.content || '';
+async function fetchText(metaName){
+  const url = metaTag(metaName);
   if (!url) return '';
   try {
     const res = await fetch(url, { headers: { 'Accept': 'text/plain,*/*' } });
@@ -650,27 +741,63 @@ async function fetchText(metaName, fallbackUrl = '') {
   } catch { return ''; }
 }
 
-// normalize grades like 100/150/200 ⇒ 1.00/1.50/2.00 and keep 2 decimals
+/* ====== Parsed-files reader (supports symbols and int encodings) ====== */
+function parseSimpleGradesTable(md=''){
+  const out = [];
+  const norm = (raw) => {
+    let s = String(raw ?? '').trim().toUpperCase();
+    if (s === 'INCOMPLETE') s = 'INC';
+    if (s === 'DROP') s = 'DRP';
+    if (['INC','DRP','W'].includes(s)) return s;
+    if (s === '100') return '1.00';
+    if (s === '125') return '1.25';
+    if (s === '150') return '1.50';
+    if (s === '175') return '1.75';
+    if (s === '200') return '2.00';
+    if (/^\d(?:\.\d{1,4})?$/.test(s)) return Number(s).toFixed(2);
+    const just = s.replace(/[^0-9.]/g,'');
+    return just ? Number(just).toFixed(2) : '';
+  };
+  const rx = /^\s*\|\s*\d+\s*\|\s*(100|125|150|175|200|[0-3](?:\.\d{1,4})?|INC|INCOMPLETE|DRP|DROP|W)\s*\|\s*$/i;
+  md.split('\n').forEach(line => {
+    const m = line.match(rx);
+    if (m) {
+      const v = norm(m[1]);
+      if (v) out.push(v);
+    }
+  });
+  return out;
+}
+async function fetchParsedFilesGrades(){
+  const qrTxt  = await fetchText('route-parse-qr-output-file');
+  const ocrTxt = await fetchText('route-parse-ocr-output-file');
+  return { qrGrades: parseSimpleGradesTable(qrTxt), ocrGrades: parseSimpleGradesTable(ocrTxt) };
+}
+
+/* ===== Normalize helpers (JS side) ===== */
 function normalizeGradeTokenStrict(tok='') {
-  let t = String(tok).trim();
-  if (/^\d{3}$/.test(t)) { if (t==='100') return '1.00'; if (t==='150') return '1.50'; if (t==='200') return '2.00'; }
+  let t = String(tok).trim().toUpperCase();
+  if (t === 'INCOMPLETE') t = 'INC';
+  if (t === 'DROP') t = 'DRP';
+  if (['INC','DRP','W'].includes(t)) return t;
+  if (t === '100') return '1.00';
+  if (t === '125') return '1.25';
+  if (t === '150') return '1.50';
+  if (t === '175') return '1.75';
+  if (t === '200') return '2.00';
   if (/^\d(?:\.\d+)?$/.test(t)) return Number(t).toFixed(2);
-  // strip junk, keep number with dot
   const just = t.replace(/[^0-9.]/g,'');
   if (just && !isNaN(just)) return Number(just).toFixed(2);
   return '';
 }
 
 /**
- * Parse grades-only from the markdown table you'd saved in cog_output.txt
- * Accepts rows like:
- * | 1 | IT 123 | Title | 3 | 1.50 | A-123 | Instructor |
- * Returns: ['1.50','1.25', ...]
+ * Parse grades-only from the markdown table saved in cog_output.txt
  */
 function parseGradesOnlyFromMarkdown(text='') {
   const out = [];
   const lines = (text || '').split('\n');
-  const rowRx = /^\|\s*(\d+)\s*\|\s*.+?\|\s*.+?\|\s*\d+\s*\|\s*([0-9.]+)\s*\|\s*.+?\|\s*.+?\|?\s*$/;
+  const rowRx = /^\|\s*(\d+)\s*\|\s*.+?\|\s*.+?\|\s*\d+\s*\|\s*(100|125|150|175|200|[0-3](?:\.\d{1,4})?|INC|INCOMPLETE|DRP|DROP|W)\s*\|\s*.+?\|\s*.+?\|?\s*$/i;
   for (const line of lines) {
     const m = line.match(rowRx);
     if (m) out.push(normalizeGradeTokenStrict(m[2]));
@@ -679,21 +806,14 @@ function parseGradesOnlyFromMarkdown(text='') {
 }
 
 /**
- * Parse grades-only from OCR text file cog_ocr_output.txt
- * Works for "spaced columns" OCR lines; we pull the grade as the
- * number column right before Section (or the last clear decimal).
- * Example OCR line variants it catches:
- * 1 IT 123 Title Something 3 1.50 A-123 Instructor Name
+ * Parse grades-only from OCR plain text lines
  */
 function parseGradesOnlyFromOcrPlain(text='') {
   const out = [];
   const lines = (text || '').split('\n').map(s=>s.trim()).filter(Boolean);
 
-  // try fairly strict pattern: idx ... units grade section ...
-  const strictRx = /^\s*(\d+)\s+.+?\s+(\d{1,2})\s+([0-9.]{1,5}|100|150|200)\s+[A-Za-z0-9-]+\s+/;
-
-  // fallback: "find last grade-like token" in the line
-  const lastGradeRx = /(?:^|\s)([0-9]\.[0-9]{1,4}|100|150|200)(?:\s|$)/g;
+  const strictRx = /^\s*(\d+)\s+.+?\s+(\d{1,2})\s+(100|125|150|175|200|[0-3](?:\.\d{1,4})?)\s+[A-Za-z0-9-]+\s+/i;
+  const lastGradeRx = /(?:^|\s)(100|125|150|175|200|[0-3]\.[0-9]{1,4})(?:\s|$)/gi;
 
   for (const line of lines) {
     let g = '';
@@ -703,12 +823,10 @@ function parseGradesOnlyFromOcrPlain(text='') {
     if (m) {
       g = normalizeGradeTokenStrict(m[3]);
     } else {
-      // collect all grade-like hits and take the last one
       let gg = '', m2;
       while ((m2 = lastGradeRx.exec(s)) !== null) gg = m2[1];
       g = normalizeGradeTokenStrict(gg);
     }
-
     if (g) out.push(g);
   }
   return out;
@@ -718,27 +836,41 @@ function parseGradesOnlyFromOcrPlain(text='') {
  * Convenience: fetch both files and return {gradesOut, gradesOcr, rawOut, rawOcr}
  */
 async function fetchGradesOnlyPair() {
-  const rawOut = await fetchText('route-cog-output-file');        // server/QR derived file
-  const rawOcr = await fetchText('route-cog-ocr-output-file');    // OCR derived file
 
-  // tolerate empty; caller will decide
+  const rawOut = await fetchText('route-cog-output-file');
+  const rawOcrGradesOnly = await fetchText('route-parse-ocr-output-file');
+  const rawOcrPlain      = await fetchText('route-cog-ocr-output-file');
+
   const gradesOut = parseGradesOnlyFromMarkdown(rawOut);
-  const gradesOcr = parseGradesOnlyFromOcrPlain(rawOcr);
 
-  return { gradesOut, gradesOcr, rawOut, rawOcr };
+  let gradesOcr = [];
+  if (rawOcrGradesOnly && /[\|\n]/.test(rawOcrGradesOnly)) {
+    gradesOcr = parseGradesOnlyFromMarkdown(rawOcrGradesOnly);
+  }
+  if (gradesOcr.length === 0) {
+    gradesOcr = parseGradesOnlyFromOcrPlain(rawOcrPlain);
+  }
+
+  return { gradesOut, gradesOcr, rawOut, rawOcr: rawOcrGradesOnly || rawOcrPlain };
 }
-
-
-
 
 /* ===== QR scan helpers ===== */
 async function scanQrFromUploadedPdf(pdfFile){
   try{
     const canvas = await renderPdfFirstPageToCanvas(pdfFile);
-    try{
+    try {
       const r = await QrScanner.scanImage(canvas, { returnDetailedScanResult:true, inversionAttempts:'attemptBoth' });
       if (r?.data) return String(r.data);
-    }catch(_){}
+    } catch(_){}
+    try {
+      // ZXing requires an <img>, not a canvas
+      const reader = new ZXing.BrowserQRCodeReader();
+      const imgEl = new Image();
+      imgEl.src = canvas.toDataURL('image/png');
+      await imgEl.decode?.();
+      const r2 = await reader.decodeFromImage(imgEl);
+      if (r2?.text) return String(r2.text);
+    } catch(_){}
     try{
       const ctx = canvas.getContext('2d', { willReadFrequently:true });
       const id  = ctx.getImageData(0,0,canvas.width,canvas.height);
@@ -765,6 +897,11 @@ async function scanQrFromFullImageUrl(url){
     const r = await QrScanner.scanImage(c, { returnDetailedScanResult:true, inversionAttempts:'attemptBoth' });
     if (r?.data) return String(r.data);
   }catch(_){}
+  try {
+    const reader = new ZXing.BrowserQRCodeReader();
+    const r2 = await reader.decodeFromImage(img);
+    if (r2?.text) return String(r2.text);
+  } catch {}
   try{
     const ctx = c.getContext('2d', { willReadFrequently:true });
     const id  = ctx.getImageData(0,0,c.width,c.height);
@@ -787,7 +924,6 @@ function resetCogState(){
   mismatchIndex = new Map();
   lastMismatches = [];
 
-  /* reset OCR gate */
   ocrReady = new Promise(res => (ocrReadyResolve = res));
 
   const holder = document.getElementById('preview-grade');
@@ -840,6 +976,7 @@ async function uploadCorPdf(){
   }
 }
 
+/** ORIGINAL: handleCogUpload — will be wrapped by PDF-only patch later */
 async function handleCogUpload(input) {
   resetCogState();
   const f = input.files && input.files[0];
@@ -849,15 +986,12 @@ async function handleCogUpload(input) {
   const holder = document.getElementById('preview-grade');
   status.textContent = '';
 
-  // BUONG trabaho ilagay sa promise para ma-await sa validation
   window.cogWorkDonePromise = (async () => {
-    // Image branch
     if (f.type && f.type.startsWith('image/')) {
-      await uploadCogImageTrimmed(f);           // function below now also uses the gate
+      await uploadCogImageTrimmed(f);
       return;
     }
 
-    // PDF branch
     if (f.type === 'application/pdf') {
       try {
         status.textContent = 'Uploading COG PDF…';
@@ -871,22 +1005,34 @@ async function handleCogUpload(input) {
         let j = {}; try { j = await res.json(); } catch(_) {}
 
         serverPaths.cog_img =
-          j.cog_image_path ?? j.cog_path ?? j.absolute_path ?? j.full_path ??
-          j.abs_path ?? j.file_path ?? j.filepath ?? j.storage_path ?? j.path ?? '';
+          j.cog_image_path ?? j.cog_path ?? j.absolute_path ?? j.full_path ?? j.abs_path ?? j.file_path ?? j.filepath ?? j.storage_path ?? j.path ?? '';
 
         const pngUrl = j.cog_image_url ?? j.public_url ?? j.url ?? '';
         const pdfUrl = j.cog_pdf_url || (pngUrl && pngUrl.endsWith('.pdf') ? pngUrl : '');
 
-        // Preview preference: PNG > PDF URL > local render
         if (pngUrl && !pngUrl.endsWith('.pdf')) {
           const cb = pngUrl + (pngUrl.includes('?')?'&':'?') + 'v=' + Date.now();
           holder.innerHTML = `<img id="cogPreviewImg" src="${cb}" class="img-fluid rounded border" style="max-height:380px" />`;
         } else if (pdfUrl) {
           holder.innerHTML = '<div class="text-muted small">Rendering PDF preview…</div>';
           try {
-            const c = await renderPdfUrlFirstPageToCanvas(pdfUrl);
-            c.className = 'img-fluid rounded border'; c.style.maxHeight = '380px';
-            holder.innerHTML = ''; holder.appendChild(c);
+            let c = null;
+            try {
+              c = await renderPdfUrlFirstPageToCanvas(pdfUrl);
+              c.className = 'img-fluid rounded border';
+              c.style.maxHeight = '380px';
+              holder.innerHTML = '';
+              holder.appendChild(c);
+            } catch (e) {
+              console.warn('PDF preview render failed, trying local render…', e);
+              holder.innerHTML = '<div class="text-danger small">PDF preview failed; server URL may block rendering. Try downloading and re-uploading as image.</div>';
+            }
+
+            if (c && c.width && c.height) {
+              await runQrOcrFromCanvas(c, status, { pdfUrl, fallbackFile: f });
+            } else {
+              status.textContent = 'Cannot OCR (preview unavailable).';
+            }
           } catch {
             holder.innerHTML = '<div class="text-danger small">PDF preview failed; will try local render.</div>';
           }
@@ -894,12 +1040,10 @@ async function handleCogUpload(input) {
           holder.innerHTML = '<div class="text-muted small">No server preview; rendering local PDF…</div>';
         }
 
-        // Use server text if available; else run local OCR
         const pdfText = (j.pdf_text ?? j.ocr_text ?? '').trim();
         if (pdfText) {
           window.lastOcrRawText = pdfText;
           parsedFromOCR = parsePlainCOGText(pdfText);
-          /* OCR is ready immediately (server provided) */
           try{ ocrReadyResolve && ocrReadyResolve(); }catch(_){}
           status.textContent = 'Captured PDF text from server.';
         } else {
@@ -930,7 +1074,6 @@ async function handleCogUpload(input) {
           }
         }
 
-        // Always try QR from the uploaded PDF (final pass)
         if (!window.lastQrRawText) {
           status.textContent = 'Scanning QR (local PDF)…';
           const qrRaw = await scanQrFromUploadedPdf(f);
@@ -947,9 +1090,8 @@ async function handleCogUpload(input) {
           }
         }
 
-        /* ➜ If a QR was captured in any path above, jump to Validation now */
         if ((window.lastQrRawText || '').trim()) {
-          maybeAutoProceedToValidation(); // waits via cogWorkDonePromise/OCR gate
+          maybeAutoProceedToValidation();
         }
       } catch (err) {
         console.error(err);
@@ -966,7 +1108,6 @@ async function uploadCogImageTrimmed(file) {
   const status = document.getElementById('cog-status');
   const holder = document.getElementById('preview-grade');
 
-  // gawing part ng global promise ang buong flow
   window.cogWorkDonePromise = (async () => {
     status.textContent = 'Preparing image…';
 
@@ -978,6 +1119,10 @@ async function uploadCogImageTrimmed(file) {
     URL.revokeObjectURL(tmpUrl);
 
     let trimmed = canvasAutoTrim(c, 18);
+    if (!isCanvasUsable(trimmed)) {
+      status.textContent = 'Image load failed (0×0). Please re-upload a clearer image.';
+      throw new Error('Trimmed canvas 0×0');
+    }
 
     holder.innerHTML = '';
     trimmed.className = 'img-fluid rounded border';
@@ -1007,24 +1152,34 @@ async function uploadCogImageTrimmed(file) {
     await runQrOcrFromCanvas(trimmed, status);
   })();
 
-  // return the promise so callers may await (optional)
   return window.cogWorkDonePromise;
 }
 
 /* QR/OCR from a canvas */
-async function runQrOcrFromCanvas(canvas, statusEl) {
+async function runQrOcrFromCanvas(canvas, statusEl, opts = {}) {
+  const { pdfUrl = '', fallbackFile = null } = opts;
+
+  // ---- QR FIRST ------------------------------------------------------------
   let qrText = '';
   try {
-    const r = await QrScanner.scanImage(canvas, { returnDetailedScanResult: true, inversionAttempts: 'attemptBoth' });
+    const r = await QrScanner.scanImage(canvas, {
+      returnDetailedScanResult: true,
+      inversionAttempts: 'attemptBoth'
+    });
     if (r?.data) qrText = String(r.data);
   } catch {}
+
   if (!qrText) {
     try {
       const reader = new ZXing.BrowserQRCodeReader();
-      const r2 = await reader.decodeFromImage(canvas);
+      const imgEl = new Image();
+      imgEl.src = canvas.toDataURL('image/png');
+      await imgEl.decode?.();
+      const r2 = await reader.decodeFromImage(imgEl);
       if (r2?.text) qrText = String(r2.text);
     } catch {}
   }
+
   if (!qrText) {
     try {
       const g = canvas.getContext('2d', { willReadFrequently:true });
@@ -1033,37 +1188,74 @@ async function runQrOcrFromCanvas(canvas, statusEl) {
       if (code?.data) qrText = String(code.data);
     } catch {}
   }
+
   window.lastQrRawText = qrText || '';
 
   if (qrText) {
-    try {
-      const api = await resolveQrOnServer(qrText);
+    const api = await resolveQrOnServer(qrText);
+
+    if (api && Array.isArray(api.grades) && api.grades.length) {
       parsedFromQR = mapServerJsonToParsed(api);
-    } catch {
+    } else {
+      if (api?.qr_url) window.lastQrUrl = api.qr_url;
       const local = parseQrPayload(qrText);
       parsedFromQR = local?.rows?.length ? local : { meta:{}, rows:[] };
     }
 
-    // ➜ auto-go to Validation when QR is captured (from canvas path)
-    maybeAutoProceedToValidation(); // waits via cogWorkDonePromise/OCR gate
+    maybeAutoProceedToValidation();
+  }
+
+  // ---- OCR NEXT ------------------------------------------------------------
+  if (!isCanvasUsable(canvas)) {
+    if (statusEl) statusEl.textContent = 'Preview not ready — rebuilding…';
+    let rebuilt = null;
+
+    const imgEl = document.getElementById('cogPreviewImg');
+    if (await ensureImageReady(imgEl)) {
+      rebuilt = document.createElement('canvas');
+      rebuilt.width  = imgEl.naturalWidth || imgEl.width;
+      rebuilt.height = imgEl.naturalHeight || imgEl.height;
+      rebuilt.getContext('2d', { willReadFrequently:true }).drawImage(imgEl, 0, 0);
+    }
+
+    if (!isCanvasUsable(rebuilt) && pdfUrl) {
+      try { rebuilt = await renderPdfUrlFirstPageToCanvas(pdfUrl); } catch(_) {}
+    }
+
+    if (!isCanvasUsable(rebuilt) && fallbackFile) {
+      try { rebuilt = await renderPdfFirstPageToCanvas(fallbackFile); } catch(_) {}
+    }
+
+    if (isCanvasUsable(rebuilt)) {
+      canvas = rebuilt;
+    } else {
+      if (statusEl) statusEl.textContent = 'Cannot prepare image for OCR (0×0).';
+      throw new Error('Canvas 0×0 after rebuild');
+    }
   }
 
   if (statusEl) statusEl.textContent = 'Running OCR…';
-  const dataUrl = canvas.toDataURL('image/png');
-  const { data } = await Tesseract.recognize(dataUrl, 'eng', { tessedit_char_blacklist:'[]{}<>~`^' });
-  window.lastOcrRawText = data?.text || '';
+  try {
+    window.lastOcrRawText = await tesseractRecognizeSafe(canvas, 'eng', {
+      ...TESS_OPTS,
+      tessedit_char_blacklist:'[]{}<>~`^'
+    });
+  } catch (e) {
+    console.error('OCR failed', e);
+    window.lastOcrRawText = '';
+    if (statusEl) statusEl.textContent = 'OCR failed — try clearer image.';
+  }
+
   if (window.lastOcrRawText.trim()) { await saveDebugRaw(window.lastOcrRawText, 'OCR'); }
   parsedFromOCR = parsePlainCOGText(window.lastOcrRawText || '');
 
-  // 👇 debug log after parsing OCR
-  console.log('OCR len=', (window.lastOcrRawText||'').length,
-              'OCR rows=', (parsedFromOCR.rows||[]).length,
-              'QR rows=', (parsedFromQR.rows||[]).length);
-
-  /* OCR ready now */
   try { ocrReadyResolve && ocrReadyResolve(); } catch(_) {}
 
-  if (statusEl) statusEl.textContent = qrText ? 'QR + OCR captured. Proceed to Validation.' : 'OCR captured (no QR found).';
+  if (statusEl) {
+    statusEl.textContent = qrText
+      ? 'QR + OCR captured. Proceed to Validation.'
+      : 'OCR captured (no QR found).';
+  }
   bumpPathsFeedback?.();
 }
 
@@ -1079,12 +1271,36 @@ function bumpPathsFeedback(){
    =========================================================== */
 async function resolveQrOnServer(qrText){
   const res = await fetch(route('route-qr-resolve'), {
-    method: 'POST', headers: { 'Content-Type':'application/json', 'X-CSRF-TOKEN': csrfToken(), 'Accept':'application/json' },
-    body: JSON.stringify({ payload: qrText })
+    method: 'POST',
+    headers: {
+      'Content-Type':'application/json',
+      'X-CSRF-TOKEN': csrfToken(),
+      'Accept':'application/json'
+    },
+    body: JSON.stringify({ payload: String(qrText || '') })
   });
-  if (!res.ok) throw new Error(await res.text());
-  return await res.json();
+
+  // Try to read JSON either way so we can surface details
+  const json = await res.json().catch(() => ({}));
+
+  if (res.ok) {
+    window.lastQrUrl = json?.qr_url || window.lastQrUrl || '';
+    return json;
+  }
+
+  const qrUrl = json?.qr_url || extractQrUrlFromPayload(qrText) || '';
+  window.lastQrUrl = qrUrl;
+
+  console.warn('QR resolve returned', res.status, json?.error || 'Unknown error');
+  return {
+    ok: false,
+    error: json?.error || json?.message || 'No grades table found',
+    header: {},
+    grades: [],
+    qr_url: qrUrl
+  };
 }
+
 function extractQrUrlFromPayload(p){
   try {
     if (/^https?:\/\//i.test(p)) return p;
@@ -1124,7 +1340,7 @@ function mapServerJsonToParsed(api){
    =========================================================== */
 function fixEncoding(s=''){ try { return decodeURIComponent(escape(s)); } catch(_){}
   return s.replace(/Ã‘/g,'Ñ').replace(/Ã/g,'Ñ').replace(/Ã±/g,'ñ')
-          .replace(/Ã“/g,'Ó').replace(/Ã³/g,'ó').replace(/Ã‰/g,'É').replace(/Ã©/g,'é')
+          .replace(/Ã"/g,'Ó').replace(/Ã³/g,'ó').replace(/Ã‰/g,'É').replace(/Ã©/g,'é')
           .replace(/Ã/g,'Á').replace(/Ã¡/g,'á').replace(/Ã/g,'Í').replace(/Ã­/g,'í')
           .replace(/Ãš/g,'Ú').replace(/Ãº/g,'ú'); }
 const PLACEHOLDER_TOKENS = new Set(['FULLNAME','SRCODE','COLLEGE','PROGRAM','SEMESTER','YEAR LEVEL','ACADEMIC YEAR','-','—','N/A','NA']);
@@ -1132,7 +1348,15 @@ function looksFilled(key, val){ if (val==null) return false; const v=String(val)
   const up=v.toUpperCase(); if(PLACEHOLDER_TOKENS.has(up)) return false;
   if(key==='srcode') return /\d/.test(v); if(key==='fullname') return v.length>=5;
   if(key==='academic_year') return /\d{4}\s*-\s*\d{4}/.test(v)||/\b\d{4}\b/.test(v); return true; }
-function sanitizeMeta(meta={}){ const out={...meta}; for(const k of ['fullname','srcode','college','program','semester','year_level','academic_year']) if(!looksFilled(k,out[k])) out[k]=''; return out; }
+function sanitizeMeta(meta={}){
+  const out = {...meta};
+  out.srcode  = cleanSrcode(out.srcode||'');
+  out.program = cleanProgram(out.program||'');
+  for (const k of ['fullname','college','semester','year_level','academic_year']) {
+    if (!looksFilled(k, out[k])) out[k] = '';
+  }
+  return out;
+}
 function preferFilled(a,b,key){ return looksFilled(key,a)?a:(looksFilled(key,b)?b:''); }
 function mergeMetaPreferFilled(a={},b={}){ const keys=['fullname','srcode','college','program','semester','year_level','academic_year','total_units','total_courses','gwa']; const m={}; for(const k of keys) m[k]=preferFilled(a[k],b[k],k); return m; }
 
@@ -1149,8 +1373,15 @@ const HDR = {
 const RX = { academic_year_val: /([0-9]{4}\s*[-–—]\s*[0-9]{4}|[0-9]{4})/i };
 function extractMetaWithAliases(lines){
   const idxOf = (rx)=> lines.findIndex(l => rx.test(l));
-  const iFull = idxOf(HDR.fullname), iCol=idxOf(HDR.college), iProg=idxOf(HDR.program),
-        iSem=idxOf(HDR.semester), iYLvl=idxOf(HDR.year_level), iAY=idxOf(HDR.academic_year), iSR=idxOf(HDR.srcode);
+
+  const iFull = idxOf(HDR.fullname);
+  const iCol  = idxOf(HDR.college);
+  const iProg = idxOf(HDR.program);
+  const iSem  = idxOf(HDR.semester);
+  const iYLvl = idxOf(HDR.year_level);
+  const iAY   = idxOf(HDR.academic_year);
+  const iSR   = idxOf(HDR.srcode);
+
   const lineFull = iFull !== -1 ? lines[iFull] : '';
   const lineCol  = iCol  !== -1 ? lines[iCol]  : '';
   const lineProg = iProg !== -1 ? lines[iProg] : '';
@@ -1158,35 +1389,52 @@ function extractMetaWithAliases(lines){
   const lineAY   = iAY   !== -1 ? lines[iAY]   : '';
   const lineSR   = iSR   !== -1 ? lines[iSR]   : '';
 
-  const fullname = iFull !== -1 ? sliceAfter(lines, iFull, /SRCODE\s*:?\s*/i) : '';
-  const college  = iCol  !== -1 ? sliceAfter(lines, iCol,  /Academic\s*Year\s*:?\s*/i) : '';
-  const program  = iProg !== -1 ? sliceAfter(lines, iProg, /Semester\s*:?\s*/i) : '';
-  const semester = iSem  !== -1 ? lineSem.replace(HDR.semester,'').trim() : '';
-  const yearLvl  = iYLvl !== -1 ? lines[iYLvl].replace(HDR.year_level,'').trim() : '';
-  let   srcode   = iSR   !== -1 ? lineSR.replace(HDR.srcode,'').trim() : '';
-  let   ay       = '';
+  const fullname   = iFull !== -1 ? sliceAfter(lines, iFull, /SRCODE\s*:?\s*/i) : '';
+  const college    = iCol  !== -1 ? sliceAfter(lines, iCol,  /Academic\s*Year\s*:?\s*/i) : '';
+  const programRaw = iProg !== -1 ? sliceAfter(lines, iProg, /Semester\s*:?\s*/i) : '';
+  const program    = cleanProgram(programRaw);
+  const semester   = iSem  !== -1 ? lineSem.replace(HDR.semester,'').trim() : '';
+  const yearLvl    = iYLvl !== -1 ? lines[iYLvl].replace(HDR.year_level,'').trim() : '';
 
+  let srcode = iSR !== -1 ? lineSR.replace(HDR.srcode,'').trim() : '';
+  srcode = cleanSrcode(srcode);
+
+  let ay = '';
   if (iAY !== -1) {
     const m = lineAY.match(RX.academic_year_val);
     ay = m ? m[1] : lineAY.replace(HDR.academic_year,'').trim();
   }
+
   if (!srcode && lineFull) {
     const mSR = lineFull.match(/SRCODE\s*:\s*([A-Z0-9\-]+)/i);
     if (mSR) srcode = mSR[1].trim();
   }
+  srcode = cleanSrcode(srcode);
+
   if (!ay && lineCol) {
     const mAY = lineCol.match(/Academic\s*Year\s*:\s*([0-9]{4}\s*[-–—]\s*[0-9]{4}|[0-9]{4})/i);
     if (mAY) ay = mAY[1].trim();
   }
+
   let sem2 = semester;
   if (!sem2 && lineProg) {
     const m = lineProg.match(/Semester\s*:\s*([A-Za-z]+)/i);
     if (m) sem2 = m[1].trim();
   }
-  return { fullname, srcode, college, program, semester: sem2, year_level: yearLvl, academic_year: ay };
+
+  return {
+    fullname,
+    srcode,
+    college,
+    program,
+    semester: sem2,
+    year_level: yearLvl,
+    academic_year: ay
+  };
 }
+
 function parsePlainCOGText(text){
-  let cleaned = text.replace(/\r/g,'').replace(/[“”]/g,'"').replace(/[‘’]/g,"'").replace(/[—–−]/g,'-').replace(/\u00A0/g, ' ');
+  let cleaned = text.replace(/\r/g,'').replace(/[""]/g,'"').replace(/[''']/g,"'").replace(/[—–−]/g,'-').replace(/\u00A0/g, ' ');
   const rawLines = cleaned.split('\n').map(s => s.trim()).filter(Boolean);
   const meta0 = extractMetaWithAliases(rawLines);
 
@@ -1214,13 +1462,13 @@ function parsePlainCOGText(text){
   for (let i=0; i<lines.length; i++){
     let line = lines[i];
     let m = line.match(
-      /^(?:\[\s*(\d+)\s*\]\s*)?([A-Za-z]{2,}(?:\s*[-/]\s*[A-Za-z]{1,3})?\s*\d{2,4}[A-Za-z]?)\s+(.+?)\s+(\d{1,2})\s+([0-2]\.\d{1,4}|100|150|200)\s+([A-Za-z]+(?:-?[A-Za-z]+)*-?\d{3,4}[A-Za]?)\s+(.+)$/
+      /^(?:\[\s*(\d+)\s*\]\s*)?([A-Za-z]{2,}(?:\s*[-/]\s*[A-Za-z]{1,3})?\s*\d{2,4}[A-Za-z]?)\s+(.+?)\s+(\d{1,2})\s+(100|125|150|175|200|[0-2]\.\d{1,4})\s+([A-Za-z]+(?:-?[A-Za-z]+)*-?\d{3,4}[A-Za]?)\s+(.+)$/i
     );
     if (!m){
       const next = (lines[i+1] || '');
       const joined = (line + ' ' + next).replace(/\s{2,}/g,' ');
       const m2 = joined.match(
-        /^(?:\[\s*(\d+)\s*\]\s*)?([A-Za-z]{2,}(?:\s*[-/]\s*[A-Za-z]{1,3})?\s*\d{2,4}[A-Za-z]?)\s+(.+?)\s+(\d{1,2})\s+([0-2]\.\d{1,4}|100|150|200)\s+([A-Za-z]+(?:-?[A-Za-z]+)*-?\d{3,4}[A-Za]?)\s+(.+)$/
+        /^(?:\[\s*(\d+)\s*\]\s*)?([A-Za-z]{2,}(?:\s*[-/]\s*[A-Za-z]{1,3})?\s*\d{2,4}[A-Za-z]?)\s+(.+?)\s+(\d{1,2})\s+(100|125|150|175|200|[0-2]\.\d{1,4})\s+([A-Za-z]+(?:-?[A-Za-z]+)*-?\d{3,4}[A-Za]?)\s+(.+)$/i
       );
       if (m2){ m = m2; i += 1; }
     }
@@ -1244,8 +1492,15 @@ function parsePlainCOGText(text){
   return { meta, rows };
 }
 function normalizeGradeToken(tok){
-  let t = tok.trim();
-  if (/^\d{3}$/.test(t)) { if (t==='150') return '1.50'; if (t==='200') return '2.00'; if (t==='100') return '1.00'; }
+  let t = tok.trim().toUpperCase();
+  if (t === 'INCOMPLETE') t = 'INC';
+  if (t === 'DROP') t = 'DRP';
+  if (['INC','DRP','W'].includes(t)) return t;
+  if (t==='100') return '1.00';
+  if (t==='125') return '1.25';
+  if (t==='150') return '1.50';
+  if (t==='175') return '1.75';
+  if (t==='200') return '2.00';
   if (/^\d\.\d{1,4}$/.test(t)) return t;
   if (/^\d$/.test(t)) return t + '.00';
   return t.replace(/[^\d.]/g,'');
@@ -1255,23 +1510,33 @@ function normalizeGradeToken(tok){
    4) Extraction + Validation flow
    =========================================================== */
 async function extractThenValidate(){
-  try{
-    setBusy(true);
+    try{
+        setBusy(true);
 
-    // IMPORTANT: wait until COG OCR/QR work is finished (if any)
-    if (window.cogWorkDonePromise) {
-      setValState('v-tamper','loading','Waiting for OCR/QR…');
-      try { await window.cogWorkDonePromise; } catch(_) {}
+        if (window.cogWorkDonePromise) {
+            try { await window.cogWorkDonePromise; } catch(_) {}
+        }
+
+        await extractFromCog();
+        await runValidations(); // This now includes application period validation
+    }catch(e){
+        console.error(e);
+        alert('Validation failed to run. Please try re-uploading a clearer COG image.');
+    }finally{
+        setBusy(false);
     }
+}
 
-    await extractFromCog();     // fill UI from whatever we have now
-    await runValidations();     // now both QR and OCR should be ready
-  }catch(e){
-    console.error(e);
-    alert('Validation failed to run. Please try re-uploading a clearer COG image.');
-  }finally{
-    setBusy(false);
-  }
+/* keep only the SR Code token */
+function cleanSrcode(v=''){
+  const s = String(v).replace(/Sex\s*:.*$/i,'').trim();
+  const m = s.match(/[A-Z0-9-]+/i);
+  return m ? m[0] : '';
+}
+function cleanProgram(v=''){
+  const s = String(v).trim();
+  const after = s.replace(/^.*?\bProgram\s*:\s*/i,'');
+  return (after && after !== s) ? after.trim() : s;
 }
 
 async function extractFromCog(){
@@ -1283,7 +1548,10 @@ async function extractFromCog(){
     const qrMeta  = sanitizeMeta(parsedFromQR?.meta  || {});
     const ocrMeta = sanitizeMeta(parsedFromOCR?.meta || {});
     const corMeta = sanitizeMeta(window.corMetaFromOcr || {});
-    const mergedMeta = mergeMetaPreferFilled( mergeMetaPreferFilled(qrMeta, ocrMeta), corMeta );
+    const mergedMeta = mergeMetaPreferFilled(
+      mergeMetaPreferFilled(corMeta, qrMeta),
+      ocrMeta
+    );
 
     const rows = (parsedFromOCR?.rows?.length ? parsedFromOCR.rows
               : parsedFromQR?.rows?.length ? parsedFromQR.rows
@@ -1314,7 +1582,6 @@ function setValState(id, state, extra=''){
   if (state==='fail'){ el.innerHTML = `❌ <span class="val-fail">Failed</span>` + (extra?` <small class="val-muted">(${extra})</small>`:''); }
 }
 
-/* ---- Strict per-course grade compare ---- */
 function canonicalKeyFrom(code='', title=''){
   const c=(code||'').toUpperCase().replace(/\s+/g,' ').trim();
   const t=(title||'').toUpperCase().replace(/\s+/g,' ').replace(/[^A-Z0-9 ]/g,'').trim();
@@ -1326,51 +1593,20 @@ function buildMismatchIndex(mismatches=[]){
     mismatchIndex.set(m._key || canonicalKeyFrom(m.code, m.title), { qr: m.qr, ocr: m.ocr });
   });
 }
-function compareQrOcrGradesStrict(qrRows = [], ocrRows = []) {
-  const canonCode  = (s='') => (s||'').toUpperCase().replace(/\s+/g,' ').trim();
-  const gradeNorm  = (g='') => {
-    const t = String(g).replace(/\s+/g,'').trim();
-    if (t === '100') return '1.00';
-    if (t === '150') return '1.50';
-    if (t === '200') return '2.00';
-    return t;
-  };
 
-  const byCode = new Map();
-  for (const r of qrRows) {
-    const c = canonCode(r.code);
-    if (c) byCode.set(c, r);
-  }
+const DISQUAL_GRADE_MIN = 2.75;
 
-  const mismatches = [];
-  for (const ocr of ocrRows) {
-    const c = canonCode(ocr.code);
-    const qr = c && byCode.get(c);
-    if (!qr) continue;
-
-    const qg = gradeNorm(qr.grade);
-    const og = gradeNorm(ocr.grade);
-    if (qg && og && qg !== og) {
-      mismatches.push({
-        code: qr.code || ocr.code || '',
-        title: qr.title || ocr.title || '',
-        qr: qg,
-        ocr: og,
-        _key: canonicalKeyFrom(qr.code||ocr.code||'', qr.title||ocr.title||'')
-      });
-    }
-  }
-  return mismatches;
-}
-
-/* NEW: full row diff (mismatch + missing/extra) */
 function diffQrOcrRows(qrRows = [], ocrRows = []) {
   const canon = s => (s||'').toUpperCase().replace(/\s+/g,' ').trim();
   const gradeNorm = (g='') => {
-    const t = String(g).replace(/\s+/g,'').trim();
+    const t = String(g).replace(/\s+/g,'').trim().toUpperCase();
     if (t === '100') return '1.00';
+    if (t === '125') return '1.25';
     if (t === '150') return '1.50';
+    if (t === '175') return '1.75';
     if (t === '200') return '2.00';
+    if (t === 'INCOMPLETE') return 'INC';
+    if (t === 'DROP') return 'DRP';
     return t;
   };
 
@@ -1426,229 +1662,453 @@ async function waitUntil(pred, { timeout=3500, interval=120 } = {}) {
 }
 const sleep = (ms)=>new Promise(r=>setTimeout(r,ms));
 
-async function runValidations() {
-  // ---- UI: start Authenticity check
-  setValState('v-tamper', 'loading', 'Comparing server vs OCR grades…');
+/* ===========================================================
+   VALIDATION HELPERS - SIMPLIFIED COURSE MISMATCH DISPLAY
+   =========================================================== */
 
-  // ---- Helpers
-  const gradeNorm = (g='') => {
-    const t = String(g).replace(/\s+/g,'').toUpperCase();
-    if (t === '100') return '1.00';
-    if (t === '125') return '1.25';
-    if (t === '150') return '1.50';
-    if (t === '175') return '1.75';
-    if (t === '200') return '2.00';
-    return t; // already like 1.25 / 1.50 / INC / DROP etc
-  };
-
-  // Robust parser to handle Markdown (cog_output.txt) and OCR (pdftotext -layout) lines
-  const parseGradesRobust = (rawText) => {
-    if (!rawText) return [];
-    const text = rawText
-      .replace(/\r/g, '')
-      .replace(/\u00A0|\u202F|\uFEFF/g, ' ')
-      .replace(/[ \t]{2,}/g, ' ');
-    const rows = [];
-    for (let line of text.split('\n')) {
-      line = line.trim();
-      if (!line) continue;
-
-      // skip obvious non-rows
-      if (/^\*+\s*NOTHING FOLLOWS/i.test(line)) continue;
-      if (/^(Total no of|General Weighted Average|BATANGAS STATE UNIVERSITY|ARASOF|Student's Copy)/i.test(line)) continue;
-      if (/^(Fullname|SRCODE|College|Program|Semester|Year\s*Level|Academic\s*Year)\s*:/i.test(line)) continue;
-
-      // A) Markdown table row (from cog_output.txt)
-      //    | 1 | ES 101 | ... | 3 | 1.50 | IT-2203 | ... |
-      let m = line.match(/^\|\s*(\d+)\s*\|[\s\S]*?\|\s*(\d{1,2})\s*\|\s*([0-2]\.\d{2,4}|INC|DROP|W)\s*\|/i);
-      if (m) { rows.push({ idx: +m[1], units: m[2], grade: gradeNorm(m[3]) }); continue; }
-
-      // B) OCR fixed-width row (pdftotext -layout) — your sample format
-      //    1  ES 101  Environmental Sciences  3  1.50  IT-2203  MERCADO, ...
-      m = line.match(/^\s*(\d+)\s+[A-Z][A-Z0-9 ]*[0-9A-Z]\s+.+?\s+(\d{1,2})\s+([0-2]\.\d{2,4}|INC|DROP|W)\s+/i);
-      if (m) { rows.push({ idx: +m[1], units: m[2], grade: gradeNorm(m[3]) }); continue; }
-
-      // C) Forgiving fallback (handles minor spacing glitches)
-      m = line.match(/^\s*(\d+)\s+.+?\s+(\d{1,2})\s+([0-2]\.\d{2,4}|INC|DROP|W)(?:\s+|$)/i);
-      if (m) { rows.push({ idx: +m[1], units: m[2], grade: gradeNorm(m[3]) }); continue; }
-    }
-    return rows.sort((a,b)=>a.idx-b.idx);
-  };
-
-  // ---- Source data
-  const qrRows  = parsedFromQR?.rows  || [];
-  const ocrRows = parsedFromOCR?.rows || [];
-
-  // Build grades from QR rows (this is your “server/official” side)
-  const gradesOut = qrRows.map(r => gradeNorm(r.grade)).filter(Boolean);
-
-  // Build grades from OCR text first; if empty, fall back to parsed OCR rows
-  const ocrText = (window.lastOcrRawText || '')
-    .replace(/\r/g,'')
-    .replace(/\u00A0|\u202F|\uFEFF/g,' ');
-  let parsedOcrGrades = parseGradesRobust(ocrText).map(r => r.grade);
-
-  if (!parsedOcrGrades.length && ocrRows.length) {
-    parsedOcrGrades = ocrRows.map(r => gradeNorm(r.grade)).filter(Boolean);
-  }
-
-  // Defensive: if still nothing, at least compare whatever we have on screen
-  const gOut = gradesOut.length ? gradesOut : (qrRows.map(r => gradeNorm(r.grade)));
-  const gOcr = parsedOcrGrades.length ? parsedOcrGrades : (ocrRows.map(r => gradeNorm(r.grade)));
-
-  // ---- Compare row-by-row (by index)
-  const mismatches = [];
-  const max = Math.max(gOut.length, gOcr.length);
-  for (let i = 0; i < max; i++) {
-    const a = gOut[i] || '';
-    const b = gOcr[i] || '';
-    if (!a || !b) {
-      mismatches.push({ idx: i+1, serverGrade: a || '—', ocrGrade: b || '—' });
-      continue;
-    }
-    if (a !== b) mismatches.push({ idx: i+1, serverGrade: a, ocrGrade: b });
-  }
-
-  // ---- Build mismatchIndex (used to stripe the table and show QR badges)
-  mismatchIndex = new Map();
-  if (mismatches.length) {
-    for (const mm of mismatches) {
-      const rowObj = lastParsedRows[mm.idx - 1] || ocrRows[mm.idx - 1] || qrRows[mm.idx - 1];
-      const key = rowObj ? canonicalKeyFrom(rowObj.code, rowObj.title) : `__IDX__${mm.idx}`;
-      mismatchIndex.set(key, { qr: mm.serverGrade, ocr: mm.ocrGrade });
-    }
-  }
-
-  // ---- Re-render table to show highlights/badges
-  renderGradesTable(
-    lastParsedRows.length ? lastParsedRows : (ocrRows.length ? ocrRows : qrRows),
-    lastParsedMeta
-  );
-
-  // ---- Validation UI outcome
-  if (mismatches.length > 0) {
-    setValState('v-tamper', 'fail', `${mismatches.length} row(s) mismatched`);
-    const reasonEl = document.getElementById('tamperReason');
-    if (reasonEl) {
-      const lis = mismatches
-        .map(m => `<li>Row ${m.idx}: Server = <b>${m.serverGrade}</b>, Uploaded = <b>${m.ocrGrade}</b></li>`)
-        .join('');
-      reasonEl.innerHTML =
-        `Your uploaded grades do not match the official record.<br/><ul>${lis}</ul>` +
-        `<div class="small text-muted mt-2">Tip: reupload a clearer scan. For PDF, ensure the QR links to the Registrar page.</div>`;
-    }
-    tamperTarget = 'cog';
-    showModal('#tamperFailModal');
-    validationPass = false;
-    return;
-  }
-
-  setValState('v-tamper', 'ok', 'All rows match');
-  setValState('v-irregular', 'ok', 'Checked');
-  setValState('v-grades', 'ok', 'No disqualifying grades');
-  validationPass = true;
-}
-
-
-
-// Fetch the content of cog_output.txt
-async function fetchCogOutput() {
-    const response = await fetch(route('student.cog.output'));  // Modify with your route
-    const data = await response.text();
-    return data;
-}
-
-// Parse the course data (grades, course codes, etc.)
-function parseCoursesData(textData) {
-    const lines = textData.split('\n');
-    const courses = [];
-
-    lines.forEach(line => {
-        // Assuming each line represents a course entry with grades and other details
-        const match = line.match(/^(\d+)\s+([A-Za-z0-9\s/-]+)\s+(.+?)\s+(\d+)\s+([\d.]+)\s+(.+)\s+(.+)$/);
-        if (match) {
-            courses.push({
-                idx: match[1],
-                code: match[2],
-                title: match[3],
-                units: match[4],
-                grade: match[5],
-                section: match[6],
-                instructor: match[7]
-            });
+// Function to fetch and parse mismatches from grades_mismatches.txt
+async function fetchGradeMismatches() {
+    try {
+        // Try to fetch from grades_mismatches.txt
+        const response = await fetch('/storage/app/cog/grades_mismatches.txt');
+        if (response.ok) {
+            const mismatchesText = await response.text();
+            return parseMismatchesFromText(mismatchesText);
         }
-    });
-
-    return courses;
+    } catch (error) {
+        console.log('No grades_mismatches.txt found:', error);
+    }
+    return [];
 }
 
-// Normalize grades (strip spaces, ensure consistent formatting)
-function normalizeGrade(grade) {
-    if (!grade) return '';
-    return parseFloat(grade.trim()).toFixed(2);  // Normalize to 2 decimal places
-}
-
-// Compare the grades row by row
-function compareCourses(ocrCourses, outputCourses) {
+// Parse mismatches from grades_mismatches.txt - only get course codes
+function parseMismatchesFromText(mismatchesText) {
     const mismatches = [];
-
-    // Iterate over each row and compare grades
-    ocrCourses.forEach((ocrCourse, index) => {
-        const outputCourse = outputCourses[index];
-
-        // If the grades don't match, record the mismatch
-        if (ocrCourse && outputCourse) {
-            const ocrGrade = normalizeGrade(ocrCourse.grade);
-            const outputGrade = normalizeGrade(outputCourse.grade);
-
-            if (ocrGrade !== outputGrade) {
-                mismatches.push({
-                    index: index + 1,  // Row index (starting from 1)
-                    ocrGrade: ocrGrade,
-                    outputGrade: outputGrade,
-                    courseCode: ocrCourse.code,
-                    courseTitle: ocrCourse.title
-                });
-            }
+    const lines = mismatchesText.split('\n').filter(line => line.trim());
+    
+    lines.forEach(line => {
+        // Extract just the course code from formats like:
+        // "IT 221 - QR: 1.25, OCR: 3.00" or "IT 221"
+        const match = line.match(/([A-Za-z]+\s+\d+)/);
+        if (match) {
+            mismatches.push(match[1].trim());
         }
     });
-
+    
     return mismatches;
 }
 
-// Display a failure message when mismatches are found
-function showDocumentAuthenticationFailure(mismatches) {
-    const mismatchList = mismatches.map(mismatch => {
-        return `
-            <li>
-                Course: ${mismatch.courseCode} - ${mismatch.courseTitle}<br>
-                OCR Grade: ${mismatch.ocrGrade}, Output Grade: ${mismatch.outputGrade}
-            </li>
-        `;
-    }).join('');
+// Function to format mismatch message in the simple format you want
+function formatMismatchMessage(mismatchCourses) {
+    if (!mismatchCourses || mismatchCourses.length === 0) {
+        return 'No specific course mismatches detected.';
+    }
     
-    const failureMessage = `
-        <h5 class="text-danger">Document Authentication Failed</h5>
-        <p>The grades do not match for the following courses:</p>
-        <ul>${mismatchList}</ul>
-        <p>Please contact the registrar or re-upload the correct document.</p>
-    `;
+    // Create simple messages like "Your Grades in IT 221 is not Match"
+    return mismatchCourses.map(course => 
+        `Your Grades in ${escapeHtml(course)} is not Match`
+    ).join('<br>');
+}
 
-    document.getElementById('failure-reason').innerHTML = failureMessage;  // Display in the UI
+/* ===========================================================
+   VALIDATION HELPERS - COR vs COG COURSE CODE MATCHING
+   =========================================================== */
+
+// Function to fetch and parse course codes from COR output
+async function fetchCorCourses() {
+  try {
+    const url = window.COR_OUTPUT_URL || '/student/cor/output';
+    const response = await fetch(url);
+    if (response.ok) {
+      const corText = await response.text();
+      return parseCorCourses(corText);
+    }
+  } catch (error) {
+    console.log('Could not fetch COR output:', error);
+  }
+  return [];
+}
+
+async function fetchCogCourses() {
+  try {
+    const url = window.COG_OUTPUT_URL || '/student/cog/output.txt';
+    const response = await fetch(url);
+    if (response.ok) {
+      const cogText = await response.text();
+      return parseCogCourses(cogText);
+    }
+  } catch (error) {
+    console.log('Could not fetch COG output:', error);
+  }
+  return [];
 }
 
 
+function parseCorCourses(corText) {
+  const lines = corText.split('\n');
+  const coursesSet = new Set();
+  let inCourses = false;
 
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    if (line.startsWith('COURSE CODE')) {
+      inCourses = true;
+      continue;
+    }
+
+    if (inCourses) {
+      if (
+        line.startsWith('Scholarship/s:') ||
+        line.startsWith('ASSESSMENT') ||
+        line.startsWith('Approved by:')
+      ) {
+        break;
+      }
+
+      const m = line.match(/^([A-Za-z]{2,}\s*\d{3})/);
+      if (m) {
+        const code = m[1].replace(/\s+/g, ' ').toUpperCase();
+        coursesSet.add(code);
+      }
+    }
+  }
+
+  return Array.from(coursesSet).sort();
+}
+
+function parseCogCourses(cogText) {
+  const lines = cogText.split('\n');
+  const coursesSet = new Set();
+
+  // From COURSES: table
+  let inCoursesSection = false;
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    if (line.startsWith('COURSES:')) {
+      inCoursesSection = true;
+      continue;
+    }
+
+    if (inCoursesSection) {
+      if (line.startsWith('SUMMARY:') || line.startsWith('RAW EXTRACTED TEXT:')) {
+        inCoursesSection = false;
+        continue;
+      }
+
+      if (line.includes('|')) {
+        const firstPart = line.split('|')[0].trim();
+        if (/^[A-Za-z]{2,}\s*\d{3}$/.test(firstPart)) {
+          const code = firstPart.replace(/\s+/g, ' ').toUpperCase();
+          coursesSet.add(code);
+        }
+      }
+    }
+  }
+
+  // Backup: RAW EXTRACTED TEXT block
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    const m = line.match(/^\d+\s+([A-Za-z]{2,}\s*\d{3})\b/);
+    if (m) {
+      const code = m[1].replace(/\s+/g, ' ').toUpperCase();
+      coursesSet.add(code);
+    }
+  }
+
+  return Array.from(coursesSet).sort();
+}
+
+function findCourseMismatches(corCourses, cogCourses) {
+  const mismatches = [];
+  const corSet = new Set(corCourses);
+  const cogSet = new Set(cogCourses);
+
+  corCourses.forEach(code => {
+    if (!cogSet.has(code)) {
+      mismatches.push({
+        course: code,
+        type: 'missing_in_cog'
+      });
+    }
+  });
+
+  cogCourses.forEach(code => {
+    if (!corSet.has(code)) {
+      mismatches.push({
+        course: code,
+        type: 'missing_in_cor'
+      });
+    }
+  });
+
+  return mismatches;
+}
+
+async function runValidations() {
+  setValState('v-tamper', 'loading', 'Comparing grades…');
+  setValState('v-irregular', 'loading', 'Checking curriculum…');
+  setValState('v-grades', 'loading', 'Scanning disqualifying grades…');
+
+  try {
+    // wait for background OCR / parsing work
+    if (window.cogWorkDonePromise) {
+      try { await window.cogWorkDonePromise; } catch (_) {}
+    }
+    if (typeof ocrReady !== 'undefined' && ocrReady?.then) {
+      try { await ocrReady; } catch (_) {}
+    }
+
+    /* =======================================================
+       1) COR vs COG COURSE CODE MATCHING (FIRST GATE)
+       ======================================================= */
+    const corCourses = await fetchCorCourses();
+    const cogCourses = await fetchCogCourses();
+
+    console.log('COR Courses:', corCourses);
+    console.log('COG Courses:', cogCourses);
+
+    if (corCourses.length > 0 && cogCourses.length > 0) {
+      const courseMismatches = findCourseMismatches(corCourses, cogCourses);
+
+      if (courseMismatches.length > 0) {
+        // FAIL in Document Authenticity
+        setValState('v-tamper', 'fail', 'Course mismatch detected');
+
+        const reasonEl = document.getElementById('tamperReason');
+        if (reasonEl) {
+          reasonEl.innerHTML = `
+            <p class="mb-2">
+              <strong>The Course in your COR and COG do not Match.</strong>
+            </p>
+            <p class="small text-muted mb-0">
+              The system detected that the list of courses in your
+              Certificate of Registration (COR) is different from the list
+              of courses in your Certificate of Grades (COG).
+            </p>
+          `;
+        }
+
+        showModal('#tamperFailModal');
+        validationPass = false;
+        return; // stop here; do not continue to QR/OCR grade checks
+      }
+    }
+
+    /* =======================================================
+       2) EXISTING QR vs OCR / PARSED FILES VALIDATION
+          (HINDI KO TINANGGAL, 그대로)
+       ======================================================= */
+
+    const qrRows  = Array.isArray(parsedFromQR?.rows)  ? parsedFromQR.rows  : [];
+    const ocrRows = Array.isArray(parsedFromOCR?.rows) ? parsedFromOCR.rows : [];
+
+    let decidedByParsedFiles = false;
+    try {
+      const { qrGrades, ocrGrades } = await fetchParsedFilesGrades();
+      if (qrGrades.length || ocrGrades.length) {
+        decidedByParsedFiles = true;
+
+        const A = qrGrades, B = ocrGrades;
+        const N = Math.max(A.length, B.length);
+        const rowMismatches = [];
+        for (let i = 0; i < N; i++) {
+          if ((A[i] || '') !== (B[i] || '')) {
+            rowMismatches.push({ index: i + 1, qr: A[i] || '—', ocr: B[i] || '—' });
+          }
+        }
+
+        if (rowMismatches.length > 0) {
+          setValState('v-tamper', 'fail', `${rowMismatches.length} grade mismatch(es)`);
+
+          const reasonEl = document.getElementById('tamperReason');
+          if (reasonEl) {
+            reasonEl.innerHTML = `Found ${rowMismatches.length} grade discrepancy(ies) between official records and your uploaded document.`;
+          }
+
+          showModal('#tamperFailModal');
+          validationPass = false;
+          return;
+        } else {
+          setValState('v-tamper', 'ok', 'Parsed files match');
+        }
+      }
+    } catch (_) {}
+
+    if (!decidedByParsedFiles) {
+      const hasQR  = qrRows.length > 0;
+      const hasOCR = ocrRows.length > 0;
+
+      if (!hasOCR) {
+        if (hasQR) {
+          setValState('v-tamper', 'ok', 'Verified via QR only');
+          setValState('v-irregular', 'ok', 'Checked');
+          setValState('v-grades', 'ok', 'No disqualifying grades found');
+
+          lastParsedRows = qrRows.slice();
+          lastParsedMeta = mergeMetaPreferFilled(parsedFromQR.meta || {}, parsedFromOCR.meta || {});
+          buildMismatchIndex([]);
+          renderGradesTable(lastParsedRows, lastParsedMeta);
+          await autoSaveCog(lastParsedMeta, lastParsedRows);
+
+          validationPass = true;
+          return;
+        }
+        setValState('v-tamper', 'fail', 'No QR/OCR data');
+        const reasonEl = document.getElementById('tamperReason');
+        if (reasonEl) {
+          reasonEl.innerHTML = `We couldn't extract any grade rows from your uploaded COG and no QR data was found.`;
+        }
+        tamperTarget = 'cog';
+        showModal('#tamperFailModal');
+        validationPass = false;
+        return;
+      }
+
+      const diff = diffQrOcrRows(qrRows, ocrRows);
+      const mismatches = diff.mismatches || [];
+
+      if (mismatches.length > 0) {
+        setValState('v-tamper', 'fail', `${mismatches.length} mismatched grade(s)`);
+
+        const reasonEl = document.getElementById('tamperReason');
+        if (reasonEl) {
+          reasonEl.innerHTML = `Found ${mismatches.length} grade discrepancy(ies) between official records and your uploaded document.`;
+        }
+
+        showModal('#tamperFailModal');
+        validationPass = false;
+        return;
+      } else {
+        setValState('v-tamper', 'ok', 'QR and OCR grades match');
+      }
+      buildMismatchIndex(mismatches);
+    }
+
+    /* =======================================================
+       3) DISQUALIFYING GRADES (2.75 / 3.00 / INC / DRP)
+       ======================================================= */
+
+    const disqual = (Array.isArray(parsedFromOCR?.rows) ? parsedFromOCR.rows : []).some(r => {
+      const g = String(r.grade || '').toUpperCase().trim();
+      return g === 'INC' || g === 'DRP' || g === 'W' || parseFloat(g) >= DISQUAL_GRADE_MIN;
+    });
+    if (disqual) setValState('v-grades', 'fail', 'Found 2.75 / 3.00 / INC / DROP');
+    else setValState('v-grades', 'ok', 'No disqualifying grades');
+
+    /* =======================================================
+       4) IRREGULAR CHECK (currently static)
+       ======================================================= */
+
+    const isIrregular = false;
+    if (isIrregular) setValState('v-irregular', 'fail', 'Sequence mismatch');
+    else setValState('v-irregular', 'ok', 'Checked');
+
+    /* =======================================================
+       5) MERGE META + RENDER + SAVE
+       ======================================================= */
+
+    lastParsedMeta = mergeMetaPreferFilled(
+      mergeMetaPreferFilled(parsedFromQR?.meta || {}, parsedFromOCR?.meta || {}),
+      window.corMetaFromOcr || {}
+    );
+    lastParsedRows = (parsedFromOCR?.rows || []).length ? parsedFromOCR.rows.slice() : qrRows.slice();
+
+    renderGradesTable(lastParsedRows, lastParsedMeta);
+    await autoSaveCog(lastParsedMeta, lastParsedRows);
+
+    validationPass = !disqual;
+  } catch (e) {
+    console.error('Validation error', e);
+    setValState('v-tamper', 'fail', 'Unexpected error');
+    validationPass = false;
+  }
+}
+
+
+async function fetchCogOutput() {
+  const url = route('route-cog-output-file');
+  const res = await fetch(url, { headers: { 'Accept': 'text/plain,*/*' }});
+  return res.ok ? await res.text() : '';
+}
+
+function parseCoursesData(textData) {
+  const lines = textData.split('\n');
+  const courses = [];
+  lines.forEach(line => {
+    const match = line.match(/^(\d+)\s+([A-Za-z0-9\s/-]+)\s+(.+?)\s+(\d+)\s+([\d.]+)\s+(.+)\s+(.+)$/);
+    if (match) {
+      courses.push({
+        idx: match[1],
+        code: match[2],
+        title: match[3],
+        units: match[4],
+        grade: match[5],
+        section: match[6],
+        instructor: match[7]
+      });
+    }
+  });
+  return courses;
+}
+function normalizeGrade(grade) {
+  if (!grade) return '';
+  return parseFloat(grade.trim()).toFixed(2);
+}
+function compareCourses(ocrCourses, outputCourses) {
+  const mismatches = [];
+  ocrCourses.forEach((ocrCourse, index) => {
+    const outputCourse = outputCourses[index];
+    if (ocrCourse && outputCourse) {
+      const ocrGrade = normalizeGrade(ocrCourse.grade);
+      const outputGrade = normalizeGrade(outputCourse.grade);
+      if (ocrGrade !== outputGrade) {
+        mismatches.push({
+          index: index + 1,
+          ocrGrade: ocrGrade,
+          outputGrade: outputGrade,
+          courseCode: ocrCourse.code,
+          courseTitle: ocrCourse.title
+        });
+      }
+    }
+  });
+  return mismatches;
+}
+function showDocumentAuthenticationFailure(mismatches) {
+  const mismatchList = mismatches.map(mismatch => {
+    return `
+      <li>
+        Course: ${mismatch.courseCode} - ${mismatch.courseTitle}<br>
+        OCR Grade: ${mismatch.ocrGrade}, Output Grade: ${mismatch.outputGrade}
+      </li>
+    `;
+  }).join('');
+  const failureMessage = `
+      <h5 class="text-danger">Document Authentication Failed</h5>
+      <p>The grades do not match for the following courses:</p>
+      <ul>${mismatchList}</ul>
+      <p>Please contact the registrar or re-upload the correct document.</p>
+  `;
+  document.getElementById('tamperReason').innerHTML = failureMessage;
+}
 
 /* ===========================================================
-   5) UI fill + table render (chip-aware)
+   5) UI fill + table render
    =========================================================== */
 function setIfEmpty(id, value){ const el=document.getElementById(id); if(!el) return; if(!el.value) el.value=value; }
 function fillExtractedFields(meta){
-  setIfEmpty('fullname', (meta.fullname || '').replace(/\s{2,}/g,' ').trim());
-  setIfEmpty('srcode', meta.srcode || ''); setIfEmpty('college', meta.college || '');
-  setIfEmpty('academic_year', meta.academic_year || ''); setIfEmpty('program', meta.program || '');
-  setIfEmpty('semester', meta.semester || ''); setIfEmpty('year_level', meta.year_level || '');
+  const set = (id, v) => { const el=document.getElementById(id); if (el) el.value=(v||''); };
+  set('fullname', (meta.fullname||'').replace(/\s{2,}/g,' ').trim());
+  set('srcode', meta.srcode||'');
+  set('college', meta.college||'');
+  set('academic_year', meta.academic_year||'');
+  set('program', meta.program||'');
+  set('semester', meta.semester||'');
+  set('year_level', meta.year_level||'');
 }
 function escapeHtml(s=''){ return s.replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
 
@@ -1682,7 +2142,7 @@ function renderGradesTable(rows, meta){
         <td class="text-center locked-cell">${gradeHtml}</td>
         <td class="text-center locked-cell">${escapeHtml(r.section||'')}</td>
         <td class="locked-cell">${escapeHtml(r.instructor||'')}</td>
-    </tr>`;
+      </tr>`;
   }).join('');
 
   const nothingRow = `<tr class="nothing-row"><td colspan="7">** NOTHING FOLLOWS **</td></tr>`;
@@ -1715,7 +2175,14 @@ async function renderPdfFirstPageToCanvas(file){
 }
 async function qrFromCanvas(canvas){
   try { const res = await QrScanner.scanImage(canvas, { returnDetailedScanResult:true, inversionAttempts:'attemptBoth' }); if (res && res.data) return String(res.data); } catch {}
-  try { const reader = new ZXing.BrowserQRCodeReader(); const res = await reader.decodeFromImage(canvas); if (res && res.text) return String(res.text); } catch {}
+  try {
+    const reader = new ZXing.BrowserQRCodeReader();
+    const imgEl = new Image();
+    imgEl.src = canvas.toDataURL('image/png');
+    await imgEl.decode?.();
+    const res = await reader.decodeFromImage(imgEl);
+    if (res && res.text) return String(res.text);
+  } catch {}
   try { const g = canvas.getContext('2d', { willReadFrequently:true }); const id = g.getImageData(0,0,canvas.width,canvas.height); const code = jsQR(id.data, canvas.width, canvas.height); if (code && code.data) return String(code.data); } catch {}
   return '';
 }
@@ -1748,9 +2215,15 @@ async function extractCorPdf(){
     const canvas = await renderPdfFirstPageToCanvas(file);
     window.lastCorQr = await qrFromCanvas(canvas) || '';
 
-    const pngDataUrl = canvas.toDataURL('image/png');
-    const { data } = await Tesseract.recognize(pngDataUrl, 'eng', { tessedit_char_blacklist:'[]{}<>~`^' });
-    const ocrText = (data?.text || '').trim();
+    let ocrText = '';
+    try {
+      ocrText = await tesseractRecognizeSafe(canvas, 'eng', {
+        ...TESS_OPTS,
+        tessedit_char_blacklist: '[]{}<>~`^'
+      });
+    } catch(e) {
+      console.error('COR OCR failed', e);
+    }
 
     const meta = parseCorHeaderFromText(ocrText);
     window.corMetaFromOcr = (meta || {});
@@ -1835,46 +2308,48 @@ async function autoSaveCog(meta, rows){
   const ocrMeta = sanitizeMeta(parsedFromOCR?.meta || {});
   const corMeta = sanitizeMeta(window.corMetaFromOcr || {});
   const uiMeta  = sanitizeMeta(meta || {});
-  const finalMeta = mergeMetaPreferFilled( mergeMetaPreferFilled( mergeMetaPreferFilled(qrMeta, ocrMeta), corMeta ), uiMeta );
+  const finalMeta = mergeMetaPreferFilled(
+    mergeMetaPreferFilled(
+      mergeMetaPreferFilled(qrMeta, ocrMeta),
+      corMeta
+    ),
+    uiMeta
+  );
 
-  const qrRows  = parsedFromQR?.rows || [];
-  const ocrRows = parsedFromOCR?.rows || rows || [];
+  const ocrRows = parsedFromOCR?.rows?.length ? parsedFromOCR.rows : (rows || []);
 
-  const timestampStr = new Date().toISOString().replace('T',' ').slice(0,19);
-  const qrUrl = extractQrUrlFromPayload(window.lastQrRawText || '');
-
-  const qrSection  = buildQrFullSection(Object.keys(qrMeta).length?qrMeta:finalMeta, qrRows.length?qrRows:rows);
-  const ocrSection = buildOcrFullSection(Object.keys(ocrMeta).length?ocrMeta:finalMeta, ocrRows);
-
-  const textOut = [
-    `[TIME] ${timestampStr}`,
-    `[SOURCE:QR]`,
-    qrUrl || (window.lastQrRawText || ''),
-    '===================================================',
-    '',
-    qrSection,
-    '',
-    '',
-    '===============OCR TEXT===============',
-    '',
-    ocrSection
-  ].join('\n');
-  
   try{
     await fetch(route('route-save-cog-output'), {
       method:'POST',
-      headers:{ 'Content-Type':'application/json','X-CSRF-TOKEN': csrfToken(),'Accept':'application/json' },
+      headers:{
+        'Content-Type':'application/json',
+        'X-CSRF-TOKEN': csrfToken(),
+        'Accept':'application/json'
+      },
       body: JSON.stringify({
-        cog_raw: textOut,
-        qr_raw: qrUrl || (window.lastQrRawText || ''),
-        ocr_full: window.lastOcrRawText || '',
         meta: finalMeta,
-        rows: rows
+        rows: ocrRows,
+        totals: {
+          total_units: ocrRows.reduce((a,r)=>a+(parseFloat(r.units)||0),0),
+          gwa: (()=>{ let sum=0,u=0;
+            ocrRows.forEach(r=>{ const uu=parseFloat(r.units);
+              const g=parseFloat(String(r.grade||'').replace(/[^0-9.]/g,''));
+              if(Number.isFinite(uu)&&Number.isFinite(g)){ sum+=uu*g; u+=uu; }});
+            return u>0 ? (sum/u).toFixed(4) : '';
+          })()
+        },
+        qr_raw:   (window.lastQrRawText || ''),
+        qr_url:   (window.lastQrUrl || ''),   // persist registrar link
+        pdf_text: (window.lastOcrRawText || ''),
+        ocr_full: (window.lastOcrRawText || '')
       })
     });
+
     const ok = document.getElementById('save-feedback');
     if (ok) { ok.style.display='inline'; setTimeout(()=> ok.style.display='none', 2000); }
-  }catch(e){ /* ignore */ }
+  }catch(e){
+    console.warn('autoSaveCog failed', e);
+  }
 }
 
 /* ===========================================================
@@ -1882,47 +2357,52 @@ async function autoSaveCog(meta, rows){
    =========================================================== */
 async function generatePdf() {
   const status = document.getElementById('pdf-status');
-  const btn    = document.getElementById('pdf-generate-btn');
+  const btn = document.getElementById('pdf-generate-btn');
   const iframe = document.getElementById('pdf-frame');
-  const openA  = document.getElementById('pdf-open-link');
+  const openA = document.getElementById('pdf-open-link');
 
-  const { rows, meta, total_units, gwa } = collectCurrentStateFromUI();  // Collecting current UI data
+  const { rows, meta, total_units, gwa } = collectCurrentStateFromUI();
 
+  // DEBUG: Log what paths we're sending
+  console.log('=== PDF GENERATION DEBUG ===');
+  console.log('COR path from serverPaths:', serverPaths.cor_img);
+  console.log('COG path from serverPaths:', serverPaths.cog_img);
+  console.log('COR exists in serverPaths:', !!serverPaths.cor_img);
+  console.log('COG exists in serverPaths:', !!serverPaths.cog_img);
+
+  // Use the exact paths that were set during upload
   const payload = {
-    cor_png_path: serverPaths.cor_img || "",
-    cog_png_path: serverPaths.cog_img || "",
+    cor_png_path: serverPaths.cor_img || "/home/u780655614/domains/achievemate.website/AchieveMate/AchieveMate/storage/app/cor/cor_upload.png",
+    cog_png_path: serverPaths.cog_img || "/home/u780655614/domains/achievemate.website/AchieveMate/AchieveMate/storage/app/cog/cog_upload.png",
     meta,
     rows,
     totals: { total_units, gwa }
   };
 
-  const primaryUrl  = route('route-generate-primary');
-  const fallbackUrl = route('route-generate-fallback');
-  const csrf        = csrfToken();
+  console.log('Final payload being sent:', payload);
+
+  const pdfUrl = '/student/pdf/generate-json';
+  const csrf   = csrfToken();
 
   if (btn) btn.disabled = true;
-  if (status) status.textContent = 'Generating…';
-
-  // Fetch data to generate the PDF
-  async function postTo(url){
-    return fetch(url, { 
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'X-CSRF-TOKEN': csrf, 'Accept':'application/json' },
-      body: JSON.stringify(payload)
-    });
-  }
+  if (status) status.textContent = 'Generating PDF...';
 
   try {
-    let res = await postTo(primaryUrl);
-    let json = {}; 
-    try { json = await res.json(); } catch(_) {}
-
-    if (res.status === 410) {
-      if (status) status.textContent = 'Switching to new generator…';
-      res = await postTo(fallbackUrl);
-      try { json = await res.json(); } catch(_) {}
-    }
-
+    console.log('Sending PDF generation request to:', pdfUrl);
+    const res = await fetch(pdfUrl, { 
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json', 
+        'X-CSRF-TOKEN': csrf, 
+        'Accept': 'application/json' 
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    console.log('Response status:', res.status);
+    const json = await res.json();
+    console.log('Response JSON:', json);
+    
     if (!res.ok || !(json && (json.ok || json.public_url || json.url || json.path))) {
       const msg = (json && (json.message || json.error)) ? ` (${json.message || json.error})` : '';
       throw new Error(`Server error ${res.status}${msg}`);
@@ -1940,10 +2420,15 @@ async function generatePdf() {
     const finalUrl = url + (url.includes('?') ? '&' : '?') + 'v=' + Date.now();
     if (iframe) iframe.src = finalUrl;
     if (openA) { openA.href = finalUrl; openA.style.display = 'inline'; }
-    if (status) status.textContent = 'Done.';
+    if (status) status.textContent = 'PDF generated successfully!';
+    
+    console.log('PDF generated successfully:', finalUrl);
   } catch (e) {
+    console.error('PDF generation failed:', e);
     if (status) status.textContent = `Failed to generate PDF: ${e.message || e}`;
-  } finally { if (btn) btn.disabled = false; }
+  } finally { 
+    if (btn) btn.disabled = false; 
+  }
 }
 
 function collectCurrentStateFromUI(){
@@ -1969,45 +2454,740 @@ function showConfirmSubmitModal(){
     } finally { yesBtn.disabled = false; }
   };
 }
-async function submitApplication(){
-  // Collect data from UI
-  const state = collectCurrentStateFromUI();
-  const gwa = state.gwa || '';
-  const rank = '';
-  const fileInput = document.getElementById('file-grade');
-  const file = fileInput && fileInput.files && fileInput.files[0];
-  if (!file) {
-    alert('Please upload your COG/grades PDF before submitting.');
-    return;
-  }
-  const formData = new FormData();
-  formData.append('type', 'DeanLister');
-  formData.append('file_name', file.name);
-  formData.append('gwa', gwa);
-  formData.append('rank', rank);
-  formData.append('context', JSON.stringify(state));
-  formData.append('file', file);
-  formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
-  try {
-    const resp = await fetch('/student/application/submit', {
-      method: 'POST',
-      body: formData
-    });
-    const data = await resp.json();
-    if (data.ok) {
-      showModal('#successSubmitModal');
-    } else {
-      alert('Submission failed: ' + (data.message || 'Unknown error'));
+async function validateApplicationPeriod() {
+    try {
+        console.log('Starting application period validation...');
+        
+        // Get the validation route
+        const validationRoute = route('route-validate-application-period');
+        console.log('Validation route:', validationRoute);
+        
+        if (!validationRoute) {
+            console.error('Validation route not found');
+            return {
+                valid: false,
+                message: 'Validation route not configured.',
+                canProceed: false,
+                postId: null
+            };
+        }
+
+        // Call the server-side validation directly
+        const validationResponse = await fetch(validationRoute, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken()
+            },
+            body: JSON.stringify({}) // No need to send academic_year/semester - server will extract from COG
+        });
+        
+        console.log('Validation response status:', validationResponse.status);
+        
+        const validationResult = await validationResponse.json();
+        console.log('Validation result:', validationResult);
+        
+        // Store the matching Post_id globally
+        if (validationResult.valid && validationResult.post_id) {
+            matchingPostId = validationResult.post_id;
+            console.log('Matching post ID set:', matchingPostId);
+        }
+        
+        return {
+            valid: validationResult.valid,
+            message: validationResult.message,
+            canProceed: validationResult.valid,
+            academicYear: validationResult.post?.academic_year || '',
+            semester: validationResult.post?.semester || '',
+            postId: validationResult.post_id
+        };
+        
+    } catch (error) {
+        console.error('Application period validation failed:', error);
+        return {
+            valid: false,
+            message: 'Failed to validate application period. Please try again.',
+            canProceed: false,
+            postId: null
+        };
     }
-  } catch (e) {
-    alert('Submission error: ' + (e.message || e));
-  }
 }
+/* ===== Modal for application period issues ===== */
+function showApplicationPeriodModal(message) {
+    const messageEl = document.getElementById('applicationPeriodMessage');
+    if (messageEl) {
+        messageEl.textContent = message;
+    }
+    showModal('#applicationPeriodModal');
+}
+
+async function runValidations() {
+    try {
+        setBusy(true);
+
+        // NEW: Add application period validation FIRST
+        setValState('v-period', 'loading', 'Checking application period…');
+        const periodValidation = await validateApplicationPeriod();
+        
+        console.log('Period validation result:', periodValidation);
+        
+        if (!periodValidation.valid) {
+            setValState('v-period', 'fail', periodValidation.message);
+            validationPass = false;
+            
+            // Show modal about application period mismatch
+            showApplicationPeriodModal(periodValidation.message);
+            setBusy(false);
+            return;
+        } else {
+            setValState('v-period', 'ok', `Matches ${periodValidation.semester} Semester, AY ${periodValidation.academicYear}`);
+        }
+
+        // Wait for COG processing if needed
+        if (window.cogWorkDonePromise) {
+            setValState('v-tamper', 'loading', 'Waiting for OCR/QR…');
+            try { 
+                await window.cogWorkDonePromise; 
+            } catch(_) {
+                console.warn('COG work promise failed');
+            }
+        }
+
+        // Continue with extraction and other validations
+        await extractFromCog();
+        await runOtherValidations();
+        
+    } catch(e) {
+        console.error('Validation failed:', e);
+        alert('Validation failed to run. Please try re-uploading a clearer COG image.');
+    } finally {
+        setBusy(false);
+    }
+}
+
+// Add this debug function to test the validation directly
+async function testValidationDirectly() {
+    console.log('=== Testing Validation Directly ===');
+    
+    const validationRoute = route('route-validate-application-period');
+    console.log('Route:', validationRoute);
+    
+    try {
+        const response = await fetch(validationRoute, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken()
+            },
+            body: JSON.stringify({})
+        });
+        
+        console.log('Response status:', response.status);
+        const result = await response.json();
+        console.log('Full response:', result);
+        
+        return result;
+    } catch (error) {
+        console.error('Test failed:', error);
+        return { error: error.message };
+    }
+}
+
+// You can call this from browser console to test: testValidationDirectly()
+
+/* ===== Update the existing runValidations to runOtherValidations ===== */
+async function runOtherValidations() {
+    setValState('v-tamper', 'loading', 'Comparing grades…');
+    setValState('v-irregular', 'loading', 'Checking curriculum…');
+    setValState('v-grades', 'loading', 'Scanning disqualifying grades…');
+
+    try {
+        // Your existing validation logic here...
+        // This is the content of your current runValidations function
+        // but without the application period check
+        
+        // COR vs COG COURSE CODE MATCHING
+        const corCourses = await fetchCorCourses();
+        const cogCourses = await fetchCogCourses();
+
+        console.log('COR Courses:', corCourses);
+        console.log('COG Courses:', cogCourses);
+
+        if (corCourses.length > 0 && cogCourses.length > 0) {
+            const courseMismatches = findCourseMismatches(corCourses, cogCourses);
+
+            if (courseMismatches.length > 0) {
+                setValState('v-tamper', 'fail', 'Course mismatch detected');
+                const reasonEl = document.getElementById('tamperReason');
+                if (reasonEl) {
+                    reasonEl.innerHTML = `
+                        <p class="mb-2">
+                            <strong>The Course in your COR and COG do not Match.</strong>
+                        </p>
+                        <p class="small text-muted mb-0">
+                            The system detected that the list of courses in your
+                            Certificate of Registration (COR) is different from the list
+                            of courses in your Certificate of Grades (COG).
+                        </p>
+                    `;
+                }
+                showModal('#tamperFailModal');
+                validationPass = false;
+                return;
+            }
+        }
+
+        // Continue with QR/OCR validation...
+        const qrRows  = Array.isArray(parsedFromQR?.rows)  ? parsedFromQR.rows  : [];
+        const ocrRows = Array.isArray(parsedFromOCR?.rows) ? parsedFromOCR.rows : [];
+
+        let decidedByParsedFiles = false;
+        try {
+            const { qrGrades, ocrGrades } = await fetchParsedFilesGrades();
+            if (qrGrades.length || ocrGrades.length) {
+                decidedByParsedFiles = true;
+                const A = qrGrades, B = ocrGrades;
+                const N = Math.max(A.length, B.length);
+                const rowMismatches = [];
+                for (let i = 0; i < N; i++) {
+                    if ((A[i] || '') !== (B[i] || '')) {
+                        rowMismatches.push({ index: i + 1, qr: A[i] || '—', ocr: B[i] || '—' });
+                    }
+                }
+                if (rowMismatches.length > 0) {
+                    setValState('v-tamper', 'fail', `${rowMismatches.length} grade mismatch(es)`);
+                    const reasonEl = document.getElementById('tamperReason');
+                    if (reasonEl) {
+                        reasonEl.innerHTML = `Found ${rowMismatches.length} grade discrepancy(ies) between official records and your uploaded document.`;
+                    }
+                    showModal('#tamperFailModal');
+                    validationPass = false;
+                    return;
+                } else {
+                    setValState('v-tamper', 'ok', 'Parsed files match');
+                }
+            }
+        } catch (_) {}
+
+        if (!decidedByParsedFiles) {
+            const hasQR  = qrRows.length > 0;
+            const hasOCR = ocrRows.length > 0;
+
+            if (!hasOCR) {
+                if (hasQR) {
+                    setValState('v-tamper', 'ok', 'Verified via QR only');
+                    setValState('v-irregular', 'ok', 'Checked');
+                    setValState('v-grades', 'ok', 'No disqualifying grades found');
+
+                    lastParsedRows = qrRows.slice();
+                    lastParsedMeta = mergeMetaPreferFilled(parsedFromQR.meta || {}, parsedFromOCR.meta || {});
+                    buildMismatchIndex([]);
+                    renderGradesTable(lastParsedRows, lastParsedMeta);
+                    await autoSaveCog(lastParsedMeta, lastParsedRows);
+
+                    validationPass = true;
+                    return;
+                }
+                setValState('v-tamper', 'fail', 'No QR/OCR data');
+                const reasonEl = document.getElementById('tamperReason');
+                if (reasonEl) {
+                    reasonEl.innerHTML = `We couldn't extract any grade rows from your uploaded COG and no QR data was found.`;
+                }
+                tamperTarget = 'cog';
+                showModal('#tamperFailModal');
+                validationPass = false;
+                return;
+            }
+
+            const diff = diffQrOcrRows(qrRows, ocrRows);
+            const mismatches = diff.mismatches || [];
+
+            if (mismatches.length > 0) {
+                setValState('v-tamper', 'fail', `${mismatches.length} mismatched grade(s)`);
+                const reasonEl = document.getElementById('tamperReason');
+                if (reasonEl) {
+                    reasonEl.innerHTML = `Found ${mismatches.length} grade discrepancy(ies) between official records and your uploaded document.`;
+                }
+                showModal('#tamperFailModal');
+                validationPass = false;
+                return;
+            } else {
+                setValState('v-tamper', 'ok', 'QR and OCR grades match');
+            }
+            buildMismatchIndex(mismatches);
+        }
+
+        // DISQUALIFYING GRADES
+        const disqual = (Array.isArray(parsedFromOCR?.rows) ? parsedFromOCR.rows : []).some(r => {
+            const g = String(r.grade || '').toUpperCase().trim();
+            return g === 'INC' || g === 'DRP' || g === 'W' || parseFloat(g) >= DISQUAL_GRADE_MIN;
+        });
+        if (disqual) setValState('v-grades', 'fail', 'Found 2.75 / 3.00 / INC / DROP');
+        else setValState('v-grades', 'ok', 'No disqualifying grades');
+
+        // IRREGULAR CHECK
+        const isIrregular = false;
+        if (isIrregular) setValState('v-irregular', 'fail', 'Sequence mismatch');
+        else setValState('v-irregular', 'ok', 'Checked');
+
+        // MERGE META + RENDER + SAVE
+        lastParsedMeta = mergeMetaPreferFilled(
+            mergeMetaPreferFilled(parsedFromQR?.meta || {}, parsedFromOCR?.meta || {}),
+            window.corMetaFromOcr || {}
+        );
+        lastParsedRows = (parsedFromOCR?.rows || []).length ? parsedFromOCR.rows.slice() : qrRows.slice();
+
+        renderGradesTable(lastParsedRows, lastParsedMeta);
+        await autoSaveCog(lastParsedMeta, lastParsedRows);
+
+        validationPass = !disqual;
+        
+    } catch (e) {
+        console.error('Validation error', e);
+        setValState('v-tamper', 'fail', 'Unexpected error');
+        validationPass = false;
+    }
+}
+
+/* ===== Update submitApplication to include Post_id ===== */
+async function submitApplication(){
+    const state = collectCurrentStateFromUI();
+    const gwa   = state.gwa || '';
+    const rank  = '';
+    const fileInput = document.getElementById('file-grade');
+    const file = fileInput?.files?.[0];
+    if (!file) { 
+        alert('Please upload your COG/grades PDF before submitting.'); 
+        return; 
+    }
+
+    // Make sure we have a valid Post_id
+    if (!matchingPostId) {
+        alert('No valid application period found. Please complete validation first.');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('type', 'DeanLister');
+    formData.append('file_name', file.name);
+    formData.append('gwa', gwa);
+    formData.append('rank', rank);
+    formData.append('post_id', matchingPostId); // Include the Post_id
+    formData.append('context', JSON.stringify(state));
+    formData.append('file', file);
+    formData.append('_token', csrfToken());
+
+    const submitUrl = route('route-application-submit') || '/student/application/submit';
+
+    try {
+        const resp = await fetch(submitUrl, { method: 'POST', body: formData });
+        const data = await resp.json().catch(()=> ({}));
+        if (data.ok) {
+            showModal('#successSubmitModal');
+        } else {
+            alert('Submission failed: ' + (data.message || 'Unknown error'));
+        }
+    } catch (e) {
+        alert('Submission error: ' + (e.message || e));
+    }
+}
+
 function redirectToStatus(){
   const meta = document.querySelector('meta[name="route-application-status"]');
   const href = meta ? meta.content : '/student/applicationstatus';
   window.location.href = href;
 }
+
+/* ===========================================================
+   9) COG OUTPUT FETCHING FOR STEP 6 - UPDATED FOR NEW FORMAT
+   =========================================================== */
+
+// Function to extract and display the structured grades data from the new format
+async function fetchAndDisplayStructuredCogOutput() {
+    const tableBody = document.getElementById('grade-table-body');
+    const sumCourses = document.getElementById('sum-courses');
+    const sumUnits = document.getElementById('sum-units');
+    const sumGwa = document.getElementById('sum-gwa');
+    
+    if (!tableBody) return;
+
+    try {
+        const response = await fetch(route('route-cog-output-file'));
+        if (response.ok) {
+            const cogOutput = await response.text();
+            
+            // Parse the new format
+            const parsedData = parseNewCogOutputFormat(cogOutput);
+            
+            if (parsedData && parsedData.rows.length > 0) {
+                renderParsedDataToTable(parsedData, tableBody, sumCourses, sumUnits, sumGwa);
+            } else {
+                tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No course data found in output.</td></tr>';
+            }
+        } else {
+            tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Failed to load grades data.</td></tr>';
+        }
+    } catch (error) {
+        console.error('Error fetching COG output:', error);
+        tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Error loading grades data.</td></tr>';
+    }
+}
+
+// Function to parse the new COG output format
+function parseNewCogOutputFormat(fullText) {
+    if (!fullText) return null;
+
+    const result = {
+        meta: {},
+        rows: [],
+        totals: {}
+    };
+
+    const lines = fullText.split('\n').map(line => line.trim()).filter(line => line);
+    
+    let currentSection = '';
+    let inCoursesSection = false;
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+
+        // Detect sections
+        if (line.includes('PARSED DATA:')) {
+            currentSection = 'parsed';
+            continue;
+        } else if (line.includes('COURSES:')) {
+            currentSection = 'courses';
+            inCoursesSection = true;
+            continue;
+        } else if (line.includes('SUMMARY:')) {
+            currentSection = 'summary';
+            inCoursesSection = false;
+            continue;
+        } else if (line.includes('RAW EXTRACTED TEXT:')) {
+            currentSection = 'raw';
+            break; // Stop parsing after raw text starts
+        }
+
+        // Parse based on current section
+        if (currentSection === 'parsed') {
+            // Parse metadata
+            if (line.includes('Fullname:')) {
+                result.meta.fullname = line.replace('Fullname:', '').trim();
+            } else if (line.includes('SRCODE:')) {
+                result.meta.srcode = line.replace('SRCODE:', '').trim();
+            } else if (line.includes('College:')) {
+                result.meta.college = line.replace('College:', '').trim();
+            } else if (line.includes('Academic Year:')) {
+                result.meta.academic_year = line.replace('Academic Year:', '').trim();
+            } else if (line.includes('Program:')) {
+                result.meta.program = line.replace('Program:', '').trim();
+            } else if (line.includes('Semester:')) {
+                result.meta.semester = line.replace('Semester:', '').trim();
+            } else if (line.includes('Year Level:')) {
+                result.meta.year_level = line.replace('Year Level:', '').trim();
+            }
+        } else if (currentSection === 'courses' && inCoursesSection) {
+            // Parse course lines in format: "ES 101 | Environmental Sciences | 3 | 1.50 | IT-2203 | MERCADO, ALBERT S."
+            if (line.includes('|') && !line.includes('COURSES:')) {
+                const parts = line.split('|').map(part => part.trim());
+                if (parts.length >= 6) {
+                    result.rows.push({
+                        idx: result.rows.length + 1,
+                        code: parts[0] || '',
+                        title: parts[1] || '',
+                        units: parts[2] || '',
+                        grade: parts[3] || '',
+                        section: parts[4] || '',
+                        instructor: parts[5] || ''
+                    });
+                }
+            }
+        } else if (currentSection === 'summary') {
+            // Parse summary information
+            if (line.includes('Total Courses:')) {
+                result.totals.total_courses = line.replace('Total Courses:', '').trim();
+            } else if (line.includes('Total Units:')) {
+                result.totals.total_units = line.replace('Total Units:', '').trim();
+            } else if (line.includes('GWA:')) {
+                result.totals.gwa = line.replace('GWA:', '').trim();
+            }
+        }
+    }
+
+    // If no courses were found in the PARSED DATA section, try parsing from RAW EXTRACTED TEXT
+    if (result.rows.length === 0) {
+        parseFromRawText(fullText, result);
+    }
+
+    return result;
+}
+
+// Fallback function to parse from raw text section
+function parseFromRawText(fullText, result) {
+    const lines = fullText.split('\n');
+    let inRawTable = false;
+    let courseIndex = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+
+        // Start of course table in raw text
+        if (line.includes('#Course Code') || line.includes('Course CodeCourse Title')) {
+            inRawTable = true;
+            continue;
+        }
+
+        // Stop at end markers
+        if (line.includes('** NOTHING FOLLOWS **') || line.includes('Total no of Course')) {
+            inRawTable = false;
+        }
+
+        // Parse course lines from raw text
+        if (inRawTable && /^\d+\s+[A-Z]/.test(line)) {
+            // Match pattern: "1 ES 101 Environmental Sciences 3 1.50 IT-2203 MERCADO, ALBERT S."
+            const courseMatch = line.match(/^(\d+)\s+([A-Za-z\s\d]+?)\s+([\w\s().,-]+?)\s+(\d+)\s+([\d.]+)\s+([A-Z0-9-]+)\s+(.+)$/);
+            
+            if (courseMatch) {
+                courseIndex++;
+                result.rows.push({
+                    idx: courseIndex,
+                    code: courseMatch[2].trim(),
+                    title: courseMatch[3].trim(),
+                    units: courseMatch[4].trim(),
+                    grade: courseMatch[5].trim(),
+                    section: courseMatch[6].trim(),
+                    instructor: courseMatch[7].trim()
+                });
+            }
+        }
+
+        // Parse totals from raw text
+        if (line.includes('Total no of Course')) {
+            const match = line.match(/Total no of Course\s+(\d+)/);
+            if (match) result.totals.total_courses = match[1];
+        } else if (line.includes('Total no of Units')) {
+            const match = line.match(/Total no of Units\s+(\d+)/);
+            if (match) result.totals.total_units = match[1];
+        } else if (line.includes('General Weighted Average (GWA)')) {
+            const match = line.match(/General Weighted Average \(GWA\)\s+([\d.]+)/);
+            if (match) result.totals.gwa = match[1];
+        }
+    }
+}
+
+// Function to extract only the structured data part (the specific section you want)
+function extractStructuredData(fullText) {
+    if (!fullText) return null;
+
+    const lines = fullText.split('\n');
+    let inStructuredSection = false;
+    const structuredLines = [];
+    let foundEnd = false;
+
+    for (const line of lines) {
+        // Start capturing when we find the student info section
+        if (line.includes('Fullname :') && line.includes('SRCODE :')) {
+            inStructuredSection = true;
+        }
+
+        // Stop capturing after the GWA line
+        if (inStructuredSection && line.includes('General Weighted Average (GWA)')) {
+            structuredLines.push(line.trim());
+            foundEnd = true;
+            break;
+        }
+
+        if (inStructuredSection) {
+            // Skip the header line with "Course CodeCourse Title"
+            if (line.includes('Course CodeCourse Title')) {
+                continue;
+            }
+            structuredLines.push(line.trim());
+        }
+    }
+
+    return foundEnd ? structuredLines.join('\n') : null;
+}
+
+// Function to parse structured data into table format
+function parseStructuredDataToTable(data) {
+    if (!data) return null;
+
+    const lines = data.split('\n').filter(line => line.trim());
+    const result = {
+        meta: {},
+        rows: [],
+        totals: {}
+    };
+
+    let inCoursesSection = false;
+    let courseIndex = 0;
+
+    for (const line of lines) {
+        // Parse metadata lines
+        if (line.includes('Fullname :')) {
+            const fullnameMatch = line.match(/Fullname\s*:\s*([^]+?)\s+SRCODE\s*:\s*([\w-]+)/);
+            if (fullnameMatch) {
+                result.meta.fullname = fullnameMatch[1].trim();
+                result.meta.srcode = fullnameMatch[2].trim();
+            }
+            continue;
+        }
+
+        if (line.includes('College :')) {
+            const collegeMatch = line.match(/College\s*:\s*([^]+?)\s+Academic Year\s*:\s*([\d-]+)/);
+            if (collegeMatch) {
+                result.meta.college = collegeMatch[1].trim();
+                result.meta.academic_year = collegeMatch[2].trim();
+            }
+            continue;
+        }
+
+        if (line.includes('Program :')) {
+            const programMatch = line.match(/Program\s*:\s*([^]+?)\s+Semester\s*:\s*([\w]+)/);
+            if (programMatch) {
+                result.meta.program = programMatch[1].trim();
+                result.meta.semester = programMatch[2].trim();
+            }
+            continue;
+        }
+
+        if (line.includes('Year Level :')) {
+            const yearLevelMatch = line.match(/Year Level\s*:\s*([\w]+)/);
+            if (yearLevelMatch) {
+                result.meta.year_level = yearLevelMatch[1].trim();
+            }
+            continue;
+        }
+
+        // Start of courses section (look for the first numbered course)
+        if (/^\s*\d+\s+[A-Z]/.test(line)) {
+            inCoursesSection = true;
+        }
+
+        // Parse course rows
+        if (inCoursesSection) {
+            // Skip if it's the end marker
+            if (line.includes('** NOTHING FOLLOWS **')) {
+                inCoursesSection = false;
+                continue;
+            }
+
+            // Parse course line - matches: "1 ES 101   Environmental Sciences                 3     1.50  IT-2203     MERCADO, ALBERT S."
+            const courseMatch = line.match(/^\s*(\d+)\s+([A-Za-z]+\s+\d+)\s+([^]+?)\s+(\d+)\s+([\d.]+)\s+([\w-]+)\s+([^]+)$/);
+            if (courseMatch) {
+                courseIndex++;
+                result.rows.push({
+                    idx: courseIndex,
+                    code: courseMatch[2].trim(),
+                    title: courseMatch[3].trim(),
+                    units: courseMatch[4].trim(),
+                    grade: courseMatch[5].trim(),
+                    section: courseMatch[6].trim(),
+                    instructor: courseMatch[7].trim()
+                });
+            }
+        }
+
+        // Parse totals
+        if (line.includes('Total no of Course')) {
+            const match = line.match(/Total no of Course\s+(\d+)/);
+            if (match) result.totals.total_courses = match[1];
+        }
+
+        if (line.includes('Total no of Units')) {
+            const match = line.match(/Total no of Units\s+(\d+)/);
+            if (match) result.totals.total_units = match[1];
+        }
+
+        if (line.includes('General Weighted Average (GWA)')) {
+            const match = line.match(/General Weighted Average \(GWA\)\s+([\d.]+)/);
+            if (match) result.totals.gwa = match[1];
+        }
+    }
+
+    return result;
+}
+
+// Function to render parsed data to the table
+function renderParsedDataToTable(parsedData, tableBody, sumCourses, sumUnits, sumGwa) {
+    if (!parsedData.rows.length) {
+        tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No course data found in output.</td></tr>';
+        return;
+    }
+
+    // Build table rows
+    const rowsHtml = parsedData.rows.map(row => `
+        <tr>
+            <td class="text-center locked-cell">${row.idx}</td>
+            <td class="locked-cell">${escapeHtml(row.code)}</td>
+            <td class="locked-cell">${escapeHtml(row.title)}</td>
+            <td class="text-center locked-cell">${escapeHtml(row.units)}</td>
+            <td class="text-center locked-cell">${escapeHtml(row.grade)}</td>
+            <td class="text-center locked-cell">${escapeHtml(row.section)}</td>
+            <td class="locked-cell">${escapeHtml(row.instructor)}</td>
+        </tr>
+    `).join('');
+
+    // Add "nothing follows" row
+    const nothingRow = '<tr class="nothing-row"><td colspan="7">** NOTHING FOLLOWS **</td></tr>';
+    tableBody.innerHTML = rowsHtml + nothingRow;
+
+    // Update summary fields
+    if (sumCourses) {
+        sumCourses.textContent = parsedData.totals.total_courses || parsedData.rows.length;
+    }
+    if (sumUnits) {
+        sumUnits.textContent = parsedData.totals.total_units || parsedData.rows.reduce((sum, row) => sum + (parseFloat(row.units) || 0), 0);
+    }
+    if (sumGwa) {
+        sumGwa.textContent = parsedData.totals.gwa || calculateGWA(parsedData.rows);
+    }
+
+    // Also update the form fields with metadata
+    fillExtractedFields(parsedData.meta);
+}
+
+// Helper function to calculate GWA from rows
+function calculateGWA(rows) {
+    let totalPoints = 0;
+    let totalUnits = 0;
+    
+    rows.forEach(row => {
+        const units = parseFloat(row.units) || 0;
+        const grade = parseFloat(row.grade) || 0;
+        
+        if (units > 0 && grade > 0) {
+            totalPoints += units * grade;
+            totalUnits += units;
+        }
+    });
+    
+    return totalUnits > 0 ? (totalPoints / totalUnits).toFixed(4) : '—';
+}
+
+// Load structured COG data when entering step 6
+const originalGoNext = window.goNext;
+window.goNext = function() {
+    const previousStep = currentStep;
+    
+    // Call the original function
+    originalGoNext();
+    
+    // After navigation, check if we moved to Step 6
+    if (previousStep === 5 && currentStep === 6) {
+        // Load structured COG data when entering step 6
+        setTimeout(fetchAndDisplayStructuredCogOutput, 100);
+    }
+};
+
+// Also load structured data if page is refreshed on step 6
+document.addEventListener('DOMContentLoaded', function() {
+    if (currentStep === 6) {
+        setTimeout(fetchAndDisplayStructuredCogOutput, 100);
+    }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
   updateStepperUI();
   const ok = document.getElementById('successOkBtn');
@@ -2029,7 +3209,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Ensure change fires even if same filename is chosen again
   const cogInput = document.getElementById('file-grade');
   if (cogInput) cogInput.addEventListener('click', () => {
     cogInput.value = '';
@@ -2073,16 +3252,39 @@ function mapQrJsonToParsed(j){
   return { meta, rows };
 }
 
-// Render a remote PDF URL (first page) to a canvas using pdf.js
 async function renderPdfUrlFirstPageToCanvas(url){
-  const pdf = await pdfjsLib.getDocument({ url }).promise;
-  const page = await pdf.getPage(1);
-  const vport = page.getViewport({ scale: 2.0 });
-  const c = document.createElement('canvas');
-  c.width = vport.width; c.height = vport.height;
-  const ctx = c.getContext('2d', { willReadFrequently:true });
-  await page.render({ canvasContext: ctx, viewport: vport }).promise;
-  return c;
+  async function renderFromSource(src){
+    const pdf = await pdfjsLib.getDocument(src).promise;
+    const page = await pdf.getPage(1);
+    const scale = 1.8, dpr = window.devicePixelRatio || 1;
+    const vpCSS = page.getViewport({ scale });
+    const vp    = page.getViewport({ scale: scale * dpr });
+
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(vp.width));
+    c.height = Math.max(1, Math.round(vp.height));
+    c.style.width  = Math.round(vpCSS.width)  + 'px';
+    c.style.height = Math.round(vpCSS.height) + 'px';
+
+    const ctx = c.getContext('2d', { willReadFrequently:true });
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+
+    if (!isCanvasUsable(c)) throw new Error('Rendered canvas is 0×0');
+    return c;
+  }
+
+  try {
+    return await renderFromSource({ url });
+  } catch (e1) {
+    try {
+      const res = await fetch(url, { credentials: 'same-origin' });
+      const buf = await res.arrayBuffer();
+      return await renderFromSource({ data: buf });
+    } catch (e2) {
+      console.error('PDF render failed from URL and ArrayBuffer', e1, e2);
+      throw e2;
+    }
+  }
 }
 </script>
 

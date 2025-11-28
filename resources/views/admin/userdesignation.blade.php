@@ -42,64 +42,72 @@
       </div>
     </div>
   </div>
-  
-<!-- 🔁 Flush Cache Alert -->
-<div id="flushCacheAlert" class="alert alert-danger d-none d-flex align-items-center justify-content-between px-4" role="alert">
-  <div>
-    <i class="bi bi-exclamation-circle-fill me-2"></i>
-    <strong>Flush Cache:</strong> Modifications have been made. For these changes to take place,
-    <a href="javascript:void(0);" class="text-primary fw-bold" onclick="refreshDesignationTable()">clear the cache</a>.
-  </div>
-</div>
 
-<!-- 📋 Designation Table -->
-<div class="card border-0 shadow-sm">
-  <div class="card-body px-4 py-4">
-    <h5 class="fw-bold mb-3">Designation Information</h5>
-    <div class="table-responsive">
-      <table class="table table-hover align-middle">
-       <thead id="designationTableHead" class="table-light">
-        <tr>
-            <th>#</th>
-            <th>Designation</th>
-            <th>Campus</th>
-            <th>College</th>
-            <th>Program</th>
-            <th>Action</th>
-            <th>
-            <button class="btn p-0 bg-transparent shadow-none border-0 float-end" title="Add Designation"
-                    data-bs-toggle="modal" data-bs-target="#addDesignationModal">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="#4a4aef" viewBox="0 0 24 24">
-                <path d="M3 6h12v2H3V6zm0 5h12v2H3v-2zm0 5h8v2H3v-2zm14 0v-2h-2v-2h2v-2h2v2h2v2h-2v2h-2z"/>
-            </svg>
-            </button>
-            </th>
-        </tr>
-        </thead>
-        <tbody>
-          @forelse($designations as $index => $designation)
-            <tr>
-              <td>{{ $index + 1 }}</td>
-              <td>{{ $designation->Designation_name }}</td>
-              <td>{{ $designation->Campus_name ?? 'N/A' }}</td>
-              <td>{{ $designation->College_abbreviation ?? 'N/A' }}</td>
-              <td>{{ $designation->Program_abbreviation ?? 'N/A' }}</td>
-              <td>
-                <button class="btn btn-outline-danger btn-sm" title="Delete"
-                        onclick="confirmDeleteDesignation({{ $designation->UserDesignation_id }})">
-                  <i class="bi bi-trash3"></i>
-                </button>
-              </td>
-              <td></td>
-            </tr>
-          @empty
-            <tr><td colspan="6" class="text-center text-muted">No designations found.</td></tr>
-          @endforelse
-        </tbody>
-      </table>
+  <!-- 🔁 Flush Cache Alert -->
+  <div id="flushCacheAlert" class="alert alert-danger d-none d-flex align-items-center justify-content-between px-4" role="alert">
+    <div>
+      <i class="bi bi-exclamation-circle-fill me-2"></i>
+      <strong>Flush Cache:</strong> Modifications have been made. For these changes to take place,
+      <a href="javascript:void(0);" class="text-primary fw-bold" onclick="refreshDesignationTable()">clear the cache</a>.
     </div>
   </div>
-</div>
+
+  <!-- 📋 Designation Table -->
+  <div class="card border-0 shadow-sm">
+    <div class="card-body px-4 py-4">
+      <h5 class="fw-bold mb-3">Designation Information</h5>
+
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead id="designationTableHead" class="table-light">
+            <tr>
+              <th>#</th>
+              <th>Designation</th>
+              <th class="th-campus">Campus</th>
+              <th class="th-college">College</th>
+              <th class="th-program">Program</th>
+              <th class="th-major">Major</th>
+              <th>Action</th>
+              <th>
+                <!-- Icon to open Add Designation Modal -->
+                <button class="btn p-0 bg-transparent shadow-none border-0 float-end"
+                        title="Add Designation"
+                        data-bs-toggle="modal"
+                        data-bs-target="#addDesignationModal">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="#4a4aef" viewBox="0 0 24 24">
+                    <path d="M3 6h12v2H3V6zm0 5h12v2H3v-2zm0 5h8v2H3v-2zm14 0v-2h-2v-2h2v-2h2v2h2v2h-2v2h-2z"/>
+                  </svg>
+                </button>
+              </th>
+            </tr>
+          </thead>
+          <tbody id="designationTableBody">
+            @forelse($designations as $index => $designation)
+              <tr data-access="{{ strtolower($designation->Access ?? '') }}">
+                <td>{{ $index + 1 }}</td>
+                <td>{{ $designation->Designation_name }}</td>
+                <td class="td-campus">{{ $designation->Campus_name ?? '' }}</td>
+                <td class="td-college">{{ $designation->College_abbreviation ?? '' }}</td>
+                <td class="td-program">{{ $designation->Program_abbreviation ?? '' }}</td>
+                <td class="td-major">{{ $designation->Major_name ?? '' }}</td>
+                <td>
+                  <button class="btn btn-outline-danger btn-sm" title="Delete"
+                          onclick="confirmDeleteDesignation({{ $designation->UserDesignation_id }})">
+                    <i class="bi bi-trash3"></i>
+                  </button>
+                </td>
+                <td></td>
+              </tr>
+            @empty
+              <tr class="empty-row">
+                <td colspan="8" class="text-center text-muted">No designations found.</td>
+              </tr>
+            @endforelse
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- 🆕 Add Designation Modal -->
@@ -115,21 +123,27 @@
         @csrf
         <input type="hidden" name="User_id" value="{{ $user->User_id }}">
         <div class="modal-body px-4 pt-3 pb-0">
+
           <div class="mb-3">
             <label class="form-label">Designation</label>
             <select class="form-select w-100" id="formDesignationSelect" name="Designation_name" required>
               <option value="" selected disabled>Select Designation</option>
               @foreach($designationList as $item)
-                <option value="{{ $item->Designation_name }}">{{ $item->Designation_name }}</option>
+                <option
+                  value="{{ $item->Designation_name }}"
+                  data-access="{{ $item->Access }}"
+                  data-id="{{ $item->Designation_id }}"
+                >
+                  {{ $item->Designation_name }}
+                </option>
               @endforeach
             </select>
           </div>
 
           <div id="dependentDropdowns" class="d-none">
-            <!-- Campus Dropdown -->
-            <div class="mb-3">
+            <div class="mb-3" data-key="Campus">
               <label class="form-label">Campus</label>
-              <select class="form-select w-100" name="Campus_name" id="campusSelect" required>
+              <select class="form-select w-100" name="Campus_name" id="campusSelect">
                 <option value="" selected disabled>Select Campus</option>
                 @foreach($campusList as $campus)
                   <option value="{{ $campus->Campus_name }}">{{ $campus->Campus_name }}</option>
@@ -137,26 +151,23 @@
               </select>
             </div>
 
-            <!-- College Dropdown (filtered by Campus) -->
-            <div class="mb-3">
+            <div class="mb-3" data-key="College">
               <label class="form-label">College</label>
-              <select class="form-select w-100" name="College_id" id="collegeSelect" required disabled>
+              <select class="form-select w-100" name="College_id" id="collegeSelect" disabled>
                 <option value="" selected disabled>Select College</option>
               </select>
             </div>
 
-            <!-- Program Dropdown (filtered by Campus + College) -->
-            <div class="mb-3">
+            <div class="mb-3" data-key="Program">
               <label class="form-label">Program</label>
-              <select class="form-select w-100" name="Program_id" id="programSelect" required disabled>
+              <select class="form-select w-100" name="Program_id" id="programSelect" disabled>
                 <option value="" selected disabled>Select Program</option>
               </select>
             </div>
 
-            <!-- Major Dropdown (filtered by Campus + College + Program) -->
-            <div class="mb-3">
+            <div class="mb-3" data-key="Major">
               <label class="form-label">Major</label>
-              <select class="form-select w-100" name="Major_id" id="majorSelect" required disabled>
+              <select class="form-select w-100" name="Major_id" id="majorSelect" disabled>
                 <option value="" selected disabled>Select Major</option>
               </select>
             </div>
@@ -172,7 +183,7 @@
   </div>
 </div>
 
-
+<!-- ✅ Confirm Add -->
 <div class="modal fade" id="confirmAddModalFinal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered" style="max-width: 600px;">
     <div class="modal-content border-0 shadow rounded-4">
@@ -188,6 +199,7 @@
   </div>
 </div>
 
+<!-- ✅ Success Add -->
 <div class="modal fade" id="successAddModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered" style="max-width: 600px;">
     <div class="modal-content text-center border-0 rounded-4 shadow">
@@ -205,8 +217,7 @@
   </div>
 </div>
 
-
-<!-- 🗑️ Delete Confirmation (Optional Modal) -->
+<!-- 🗑️ Delete Confirmation -->
 <div class="modal fade" id="confirmDeleteModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered" style="max-width: 600px;">
     <div class="modal-content border-0 shadow rounded-4">
@@ -222,7 +233,7 @@
   </div>
 </div>
 
-<!-- ✅ Success Delete Modal -->
+<!-- ✅ Success Delete -->
 <div class="modal fade" id="deleteSuccessModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered" style="max-width: 600px;">
     <div class="modal-content text-center border-0 rounded-4 shadow">
@@ -242,37 +253,103 @@
 </div>
 
 <script>
-  let confirmModal, confirmDeleteModal, deleteSuccessModal, deleteId;
+let confirmModal, confirmDeleteModal, deleteSuccessModal, deleteId;
 
-  document.addEventListener('DOMContentLoaded', function () {
-    confirmModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('confirmAddModalFinal'));
-    confirmDeleteModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('confirmDeleteModal'));
-    deleteSuccessModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('deleteSuccessModal'));
+document.addEventListener('DOMContentLoaded', function () {
+  confirmModal       = bootstrap.Modal.getOrCreateInstance(document.getElementById('confirmAddModalFinal'));
+  confirmDeleteModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('confirmDeleteModal'));
+  deleteSuccessModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('deleteSuccessModal'));
 
-    const form = document.getElementById('designationAddForm');
-    const formDesignationSelect = document.getElementById('formDesignationSelect');
-    const dependentDropdowns = document.getElementById('dependentDropdowns');
-    const flushAlert = document.getElementById('flushCacheAlert');
-    const thead = document.getElementById('designationTableHead');
+  const form                   = document.getElementById('designationAddForm');
+  const formDesignationSelect  = document.getElementById('formDesignationSelect');
+  const dependentDropdowns     = document.getElementById('dependentDropdowns');
+  const flushAlert             = document.getElementById('flushCacheAlert');
+  const thead                  = document.getElementById('designationTableHead');
 
   const collegeSelect = document.getElementById('collegeSelect');
   const programSelect = document.getElementById('programSelect');
-  const campusSelect = document.querySelector('[name="Campus_name"]');
-  const majorSelect = document.getElementById('majorSelect');
+  const campusSelect  = document.querySelector('[name="Campus_name"]');
+  const majorSelect   = document.getElementById('majorSelect');
 
-  // 🟢 Hide dependent dropdowns if no Designation
+  // === Access → fields/columns shown (for the Add modal preview) ==============================
+  const ACCESS_FIELDS = {
+    'Campus':  ['Campus'],
+    'College': ['Campus','College'],
+    'Program': ['Campus','College','Program'],
+    'Major':   ['Campus','College','Program','Major']
+  };
+
+  function applyAccessToForm(access) {
+    const keys   = ACCESS_FIELDS[access] || [];
+    const blocks = document.querySelectorAll('#dependentDropdowns [data-key]');
+
+    blocks.forEach(block => {
+      const key   = block.getAttribute('data-key');
+      const show  = keys.includes(key);
+      block.classList.toggle('d-none', !show);
+
+      const select = block.querySelector('select');
+      if (select) {
+        if (show) { select.setAttribute('required','required'); }
+        else {
+          select.removeAttribute('required');
+          if (select.tagName === 'SELECT') { select.selectedIndex = 0; }
+          else { select.value = ''; }
+        }
+      }
+    });
+
+    dependentDropdowns.classList.toggle('d-none', keys.length === 0);
+  }
+
+  // ===== Display logic driven by EXISTING rows =================================================
+  function toggleColumn(key, show) {
+    const th = document.querySelector(`#designationTableHead th.th-${key}`);
+    if (th) th.style.display = show ? '' : 'none';
+    document.querySelectorAll(`td.td-${key}`).forEach(td => td.style.display = show ? '' : 'none');
+  }
+
+  function applyColumnsFromExistingRows() {
+    const rows = Array.from(document.querySelectorAll('#designationTableBody tr[data-access]'));
+
+    // Show Program if any row is Program or Major; show Major only if any row is Major.
+    const needsProgram = rows.some(r => ['program','major'].includes(r.dataset.access || ''));
+    const needsMajor   = rows.some(r => (r.dataset.access || '') === 'major');
+
+    toggleColumn('program', needsProgram);
+    toggleColumn('major', needsMajor);
+
+    syncEmptyRowColspan();
+  }
+
+  function syncEmptyRowColspan() {
+    const visibleThCount = Array.from(document.querySelectorAll('#designationTableHead th'))
+      .filter(th => th.style.display !== 'none').length;
+    const emptyTd = document.querySelector('#designationTableBody .empty-row td');
+    if (emptyTd) emptyTd.colSpan = visibleThCount;
+  }
+
+  // When designation changes in the Add modal
   if (formDesignationSelect) {
     formDesignationSelect.addEventListener('change', function () {
-      const selected = this.value;
-      if (selected) {
-        dependentDropdowns.classList.remove('d-none');
-      } else {
-        dependentDropdowns.classList.add('d-none');
-      }
+      const access = this.selectedOptions[0]?.getAttribute('data-access') || '';
+      applyAccessToForm(access);
+
+      // reset downstream selects
+      collegeSelect.innerHTML = '<option disabled selected>Select College</option>';
+      collegeSelect.disabled = true;
+      programSelect.innerHTML = '<option disabled selected>Select Program</option>';
+      programSelect.disabled = true;
+      majorSelect.innerHTML   = '<option disabled selected>Select Major</option>';
+      majorSelect.disabled = true;
     });
   }
 
-  // 🟢 Load College based on Campus
+  // Initial state
+  applyAccessToForm('');
+  applyColumnsFromExistingRows();
+
+  // === Dependent loaders ======================================================================
   if (campusSelect && collegeSelect) {
     campusSelect.addEventListener('change', function () {
       const campusName = this.value;
@@ -281,12 +358,9 @@
       collegeSelect.disabled = true;
 
       fetch(`/admin/colleges/by-campus?campus_name=${encodeURIComponent(campusName)}`)
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to load');
-          return res.json();
-        })
+        .then(res => { if (!res.ok) throw new Error('Failed to load'); return res.json(); })
         .then(colleges => {
-          if (colleges.length === 0) {
+          if (!Array.isArray(colleges) || colleges.length === 0) {
             collegeSelect.innerHTML = '<option disabled selected>No colleges found for this campus</option>';
           } else {
             collegeSelect.innerHTML = '<option disabled selected>Select College</option>';
@@ -296,10 +370,9 @@
           }
           collegeSelect.disabled = false;
 
-          // Reset downstream
           programSelect.innerHTML = '<option disabled selected>Select Program</option>';
           programSelect.disabled = true;
-          majorSelect.innerHTML = '<option disabled selected>Select Major</option>';
+          majorSelect.innerHTML   = '<option disabled selected>Select Major</option>';
           majorSelect.disabled = true;
         })
         .catch(() => {
@@ -309,10 +382,9 @@
     });
   }
 
-  // 🟢 Load Program based on Campus + College
   if (collegeSelect && programSelect) {
     collegeSelect.addEventListener('change', function () {
-      const collegeId = this.value;
+      const collegeId  = this.value;
       const campusName = campusSelect.value;
 
       programSelect.innerHTML = '<option selected disabled>Loading programs...</option>';
@@ -321,7 +393,7 @@
       fetch(`/admin/programs/by-college?college_id=${collegeId}&campus_name=${encodeURIComponent(campusName)}`)
         .then(res => res.json())
         .then(programs => {
-          if (programs.length === 0) {
+          if (!Array.isArray(programs) || programs.length === 0) {
             programSelect.innerHTML = '<option disabled selected>No program created in this college</option>';
           } else {
             programSelect.innerHTML = '<option disabled selected>Select Program</option>';
@@ -331,7 +403,6 @@
           }
           programSelect.disabled = false;
 
-          // Reset Major
           majorSelect.innerHTML = '<option disabled selected>Select Major</option>';
           majorSelect.disabled = true;
         })
@@ -342,12 +413,11 @@
     });
   }
 
-  // 🟢 Load Major based on Campus + College + Program
   if (programSelect && majorSelect) {
     programSelect.addEventListener('change', function () {
-      const programId = this.value;
+      const programId  = this.value;
       const campusName = campusSelect.value;
-      const collegeId = collegeSelect.value;
+      const collegeId  = collegeSelect.value;
 
       majorSelect.innerHTML = '<option selected disabled>Loading majors...</option>';
       majorSelect.disabled = true;
@@ -355,7 +425,7 @@
       fetch(`/admin/majors/by-program?program_id=${programId}&college_id=${collegeId}&campus_name=${encodeURIComponent(campusName)}`)
         .then(res => res.json())
         .then(majors => {
-          if (majors.length === 0) {
+          if (!Array.isArray(majors) || majors.length === 0) {
             majorSelect.innerHTML = '<option disabled selected>No majors available</option>';
           } else {
             majorSelect.innerHTML = '<option disabled selected>Select Major</option>';
@@ -372,11 +442,10 @@
     });
   }
 
-  // ✅ Keep rest of your code exactly as-is
   document.getElementById('addDesignationModal').addEventListener('hidden.bs.modal', function () {
     dependentDropdowns.classList.add('d-none');
-    formDesignationSelect.value = '';
     form.reset();
+    formDesignationSelect.value = '';
     majorSelect.innerHTML = '<option disabled selected>Select Major</option>';
     majorSelect.disabled = true;
   });
@@ -386,14 +455,24 @@
   };
 
   window.refreshDesignationTable = function () {
+    // rebuild header to full set, then re-apply current visibility
     thead.innerHTML = `
       <tr>
         <th>#</th>
         <th>Designation</th>
-        <th>Campus</th>
-        <th>College</th>
-        <th>Program</th>
+        <th class="th-campus">Campus</th>
+        <th class="th-college">College</th>
+        <th class="th-program">Program</th>
+        <th class="th-major">Major</th>
         <th>Action</th>
+        <th>
+          <button class="btn p-0 bg-transparent shadow-none border-0 float-end" title="Add Designation"
+                  data-bs-toggle="modal" data-bs-target="#addDesignationModal">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="#4a4aef" viewBox="0 0 24 24">
+              <path d="M3 6h12v2H3V6zm0 5h12v2H3v-2zm0 5h8v2H3v-2zm14 0v-2h-2v-2h2v-2h2v2h2v2h-2v2h-2z"/>
+            </svg>
+          </button>
+        </th>
       </tr>
     `;
     flushAlert.classList.add('d-none');
@@ -407,9 +486,15 @@
       </div>
     `;
     flushAlert.parentNode.insertBefore(flushSuccess, flushAlert.nextSibling);
+
+    // show all TDs then hide by rule
+    document.querySelectorAll('td.td-campus, td.td-college, td.td-program, td.td-major')
+      .forEach(td => td.style.display = '');
+
+    applyColumnsFromExistingRows();
   };
 
-  form.addEventListener('submit', function (e) {
+  document.getElementById('designationAddForm').addEventListener('submit', function (e) {
     e.preventDefault();
     confirmModal.show();
   });
@@ -440,36 +525,36 @@
   });
 });
 
+let isSubmitting = false;
 function submitAddUser() {
-  const form = document.getElementById('designationAddForm');
-  const formData = new FormData(form);
+  if (isSubmitting) return;
+  isSubmitting = true;
+
+  const yesBtn = document.getElementById('confirmYesBtn');
+  if (yesBtn) yesBtn.disabled = true;
+
+  const form         = document.getElementById('designationAddForm');
+  const formData     = new FormData(form);
   const confirmModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('confirmAddModalFinal'));
-  const addModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('addDesignationModal'));
+  const addModal     = bootstrap.Modal.getOrCreateInstance(document.getElementById('addDesignationModal'));
   const successModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('successAddModal'));
 
   fetch(`{{ route('admin.userdesignation.store') }}`, {
     method: 'POST',
-    headers: {
-      'X-CSRF-TOKEN': '{{ csrf_token() }}',
-    },
+    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
     body: formData
   })
-  .then(res => {
-    if (!res.ok) throw res;
-    return res.json();
-  })
+  .then(res => { if (!res.ok) throw res; return res.json(); })
   .then(data => {
     if (data.success) {
       confirmModal.hide();
       addModal.hide();
       successModal.show();
       showFlushCacheAlert();
-      setTimeout(() => {
-        successModal.hide();
-        location.reload();
-      }, 2000);
+      setTimeout(() => { successModal.hide(); location.reload(); }, 2000);
     } else {
-      alert("Add failed: " + data.message);
+      if (window.Swal?.fire) Swal.fire({ icon:'error', title:'Add failed', text: data.message || 'Unknown error' });
+      else console.error('[Add failed]', data.message || 'Unknown error');
     }
   })
   .catch(async err => {
@@ -479,21 +564,17 @@ function submitAddUser() {
       const doc = parser.parseFromString(text, 'text/html');
       const bodyText = doc.querySelector('body')?.innerText?.trim();
       const cleanMessage = bodyText?.slice(0, 500) || "An unknown error occurred.";
-      Swal.fire({
-        icon: 'error',
-        title: 'Server Error',
-        text: cleanMessage
-      });
+      if (window.Swal?.fire) Swal.fire({ icon:'error', title:'Server Error', text: cleanMessage });
+      else console.error('[Server Error]', cleanMessage);
     } catch (e) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Unexpected Error',
-        text: 'Something went wrong while processing the request.'
-      });
+      if (window.Swal?.fire) Swal.fire({ icon:'error', title:'Unexpected Error', text:'Something went wrong while processing the request.' });
+      else console.error('[Unexpected Error] Something went wrong while processing the request.');
     }
+  })
+  .finally(() => {
+    isSubmitting = false;
+    if (yesBtn) yesBtn.disabled = false;
   });
 }
 </script>
-
-
 @endsection

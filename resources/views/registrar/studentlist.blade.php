@@ -18,7 +18,7 @@
         <table class="table table-striped">
           <thead class="table-light">
             <tr>
-              <th>#</th>
+              <th style="width:64px">#</th>
               <th>SRCODE</th>
               <th>Full Name</th>
               <th>Email</th>
@@ -27,32 +27,53 @@
             </tr>
           </thead>
           <tbody>
-            @if(isset($students) && count($students) > 0)
-              @foreach($students as $index => $student)
-                <tr>
-                  <td>{{ $index + 1 }}</td>
-                  <td>{{ $student->SRCODE }}</td>
-                  <td>{{ $student->First_name }} {{ $student->Middle_name }} {{ $student->Last_name }}</td>
-                  <td>{{ $student->Email }}</td>
-                  <td>{{ $student->Contact ?? '-' }}</td>
-                  <td>
-                    <div class="d-flex justify-content-center gap-2">
-                      <a href="#" class="btn btn-sm btn-outline-primary" title="Edit">
-                        <i class="bi bi-pencil-square"></i>
-                      </a>
-                      <button class="btn btn-sm btn-outline-danger" title="Delete"
-                              onclick="showDeleteModal({{ $student->Student_id }})">
-                        <i class="bi bi-trash3"></i>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              @endforeach
-            @else
+          @php
+            use Illuminate\Support\Str;
+
+            // Sort alphabetically by Last, First, Middle
+            $sorted = collect($students ?? [])->sortBy([
+              ['Last_name', 'asc'],
+              ['First_name', 'asc'],
+              ['Middle_name', 'asc'],
+            ])->values();
+
+            // Helper to format: "Last, First Middle" with title case
+            $formatName = function ($s) {
+              $first  = trim($s->First_name ?? '');
+              $middle = trim($s->Middle_name ?? '');
+              $last   = trim($s->Last_name ?? '');
+              $full   = trim($last . ', ' . trim($first . ($middle ? ' ' . $middle : '')));
+              // Title-case (handles multi-words)
+              return Str::of(Str::lower($full))->title();
+            };
+          @endphp
+
+          @if($sorted->count() > 0)
+            @foreach($sorted as $idx => $student)
               <tr>
-                <td colspan="6" class="text-center">No students found.</td>
+                <td>{{ $idx + 1 }}</td>
+                <td>{{ $student->SRCODE }}</td>
+                <td>{{ $formatName($student) }}</td>
+                <td>{{ $student->Email }}</td>
+                <td>{{ $student->Contact ?: '—' }}</td>
+                <td>
+                  <div class="d-flex justify-content-center gap-2">
+                    <a href="#" class="btn btn-sm btn-outline-primary" title="Edit">
+                      <i class="bi bi-pencil-square"></i>
+                    </a>
+                    <button class="btn btn-sm btn-outline-danger" title="Delete"
+                            onclick="showDeleteModal({{ $student->Student_id }})">
+                      <i class="bi bi-trash3"></i>
+                    </button>
+                  </div>
+                </td>
               </tr>
-            @endif
+            @endforeach
+          @else
+            <tr>
+              <td colspan="6" class="text-center">No students found.</td>
+            </tr>
+          @endif
           </tbody>
         </table>
       </div>

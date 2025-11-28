@@ -20,10 +20,15 @@ class Major extends Model
         'Major_name',
         'Created_at'
     ];
-    
-        public function curriculumAy()
+
+    // 🔹 balik relation: each major belongs to a program
+    public function program()
+    {
+        return $this->belongsTo(Program::class, 'Program_id', 'Program_id');
+    }
+
+    public function curriculumAy()
     {
         return $this->hasMany(CurriculumAY::class, 'Major_id', 'Major_id');
     }
-    
 }

@@ -4,139 +4,260 @@
 @section('content')
 <div class="container py-4">
 
-  <!-- Toggle and Title -->
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="fw-bold mb-0 text-white">Dashboard Summary</h4>
-  </div>
+  {{-- ================== PAGE TITLE ================== --}}
+  <h4 class="fw-bold text-center mb-4" style="color:#2d8bce;">Registrar Analytics Dashboard</h4>
 
+  {{-- ================== TOP STATS (STATIC) ================== --}}
   <div class="row g-4 mb-4">
-    @php
-      $stats = [
-        [
-          'count' => number_format($totalStudents),
-          'label' => 'TOTAL STUDENTS',
-          'growth' => '+12.5%',
-          'icon' => 'bi-person-fill',
-          'color' => 'linear-gradient(135deg, #ff416c, #ff4b2b)'
-        ],
-        [
-          'count' => number_format($totalUsers),
-          'label' => 'TOTAL USERS',
-          'growth' => '+8.3%',
-          'icon' => 'bi-people-fill',
-          'color' => 'linear-gradient(135deg, #f7971e, #ffd200)'
-        ],
-        [
-          'count' => number_format($loginCount),
-          'label' => 'TOTAL LOGINS',
-          'growth' => '+3.48%',
-          'icon' => 'bi-box-arrow-in-right',
-          'color' => 'linear-gradient(135deg, #11998e, #38ef7d)'
-        ],
-        [
-          'count' => number_format($logoutCount),
-          'label' => 'TOTAL LOGOUTS',
-          'growth' => '+1.2%',
-          'icon' => 'bi-box-arrow-right',
-          'color' => 'linear-gradient(135deg, #0575e6, #00f260)'
-        ]
-      ];
-    @endphp
 
-    @foreach ($stats as $stat)
-    <div class="col-md-3">
-      <div class="card stat-modern-card p-3 shadow-sm border-0">
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <small class="text-muted text-uppercase fw-bold">{{ $stat['label'] }}</small>
-            <h3 class="fw-bold mt-1 text-dark">{{ $stat['count'] }}</h3>
-            <p class="text-success small mb-0 mt-2">
-              <i class="bi bi-arrow-up-right"></i> {{ $stat['growth'] }} 
-              <span class="text-muted">Since last month</span>
-            </p>
-          </div>
-          <div class="stat-icon-circle" style="background: {{ $stat['color'] }}">
-            <i class="bi {{ $stat['icon'] }}"></i>
-          </div>
+    <div class="col-12 col-md-3">
+      <div class="card shadow-sm border-0 rounded-4 h-100" style="background:#fff;">
+        <div class="card-body text-center">
+          <div class="text-muted small">Total Students Enrolled</div>
+          <div class="display-6 fw-bold" style="color:#013a63;">4,520</div>
         </div>
       </div>
     </div>
-    @endforeach
-  </div>
 
-  <!-- 📊 Chart -->
-  <div class="row mb-4">
-    <div class="col-md-6">
-      <div class="card shadow-sm border-0 rounded-4 chart-card">
-        <div class="card-body">
-          <h5 class="fw-bold mb-3 chart-title">Enrolled Students by Department</h5>
-          <div style="height: 250px;">
-            <canvas id="enrollmentChart"></canvas>
-          </div>
+    <div class="col-12 col-md-3">
+      <div class="card shadow-sm border-0 rounded-4 h-100" style="background:#fff;">
+        <div class="card-body text-center">
+          <div class="text-muted small">Students per Department</div>
+          <select id="deptSelect" class="form-select form-select-sm mx-auto mb-1" style="max-width:220px;">
+            <option value="IT" selected>College of IT</option>
+            <option value="Education">College of Education</option>
+            <option value="Business">College of Business</option>
+            <option value="Engineering">College of Engineering</option>
+            <option value="Criminology">College of Criminology</option>
+          </select>
+          <div class="display-6 fw-bold" id="deptCount" style="color:#013a63;">1,120</div>
         </div>
       </div>
+    </div>
+
+    <div class="col-12 col-md-3">
+      <div class="card shadow-sm border-0 rounded-4 h-100" style="background:#fff;">
+        <div class="card-body text-center">
+          <div class="text-muted small">Top Performing Programs</div>
+          <div class="fs-3 fw-bold" style="color:#013a63;">BSIT, BSEd</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-3">
+      <div class="card shadow-sm border-0 rounded-4 h-100" style="background:#fff;">
+        <div class="card-body text-center">
+          <div class="text-muted small">Total Graduates</div>
+          <div class="display-6 fw-bold" style="color:#013a63;">980</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  {{-- ================== CHARTS ================== --}}
+  <div class="row g-4 mb-4">
+
+    {{-- Left: Trends --}}
+    <div class="col-12 col-lg-6">
+      <div class="card shadow-sm border-0 rounded-4" style="background:#fff;">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="fw-bold mb-0" style="color:#013a63;">Latin Honors / Dean's Honor Trends</h6>
+            <select id="trendSelect" class="form-select form-select-sm" style="max-width:160px;">
+              <option value="latin" selected>Latin Honors</option>
+              <option value="deans">Dean's Listers</option>
+              <option value="both">Both</option>
+            </select>
+          </div>
+          <div style="height:260px;"><canvas id="trendChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    {{-- Right: Department Population --}}
+    <div class="col-12 col-lg-6">
+      <div class="card shadow-sm border-0 rounded-4" style="background:#fff;">
+        <div class="card-body">
+          <h6 class="fw-bold mb-2" style="color:#013a63;">Department Population</h6>
+          <div style="height:260px;"><canvas id="deptBarChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  {{-- ================== TABLE (STATIC) ================== --}}
+  <div class="card shadow-sm border-0 rounded-4 mb-4" style="background:#fff;">
+    <div class="card-body">
+      <h6 class="fw-bold text-center mb-3" style="color:#2d8bce;">Top Performing Programs</h6>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead style="background:#f5f6f8;">
+            <tr class="text-muted">
+              <th>Program</th>
+              <th>Average GPA</th>
+              <th>Dean's Listers</th>
+              <th>Latin Honors</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>BS Information Technology</td><td>1.45</td><td>75</td><td>12</td></tr>
+            <tr><td>BS Education</td><td>1.52</td><td>68</td><td>9</td></tr>
+            <tr><td>BS Business Administration</td><td>1.63</td><td>40</td><td>6</td></tr>
+            <tr><td>BS Criminology</td><td>1.75</td><td>25</td><td>4</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {{-- ================== INSIGHTS (STATIC) ================== --}}
+  <div class="card border-0 rounded-4 shadow-sm" style="background:#0d4da3;">
+    <div class="card-body text-white">
+      <h6 class="fw-bold mb-2"><i class="bi bi-clipboard2-data me-2"></i>Insights</h6>
+      <ul class="mb-0">
+        <li>Total student population stands at <b>4,520</b> across all colleges this semester.</li>
+        <li><b>College of IT</b> remains the largest department with over <b>1,100</b> enrolled students.</li>
+        <li><b>BSIT</b> continues to lead as the top-performing program with consistent GPA averages below 1.5.</li>
+        <li><b>980</b> graduates have completed their programs, showing strong academic throughput.</li>
+        <li>Trends show an upward movement in both Dean’s Listers and Latin Honor recipients over the last 3 years.</li>
+      </ul>
     </div>
   </div>
 
 </div>
 
-<!-- 📊 Chart.js Script -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{{-- ================== SCRIPTS ================== --}}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
 <script>
-const chartCtx = document.getElementById('enrollmentChart').getContext('2d');
+  // === Chairperson Palette ===
+  const palette = ['#185c8c', '#013a63', '#2d8bce']; // [secondary, primary, accent]
 
-// Ensure you have correct data in `chartData` before the chart is created
-const chartData = {
-  labels: {!! json_encode($departments) !!},
-  datasets: [{
-    label: 'Number of Enrolled Students',
-    data: {!! json_encode($departmentCounts) !!}, // Ensure departmentCounts is not empty
-    borderColor: '#013A63',
-    backgroundColor: 'rgba(1, 58, 99, 0.85)',  // Solid fill color
-    tension: 0.4,
-    fill: true,
-    pointRadius: 5,
-    pointHoverRadius: 8,
-    borderWidth: 2 // Ensure border is visible
-  }]
-};
+  // === STATIC DATA ===
+  const YEARS        = [2022, 2023, 2024, 2025];
+  const DEPT_LABELS  = ['IT','Education','Business','Engineering','Criminology'];
+  const DEPT_COUNTS  = [1120, 900, 950, 880, 650];
+  const DEANS_DATA   = [100, 120, 140, 165];
+  const LATIN_DATA   = [120, 135, 150, 170];
 
-// Check the chartData before rendering
-console.log(chartData.labels);
-console.log(chartData.datasets[0].data);
-
-const chartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: { display: false },
-    tooltip: { enabled: true }
-  },
-  scales: {
-    y: {
-      beginAtZero: true,
-      ticks: {
-        stepSize: 1, // Ensure whole number steps
-        callback: function(value) {
-          return Number.isInteger(value) ? value : null;  // Skip non-integers
-        },
-        color: '#000'
-      },
-      grid: { color: 'rgba(0,0,0,0.1)' }
-    },
-    x: {
-      ticks: { color: '#000' },
-      grid: { color: 'rgba(0,0,0,0.1)' }
-    }
+  // === Department Selector ===
+  const deptSelect = document.getElementById('deptSelect');
+  const deptCount  = document.getElementById('deptCount');
+  const labelToIndex = { 'IT':0, 'Education':1, 'Business':2, 'Engineering':3, 'Criminology':4 };
+  function updateDeptCount(){
+    const idx = labelToIndex[deptSelect.value] ?? 0;
+    deptCount.textContent = new Intl.NumberFormat().format(DEPT_COUNTS[idx]);
   }
-};
+  updateDeptCount();
+  deptSelect.addEventListener('change', updateDeptCount);
 
-// Create the chart
-const enrollmentChart = new Chart(chartCtx, {
-  type: 'line',  // Line chart type
-  data: chartData,
-  options: chartOptions
-});
+  // === Trend Chart ===
+  const trendCtx = document.getElementById('trendChart').getContext('2d');
+  const trendChart = new Chart(trendCtx, {
+    type: 'line',
+    data: {
+      labels: YEARS,
+      datasets: [
+        {
+          label: "Dean's Listers",
+          data: DEANS_DATA,
+          borderColor: palette[0],
+          backgroundColor: 'rgba(24,92,140,0.15)',
+          pointBackgroundColor: palette[0],
+          tension: 0.35,
+          borderWidth: 2,
+          fill: true
+        },
+        {
+          label: "Latin Honors",
+          data: LATIN_DATA,
+          borderColor: palette[2],
+          backgroundColor: 'transparent',
+          pointBackgroundColor: palette[2],
+          tension: 0.35,
+          borderWidth: 2,
+          fill: false
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: true }, tooltip: { enabled: true } },
+      scales: {
+        y: { 
+          beginAtZero: true,
+          grid: { color: 'rgba(0,0,0,0.08)' },
+          title: {
+            display: true,
+            text: 'Number of Honors',
+            color: '#013a63',
+            font: { weight: 'bold', size: 13 }
+          }
+        },
+        x: { 
+          grid: { color: 'rgba(0,0,0,0.08)' },
+          title: {
+            display: true,
+            text: 'Academic Year',
+            color: '#013a63',
+            font: { weight: 'bold', size: 13 }
+          }
+        }
+      }
+    }
+  });
+
+  // === Toggle Line Visibility ===
+  document.getElementById('trendSelect').addEventListener('change', (e) => {
+    const v = e.target.value; // latin | deans | both
+    trendChart.setDatasetVisibility(0, v !== 'latin');
+    trendChart.setDatasetVisibility(1, v !== 'deans');
+    trendChart.update();
+  });
+
+  // === Department Population Bar ===
+  const deptCtx = document.getElementById('deptBarChart').getContext('2d');
+  new Chart(deptCtx, {
+    type: 'bar',
+    data: {
+      labels: DEPT_LABELS,
+      datasets: [{
+        label: 'Students',
+        data: DEPT_COUNTS,
+        backgroundColor: palette[0],
+        borderColor: palette[1],
+        borderWidth: 1.5
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: true }, tooltip: { enabled: true } },
+      scales: {
+        y: { 
+          beginAtZero: true,
+          grid: { color: 'rgba(0,0,0,0.08)' },
+          title: {
+            display: true,
+            text: 'Number of Students',
+            color: '#013a63',
+            font: { weight: 'bold', size: 13 }
+          }
+        },
+        x: { 
+          grid: { display: false },
+          title: {
+            display: true,
+            text: 'Departments',
+            color: '#013a63',
+            font: { weight: 'bold', size: 13 }
+          }
+        }
+      }
+    }
+  });
 </script>
-
 @endsection

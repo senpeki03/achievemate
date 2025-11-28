@@ -19,7 +19,7 @@
   <!-- SIDEBAR -->
   <div class="sidebar collapsed" id="sidebar">
     <div class="sidebar-header sidebar-logo">
-      <img src="{{ asset('img/AchieveMate02.png') }}" alt="Logo">
+      <img src="{{ asset('img/achievemate.png') }}" alt="Logo">
       <i class="bi bi-list burger" id="burgerToggle"></i>
     </div>
 
@@ -43,6 +43,14 @@
         <span class="fw-semibold small ms-1 {{ in_array($currentRoute, $studentRoutes) ? 'text-white' : 'text-dark' }}">
           Student Management
         </span>
+      </a>
+    </div>
+
+    <div class="card shadow-sm border-0 m-2">
+      <a href="{{ route('registrar.graduationlist') }}"
+        class="card-body py-3 px-4 d-flex align-items-center gap-4 nav-link text-decoration-none rounded-4 {{ $currentRoute == 'registrar.graduationlist' ? 'custom-bg-primary' : '' }}">
+        <i class="bi bi-mortarboard fs-6 {{ $currentRoute == 'registrar.graduationlist' ? 'text-white' : '' }}"></i>
+        <span class="fw-semibold small ms-1 {{ $currentRoute == 'registrar.graduationlist' ? 'text-white' : 'text-dark' }}">Graduation List</span>
       </a>
     </div>
 

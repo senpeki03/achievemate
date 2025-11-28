@@ -13,6 +13,8 @@ class VerifyCsrfToken extends Middleware
      */
     protected $except = [
         // You can add endpoints you want to skip CSRF on:
+        'student/qr/resolve',
+        'student/qr/resolve*',
         'cog/validate-from-text',
         'student/cog/validate-from-text',
     ];

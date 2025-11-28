@@ -20,10 +20,19 @@ class UserManage extends Model
         'Email',
     ];
 
+    // 🔹 Para automatic kasama sa JSON / attributes
+    protected $appends = ['full_name'];
+
     public function userDesignations()
     {
         return $this->hasMany(\App\Models\UserDesignation::class, 'User_id', 'User_id');
     }
 
-    
+    public function getFullNameAttribute(): string
+    {
+        $mi    = $this->Middle_name ? (' ' . mb_substr($this->Middle_name, 0, 1) . '.') : '';
+        $title = $this->Title ? ($this->Title . ' ') : '';
+
+        return trim($title . $this->First_name . $mi . ' ' . $this->Last_name);
+    }
 }

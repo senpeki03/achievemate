@@ -21,7 +21,7 @@
   <!-- SIDEBAR -->
   <div class="sidebar collapsed" id="sidebar">
     <div class="sidebar-header sidebar-logo">
-      <img src="{{ asset('img/AchieveMate02.png') }}" alt="Logo">
+      <img src="{{ asset('img/achievemate.png') }}" alt="Logo">
       <i class="bi bi-list burger" id="burgerToggle"></i>
     </div>
 

@@ -1,18 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>AchieveMate | Build a Career</title>
-  <meta name="csrf-token" content="{{ csrf_token() }}">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Bootstrap & FontAwesome -->
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <link rel="icon" type="image/png" href="{{ asset('assets/icon.png') }}" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
+  {{-- Main landing CSS --}}
+  <link rel="stylesheet" href="{{ asset('assets/style.css') }}" />
+
+  {{-- Override footer background using Laravel asset() to avoid 404 --}}
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { height: 100%; font-family: 'Segoe UI', sans-serif; }
+    .site-footer {
+      background:
+        linear-gradient(rgba(139, 0, 11, 0.80), rgba(139, 0, 11, 0.80)),
+        url("{{ asset('assets/footer.png') }}") center/cover no-repeat;
+      background-attachment: fixed;
+    }
 
     /* LOADER STYLES */
     #loader {
@@ -31,91 +40,59 @@
       opacity: 0;
       pointer-events: none; /* Allow clicks immediately after fade */
     }
-
-
-
-    .hero {
-      min-height: 100vh;
-      background: url("{{ asset('img/image.png') }}") no-repeat center center;
-      background-size: cover;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      padding: 7rem 5% 2rem 5%;
-      text-align: left;
-    }
-
-    .hero-text { max-width: 700px; color: #000; }
-    .hero-text h1 { font-size: 3rem; font-weight: bold; }
-    .hero-text p { font-size: 1.1rem; margin: 20px 0; }
-
-    .hero-buttons .btn {
-      border-radius: 30px;
-      padding: 10px 25px;
-      margin-right: 10px;
-      margin-bottom: 10px;
-    }
-
-    .navbar { transition: background-color 0.3s ease; background-color: transparent; }
-    .navbar-brand img { width: 150px; }
-    .navbar .nav-link, .navbar .btn { color: #000; }
-    .navbar .nav-link:hover, .navbar .nav-link.active { color: #007bff; }
-    .navbar .btn.btn-primary { border-color: #000; color: #000; background-color: transparent; }
-    .navbar .btn.btn-primary:hover { background-color: rgba(0, 0, 0, 0.1); }
-
-    @media (max-width: 991.98px) {
-      .navbar-collapse { background-color: transparent; padding: 1rem; }
-      .navbar-collapse .nav-link, .navbar-collapse .btn { color: #000 !important; }
-    }
-
-    @media (max-width: 992px) { .hero-text h1 { font-size: 2.2rem; } }
-    @media (max-width: 768px) {
-      .hero-text { max-width: 100%; text-align: center; }
-      .navbar-brand img { width: 120px; }
-      .hero-buttons .btn { width: 100%; }
-    }
   </style>
 </head>
-<body>
+<body class="landing-bg">
 
 <!-- LOADING SCREEN -->
 <div id="loader">
   <img src="https://d37oebn0w9ir6a.cloudfront.net/account_6827/customerio-loading-animation_244ab356f603e104472b77ceb1e5add4.gif" alt="Loading..." width="200">
 </div>
 
-<!-- Navbar -->
-<nav class="navbar navbar-expand-lg fixed-top">
-  <div class="container">
-    <a class="navbar-brand" href="#">
-      <img src="{{ asset('img/Achievemate02.png') }}" alt="logo">
+<header class="site-header">
+  <div class="container nav-container">
+    <a href="#home" class="logo">
+      <img src="{{ asset('assets/logo.png') }}" alt="Site Logo" />
     </a>
-    <button class="navbar-toggler border border-black" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown">
-      <span class="navbar-toggler-icon"></span>
-    </button>
-    <div class="collapse navbar-collapse text-center" id="navbarNavDropdown">
-      <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-        <li class="nav-item"><a class="nav-link active" href="#">Home</a></li>
-        <li class="nav-item"><a class="nav-link" href="#">Work It</a></li>
-        <li class="nav-item"><a class="nav-link" href="#">Portfolio</a></li>
-        <li class="nav-item"><a class="nav-link" href="#">Tutorial</a></li>
-        <li class="nav-item"><a class="nav-link" href="#">Contact Us</a></li>
+    <nav class="main-nav" aria-label="Main Navigation">
+      <ul>
+        <li><a href="#home" class="active">Home</a></li>
+        <li><a href="#services">Our Services</a></li>
+        <li><a href="#contact">Get In Touch</a></li>
+        <li><a href="#leaderboards">Leader Boards</a></li>
       </ul>
-      <button class="btn btn-primary rounded-pill ms-lg-3 px-4" data-bs-toggle="modal" data-bs-target="#loginModal">Login</button>
+    </nav>
+    <div class="nav-cta">
+      <a href="#" class="btn btn-solid" data-bs-toggle="modal" data-bs-target="#loginModal">Log In</a>
+      <button class="nav-toggle" aria-label="Toggle navigation">☰</button>
     </div>
   </div>
-</nav>
+</header>
 
-<!-- Hero Section -->
-<section class="hero">
-  <div class="hero-text">
-    <h1>Go beyond <br><strong>achievement shelf.</strong></h1>
-    <p>Document milestones and inspire with a record that lasts.</p>
-    <div class="hero-buttons">
-      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#loginModal">Get Started</button>
-      <button class="btn btn-outline-secondary">Learn More</button>
+<main id="home" class="hero">
+  <div class="container hero-inner">
+    <div class="hero-text">
+      <h1>Go beyond <span class="accent">achievement</span> shelf.</h1>
+      <p class="subtitle">Document milestones and inspire with a record that lasts.</p>
+
+      <!-- CTA BUTTONS -->
+        <div class="d-flex align-items-center gap-2 mt-2">
+          <a href="#" class="btn btn-solid" data-bs-toggle="modal" data-bs-target="#loginModal">
+            Get Started
+          </a>
+
+          <!-- DOWNLOAD BUTTON - SAME STYLE AS GET STARTED -->
+          <a href="#" class="btn btn-solid">
+            <i class="fa-solid fa-download me-1"></i> Download
+          </a>
+        </div>
+
+    </div>
+    <div class="hero-media">
+      <!-- image removed as requested -->
     </div>
   </div>
-</section>
+</main>
 
 <!-- LOGIN MODAL -->
 <div class="modal fade" id="loginModal" tabindex="-1">
@@ -123,7 +100,7 @@
     <div class="modal-content p-0 border-0 rounded-4 overflow-hidden">
       <div class="row g-0">
         <div class="col-md-6 bg-white d-flex justify-content-center align-items-center py-4 px-3">
-          <img src="{{ asset('img/Achievemate02.png') }}" alt="logo" style="width: 280px; height: auto;">
+          <img src="{{ asset('assets/logo.png') }}" alt="AchieveMate Logo" style="width: 280px; height: auto;">
         </div>
         <div class="col-md-6 bg-white p-5 login-modal">
           <h4 class="fw-bold text-center mb-4">LOG IN</h4>
@@ -160,9 +137,118 @@
   </div>
 </div>
 
-<!-- Bootstrap + JS -->
+<section id="services" class="services">
+  <div class="container">
+    <h2 class="section-title">OUR <span class="accent">SERVICES</span></h2>
+    <div class="services-grid">
+      <article class="service-card">
+        <div class="card-image">
+          <img src="{{ asset('assets/1.png') }}" alt="Academic achievement" />
+        </div>
+        <h3>Academic Achievement Recognition</h3>
+        <p>Certificates, awards, and milestones for honor roll and top performers.</p>
+        <a href="#" class="card-link">Learn more</a>
+      </article>
+      <article class="service-card">
+        <div class="card-image">
+          <img src="{{ asset('assets/2.png') }}" alt="OCR grade extraction" />
+        </div>
+        <h3>OCR-Based Grade Extraction</h3>
+        <p>Automated extraction of grades from scanned documents for fast records.</p>
+        <a href="#" class="card-link">Learn more</a>
+      </article>
+      <article class="service-card">
+        <div class="card-image">
+          <img src="{{ asset('assets/3.png') }}" alt="Analytics dashboards" />
+        </div>
+        <h3>Analytics & Dashboards</h3>
+        <p>Track trends, progress, and performance metrics with visual dashboards.</p>
+        <a href="#" class="card-link">Learn more</a>
+      </article>
+      <article class="service-card">
+        <div class="card-image">
+          <img src="{{ asset('assets/4.png') }}" alt="Student portfolio" />
+        </div>
+        <h3>Student Achievement Portfolio</h3>
+        <p>Personalized portfolio showcasing verified accomplishments.</p>
+        <a href="#" class="card-link">Learn more</a>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- Section 3: Contact -->
+<section id="contact" class="contact">
+  <div class="container">
+    <h2 class="section-title contact-title">GET IN <span class="accent">TOUCH</span></h2>
+    <div class="contact-panel">
+      <div class="panel-inner">
+        <div class="panel-left">
+          <h3 class="panel-title">Send Us a Message</h3>
+          <p class="panel-subtitle">
+            You can reach us by email. Fill out the form, and we'll get back to you as soon as possible.
+          </p>
+          <form class="contact-form" action="#" method="post" novalidate>
+            <label for="fullName">Full name</label>
+            <input type="text" id="fullName" name="fullName" placeholder="Your Full name" required />
+
+            <label for="email">Email Address</label>
+            <input type="email" id="email" name="email" placeholder="YourEmail@gmail.com" required />
+
+            <label for="subject">Subject</label>
+            <input type="text" id="subject" name="subject" placeholder="Subject" />
+
+            <label for="message">Message</label>
+            <textarea id="message" name="message" rows="6" placeholder="Your Message"></textarea>
+
+            <div class="send-row">
+              <button type="submit" class="btn btn-solid">Send</button>
+            </div>
+          </form>
+        </div>
+        <div class="panel-right">
+          <img src="{{ asset('assets/touch.png') }}" alt="Contact illustration" class="contact-illustration" />
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="container footer-top">
+    <div class="footer-brand">
+      <a href="#home" class="footer-logo" aria-label="Achievement Shelf Home">
+        <img src="{{ asset('assets/logo_nontrans.png') }}" alt="Achievement Shelf Logo" />
+      </a>
+    </div>
+    <nav class="footer-nav" aria-label="Footer Navigation">
+      <ul>
+        <li><a href="#home">Home</a></li>
+        <li><a href="#services">Our Services</a></li>
+        <li><a href="#contact">Get in Touch</a></li>
+        <li><a href="#leaderboards">Leaderboard</a></li>
+      </ul>
+    </nav>
+    <div class="footer-social" aria-label="Social Media">
+      <ul>
+        <li><a href="#" aria-label="Instagram" class="social-icon instagram" title="Instagram">&#x1F465;</a></li>
+        <li><a href="#" aria-label="Facebook" class="social-icon facebook" title="Facebook">f</a></li>
+        <li><a href="#" aria-label="X" class="social-icon x" title="X">X</a></li>
+        <li><a href="#" aria-label="Website" class="social-icon link" title="Link">🔗</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-separator" aria-hidden="true"></div>
+  <div class="container footer-bottom">
+    <div class="footer-copy">&copy; {{ date('Y') }} Copy Right AchieveMate - Batangas State University - TNEU</div>
+    <div class="footer-privacy"><a href="#privacy">Privacy Policy</a></div>
+    <div class="footer-terms"><a href="#terms">Terms of Service</a></div>
+  </div>
+</footer>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+  // Password toggle functionality
   const togglePassword = document.getElementById('togglePassword');
   const passwordInput = document.getElementById('password');
   if (togglePassword && passwordInput) {

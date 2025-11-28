@@ -16,6 +16,7 @@ class College extends Model
         'Campus_id',
         'Abbreviation',
         'College_name',
+        'Logo',
         'Created_at'
     ];
     
