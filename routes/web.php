@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Programchair\EventController;
+use App\Http\Controllers\Student\StudentEventController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use Illuminate\Http\Request;
@@ -333,6 +335,7 @@ Route::middleware(['web', 'auth'])
             Route::post('/send-auto-verification-code', [ViewGradeController::class, 'sendAutoVerificationCode'])->name('send-auto-verification-code');
             Route::post('/resend-verification-code', [ViewGradeController::class, 'resendVerificationCode'])->name('resend-verification-code');
             Route::post('/verify-code', [ViewGradeController::class, 'verifyCode'])->name('verify-code');
+            
 });
         Route::post('/change-password', [StudentProfileController::class, 'changePassword'])->name('password.change');
     });
@@ -428,6 +431,10 @@ Route::middleware(['auth'])->group(function () {
 
     Route::post('/student/graduation/upload/{req}', [GraduationApplicationController::class, 'uploadRequirement'])->whereNumber('req')->name('student.graduation.upload');
 
+    //StudentEventController added
+    Route::get('student/event-invites', [StudentEventController::class, 'index'])->name('student.event.invite');
+    Route::post('/event-invites/{invite}/status', [StudentEventController::class, 'updateStatus'])->name('student.event-update');
+
     // RSO / Program Chair – add your gate/role middleware (e.g. can:rso)
     Route::middleware('can:manage-graduation')->group(function () {
         Route::get('/rso/graduation',                    [RsoGraduationController::class, 'rsoIndex'])->name('rso.graduation.index');
@@ -473,6 +480,19 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/programchair/dashboard', [DashboardProgramchairController::class, 'index'])->name('programchair.dashboard');
     Route::get('/programchair/graduation', [GraduationController::class, 'index'])->name('programchair.graduation');
     Route::get('/programchair/graduation/report', [GraduationReportController::class, 'generateReport'])->name('programchair.graduation.report');
+    
+    //Event added
+    Route::prefix('programchair')->name('programchair.')->group(function () {
+      Route::get('/events', [EventController::class, 'index'])->name('events');
+      Route::post('/events', [EventController::class, 'store'])->name('events.store');
+      Route::put('/events/{event}', [EventController::class, 'update'])->name('events.update');
+      Route::delete('/events/{event}', [EventController::class, 'destroy'])->name('events.destroy');
+      Route::post('/events/invite', [EventController::class, 'inviteStudent'])->name('event-invite');
+      Route::delete('/events/{event}/invites/{invite}', [EventController::class, 'cancelInvite'])->name('event-invite-cancel');
+      Route::post('/event-types', [EventController::class, 'storeEventType'])->name('event-types.store');
+      Route::put('/event-types/{type}', [EventController::class, 'updateEventType'])->name('event-types.update');
+      Route::delete('/event-types/{type}', [EventController::class, 'destroyEventType'])->name('event-types.destroy');
+    });
 });
 
     Route::middleware(['auth', 'usertype:Program Chairperson'])->group(function () {

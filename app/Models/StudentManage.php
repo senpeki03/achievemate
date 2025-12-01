@@ -152,4 +152,8 @@ class StudentManage extends Model
             ]);
     }
 
+    public function eventAssignments()
+    {
+        return $this->hasMany(EventStudentAssignment::class, 'Student_id', 'Student_id');
+    }
 }
