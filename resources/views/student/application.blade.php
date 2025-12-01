@@ -1849,11 +1849,33 @@ function findCourseMismatches(corCourses, cogCourses) {
 }
 
 async function runValidations() {
-  setValState('v-tamper', 'loading', 'Comparing grades…');
-  setValState('v-irregular', 'loading', 'Checking curriculum…');
-  setValState('v-grades', 'loading', 'Scanning disqualifying grades…');
-
   try {
+    setBusy(true);
+
+    // 0) APPLICATION PERIOD MATCH
+    setValState('v-period', 'loading', 'Checking application period…');
+    const periodValidation = await validateApplicationPeriod();
+    console.log('Period validation result:', periodValidation);
+
+    if (!periodValidation.valid) {
+      setValState('v-period', 'fail', periodValidation.message);
+      validationPass = false;
+      showApplicationPeriodModal(periodValidation.message);
+      setBusy(false);
+      return;
+    } else {
+      setValState(
+        'v-period',
+        'ok',
+        `Matches ${periodValidation.semester} Semester, AY ${periodValidation.academic_year}`
+      );
+    }
+
+    // 1) PREPARE OTHER CARDS
+    setValState('v-tamper', 'loading', 'Comparing grades…');
+    setValState('v-irregular', 'loading', 'Checking curriculum…');
+    setValState('v-grades', 'loading', 'Scanning disqualifying grades…');
+
     // wait for background OCR / parsing work
     if (window.cogWorkDonePromise) {
       try { await window.cogWorkDonePromise; } catch (_) {}
@@ -1862,8 +1884,23 @@ async function runValidations() {
       try { await ocrReady; } catch (_) {}
     }
 
+    // helper for grade disqualification
+    const hasDisqualGrade = (rows = []) => {
+      return rows.some(r => {
+        const raw = String(r.grade || '');
+        const g   = raw.toUpperCase().trim();
+
+        // INC / DROPPED / WITHDRAWN
+        if (g === 'INC' || g === 'DRP' || g === 'DROP' || g === 'W') return true;
+
+        // numeric grade (2.75 / 3.00 / etc.)
+        const num = parseFloat(raw);
+        return !Number.isNaN(num) && num >= DISQUAL_GRADE_MIN;
+      });
+    };
+
     /* =======================================================
-       1) COR vs COG COURSE CODE MATCHING (FIRST GATE)
+       2) COR vs COG COURSE CODE MATCHING (FIRST GATE)
        ======================================================= */
     const corCourses = await fetchCorCourses();
     const cogCourses = await fetchCogCourses();
@@ -1875,9 +1912,7 @@ async function runValidations() {
       const courseMismatches = findCourseMismatches(corCourses, cogCourses);
 
       if (courseMismatches.length > 0) {
-        // FAIL in Document Authenticity
         setValState('v-tamper', 'fail', 'Course mismatch detected');
-
         const reasonEl = document.getElementById('tamperReason');
         if (reasonEl) {
           reasonEl.innerHTML = `
@@ -1891,18 +1926,16 @@ async function runValidations() {
             </p>
           `;
         }
-
         showModal('#tamperFailModal');
         validationPass = false;
-        return; // stop here; do not continue to QR/OCR grade checks
+        setBusy(false);
+        return;
       }
     }
 
     /* =======================================================
-       2) EXISTING QR vs OCR / PARSED FILES VALIDATION
-          (HINDI KO TINANGGAL, 그대로)
+       3) QR / OCR VALIDATION
        ======================================================= */
-
     const qrRows  = Array.isArray(parsedFromQR?.rows)  ? parsedFromQR.rows  : [];
     const ocrRows = Array.isArray(parsedFromOCR?.rows) ? parsedFromOCR.rows : [];
 
@@ -1911,7 +1944,6 @@ async function runValidations() {
       const { qrGrades, ocrGrades } = await fetchParsedFilesGrades();
       if (qrGrades.length || ocrGrades.length) {
         decidedByParsedFiles = true;
-
         const A = qrGrades, B = ocrGrades;
         const N = Math.max(A.length, B.length);
         const rowMismatches = [];
@@ -1923,30 +1955,40 @@ async function runValidations() {
 
         if (rowMismatches.length > 0) {
           setValState('v-tamper', 'fail', `${rowMismatches.length} grade mismatch(es)`);
-
           const reasonEl = document.getElementById('tamperReason');
           if (reasonEl) {
-            reasonEl.innerHTML = `Found ${rowMismatches.length} grade discrepancy(ies) between official records and your uploaded document.`;
+            reasonEl.innerHTML =
+              `Found ${rowMismatches.length} grade discrepancy(ies) between official records and your uploaded document.`;
           }
-
           showModal('#tamperFailModal');
           validationPass = false;
+          setBusy(false);
           return;
         } else {
           setValState('v-tamper', 'ok', 'Parsed files match');
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      console.warn('fetchParsedFilesGrades error', e);
+    }
 
     if (!decidedByParsedFiles) {
       const hasQR  = qrRows.length > 0;
       const hasOCR = ocrRows.length > 0;
 
+      // === QR ONLY (NO OCR) ===
       if (!hasOCR) {
         if (hasQR) {
           setValState('v-tamper', 'ok', 'Verified via QR only');
           setValState('v-irregular', 'ok', 'Checked');
-          setValState('v-grades', 'ok', 'No disqualifying grades found');
+
+          const disqualQr = hasDisqualGrade(qrRows);
+
+          if (disqualQr) {
+            setValState('v-grades', 'fail', 'Found 2.75 / 3.00 / INC / DROP');
+          } else {
+            setValState('v-grades', 'ok', 'No disqualifying grades');
+          }
 
           lastParsedRows = qrRows.slice();
           lastParsedMeta = mergeMetaPreferFilled(parsedFromQR.meta || {}, parsedFromOCR.meta || {});
@@ -1954,33 +1996,39 @@ async function runValidations() {
           renderGradesTable(lastParsedRows, lastParsedMeta);
           await autoSaveCog(lastParsedMeta, lastParsedRows);
 
-          validationPass = true;
+          validationPass = !disqualQr;
+          setBusy(false);
           return;
         }
+
+        // no QR + no OCR
         setValState('v-tamper', 'fail', 'No QR/OCR data');
         const reasonEl = document.getElementById('tamperReason');
         if (reasonEl) {
-          reasonEl.innerHTML = `We couldn't extract any grade rows from your uploaded COG and no QR data was found.`;
+          reasonEl.innerHTML =
+            `We couldn't extract any grade rows from your uploaded COG and no QR data was found.`;
         }
         tamperTarget = 'cog';
         showModal('#tamperFailModal');
         validationPass = false;
+        setBusy(false);
         return;
       }
 
+      // === BOTH QR + OCR AVAILABLE ===
       const diff = diffQrOcrRows(qrRows, ocrRows);
       const mismatches = diff.mismatches || [];
 
       if (mismatches.length > 0) {
         setValState('v-tamper', 'fail', `${mismatches.length} mismatched grade(s)`);
-
         const reasonEl = document.getElementById('tamperReason');
         if (reasonEl) {
-          reasonEl.innerHTML = `Found ${mismatches.length} grade discrepancy(ies) between official records and your uploaded document.`;
+          reasonEl.innerHTML =
+            `Found ${mismatches.length} grade discrepancy(ies) between official records and your uploaded document.`;
         }
-
         showModal('#tamperFailModal');
         validationPass = false;
+        setBusy(false);
         return;
       } else {
         setValState('v-tamper', 'ok', 'QR and OCR grades match');
@@ -1989,18 +2037,37 @@ async function runValidations() {
     }
 
     /* =======================================================
-       3) DISQUALIFYING GRADES (2.75 / 3.00 / INC / DRP)
+       4) DISQUALIFYING GRADES (2.75 / 3.00 / INC / DRP)
        ======================================================= */
 
-    const disqual = (Array.isArray(parsedFromOCR?.rows) ? parsedFromOCR.rows : []).some(r => {
-      const g = String(r.grade || '').toUpperCase().trim();
-      return g === 'INC' || g === 'DRP' || g === 'W' || parseFloat(g) >= DISQUAL_GRADE_MIN;
+    // Prefer OCR rows if present, else QR rows
+    // DISQUALIFYING GRADES (for OCR+QR cases)
+    const rowsForScan =
+        (Array.isArray(parsedFromOCR?.rows) && parsedFromOCR.rows.length)
+            ? parsedFromOCR.rows           // use OCR if meron
+            : (Array.isArray(parsedFromQR?.rows) ? parsedFromQR.rows : []); // else fallback to QR
+
+    const disqual = rowsForScan.some(r => {
+        const raw = String(r.grade || '');
+        const g   = raw.toUpperCase().trim();
+
+        if (g === 'INC' || g === 'DRP' || g === 'DROP' || g === 'W') {
+            return true;
+        }
+
+        const num = parseFloat(raw);
+        return !Number.isNaN(num) && num >= DISQUAL_GRADE_MIN;
     });
-    if (disqual) setValState('v-grades', 'fail', 'Found 2.75 / 3.00 / INC / DROP');
-    else setValState('v-grades', 'ok', 'No disqualifying grades');
+
+    if (disqual) {
+        setValState('v-grades', 'fail', 'Found 2.75 / 3.00 / INC / DROP');
+    } else {
+        setValState('v-grades', 'ok', 'No disqualifying grades');
+    }
+
 
     /* =======================================================
-       4) IRREGULAR CHECK (currently static)
+       5) IRREGULAR CHECK (placeholder)
        ======================================================= */
 
     const isIrregular = false;
@@ -2008,25 +2075,67 @@ async function runValidations() {
     else setValState('v-irregular', 'ok', 'Checked');
 
     /* =======================================================
-       5) MERGE META + RENDER + SAVE
+       6) MERGE META + RENDER + SAVE
        ======================================================= */
 
     lastParsedMeta = mergeMetaPreferFilled(
       mergeMetaPreferFilled(parsedFromQR?.meta || {}, parsedFromOCR?.meta || {}),
       window.corMetaFromOcr || {}
     );
-    lastParsedRows = (parsedFromOCR?.rows || []).length ? parsedFromOCR.rows.slice() : qrRows.slice();
+    lastParsedRows = rowsForScan.length ? rowsForScan.slice() : qrRows.slice();
 
     renderGradesTable(lastParsedRows, lastParsedMeta);
     await autoSaveCog(lastParsedMeta, lastParsedRows);
 
     validationPass = !disqual;
+    setBusy(false);
   } catch (e) {
     console.error('Validation error', e);
     setValState('v-tamper', 'fail', 'Unexpected error');
     validationPass = false;
+    setBusy(false);
   }
 }
+
+function recomputeGradeEligibility() {
+  // Gagamitin natin yung FINAL rows na ginagamit din sa table
+  const rows = Array.isArray(window.lastParsedRows) ? window.lastParsedRows : [];
+  console.log("🔥 GRADE CHECK RUNNING — rows:", window.lastParsedRows);
+
+  console.log('🔍 [Grade Check] lastParsedRows =', rows);
+
+  // Walang rows? hindi natin gagalawin state (para hindi makasira ng ibang checks)
+  if (!rows.length) {
+    console.warn('🔍 [Grade Check] No rows to scan');
+    return;
+  }
+
+  const disqual = rows.some(r => {
+    const raw = String(r.grade || '');
+    const g   = raw.toUpperCase().trim();
+
+    // symbolic grades
+    if (g === 'INC' || g === 'DRP' || g === 'DROP' || g === 'W') {
+      return true;
+    }
+
+    // numeric grades
+    const num = parseFloat(raw);
+    return !Number.isNaN(num) && num >= DISQUAL_GRADE_MIN; // 2.75+
+  });
+
+  console.log('🔍 [Grade Check] disqual =', disqual);
+
+  if (disqual) {
+    setValState('v-grades', 'fail', 'Found 2.75 / 3.00 / INC / DROP');
+    // siguradong hindi makakapasa yung buong validation
+    window.validationPass = false;
+  } else {
+    setValState('v-grades', 'ok', 'No disqualifying grades');
+    // Huwag natin i-set to true dito; bahala na yung ibang checks
+  }
+}
+
 
 
 async function fetchCogOutput() {
@@ -2597,16 +2706,48 @@ async function testValidationDirectly() {
 
 /* ===== Update the existing runValidations to runOtherValidations ===== */
 async function runOtherValidations() {
+    console.log("🔥 VALIDATION SCRIPT LOADED — THIS IS THE NEW VERSION 🔥");
+
     setValState('v-tamper', 'loading', 'Comparing grades…');
     setValState('v-irregular', 'loading', 'Checking curriculum…');
     setValState('v-grades', 'loading', 'Scanning disqualifying grades…');
 
+    // helper: check disqualifying grades from row objects (parsedFromQR/OCR)
+    const hasDisqualFromRows = (rows = []) => {
+        return rows.some(r => {
+            const raw = String(r.grade || '');
+            const g   = raw.toUpperCase().trim();
+
+            // INC / DROPPED / WITHDRAWN
+            if (g === 'INC' || g === 'DRP' || g === 'DROP' || g === 'W') {
+                return true;
+            }
+
+            // numeric grade (2.75 / 3.00 / etc.)
+            const num = parseFloat(raw);
+            return !Number.isNaN(num) && num >= DISQUAL_GRADE_MIN;
+        });
+    };
+
+    // helper: check disqualifying grades from flat arrays (parsed_qr/ocr_grades_only)
+    const hasDisqualFromFlat = (grades = []) => {
+        return grades.some(val => {
+            const raw = String(val || '');
+            const g   = raw.toUpperCase().trim();
+
+            if (g === 'INC' || g === 'DRP' || g === 'DROP' || g === 'W') {
+                return true;
+            }
+
+            const num = parseFloat(raw);
+            return !Number.isNaN(num) && num >= DISQUAL_GRADE_MIN;
+        });
+    };
+
     try {
-        // Your existing validation logic here...
-        // This is the content of your current runValidations function
-        // but without the application period check
-        
-        // COR vs COG COURSE CODE MATCHING
+        /* =======================================================
+           1) COR vs COG COURSE CODE MATCHING
+           ======================================================= */
         const corCourses = await fetchCorCourses();
         const cogCourses = await fetchCogCourses();
 
@@ -2637,15 +2778,25 @@ async function runOtherValidations() {
             }
         }
 
-        // Continue with QR/OCR validation...
+        /* =======================================================
+           2) QR / OCR / PARSED FILES MATCH CHECK
+           ======================================================= */
+
         const qrRows  = Array.isArray(parsedFromQR?.rows)  ? parsedFromQR.rows  : [];
         const ocrRows = Array.isArray(parsedFromOCR?.rows) ? parsedFromOCR.rows : [];
 
+        let qrGrades = [];
+        let ocrGrades = [];
         let decidedByParsedFiles = false;
+
         try {
-            const { qrGrades, ocrGrades } = await fetchParsedFilesGrades();
+            const parsed = await fetchParsedFilesGrades();
+            qrGrades = Array.isArray(parsed?.qrGrades) ? parsed.qrGrades : [];
+            ocrGrades = Array.isArray(parsed?.ocrGrades) ? parsed.ocrGrades : [];
+
             if (qrGrades.length || ocrGrades.length) {
                 decidedByParsedFiles = true;
+
                 const A = qrGrades, B = ocrGrades;
                 const N = Math.max(A.length, B.length);
                 const rowMismatches = [];
@@ -2654,11 +2805,13 @@ async function runOtherValidations() {
                         rowMismatches.push({ index: i + 1, qr: A[i] || '—', ocr: B[i] || '—' });
                     }
                 }
+
                 if (rowMismatches.length > 0) {
                     setValState('v-tamper', 'fail', `${rowMismatches.length} grade mismatch(es)`);
                     const reasonEl = document.getElementById('tamperReason');
                     if (reasonEl) {
-                        reasonEl.innerHTML = `Found ${rowMismatches.length} grade discrepancy(ies) between official records and your uploaded document.`;
+                        reasonEl.innerHTML =
+                            `Found ${rowMismatches.length} grade discrepancy(ies) between official records and your uploaded document.`;
                     }
                     showModal('#tamperFailModal');
                     validationPass = false;
@@ -2666,18 +2819,76 @@ async function runOtherValidations() {
                 } else {
                     setValState('v-tamper', 'ok', 'Parsed files match');
                 }
-            }
-        } catch (_) {}
 
+                // ✅ DIRECTLY USE PARSED GRADES FOR ELIGIBILITY
+                const combinedGrades = [...qrGrades, ...ocrGrades];
+                const disqualFlat = hasDisqualFromFlat(combinedGrades);
+
+                console.log('parsed qrGrades:', qrGrades);
+                console.log('parsed ocrGrades:', ocrGrades);
+                console.log('disqualFlat:', disqualFlat);
+
+                if (disqualFlat) {
+                    setValState('v-grades', 'fail', 'Found 2.75 / 3.00 / INC / DROP');
+                } else {
+                    setValState('v-grades', 'ok', 'No disqualifying grades');
+                }
+
+                // curriculum check (placeholder)
+                const isIrregular = false;
+                if (isIrregular) setValState('v-irregular', 'fail', 'Sequence mismatch');
+                else setValState('v-irregular', 'ok', 'Checked');
+
+                // We can still set lastParsedRows/meta for table display.
+                // Prefer OCR rows; else QR rows.
+                let rowsForScan = [];
+                if (Array.isArray(ocrRows) && ocrRows.length) {
+                    rowsForScan = ocrRows;
+                } else if (Array.isArray(qrRows) && qrRows.length) {
+                    rowsForScan = qrRows;
+                }
+
+                lastParsedMeta = mergeMetaPreferFilled(
+                    mergeMetaPreferFilled(parsedFromQR?.meta || {}, parsedFromOCR?.meta || {}),
+                    window.corMetaFromOcr || {}
+                );
+                lastParsedRows = rowsForScan.length ? rowsForScan.slice() : qrRows.slice();
+
+                renderGradesTable(lastParsedRows, lastParsedMeta);
+                await autoSaveCog(lastParsedMeta, lastParsedRows);
+
+                // Final eligibility from parsed grades
+                validationPass = !disqualFlat;
+
+                // Extra safety: recompute from final table rows
+                recomputeGradeEligibility();
+                return;
+            }
+        } catch (e) {
+            console.warn('fetchParsedFilesGrades error', e);
+        }
+
+        // =========================
+        // FALLBACK (no parsed files)
+        // =========================
         if (!decidedByParsedFiles) {
             const hasQR  = qrRows.length > 0;
             const hasOCR = ocrRows.length > 0;
 
+            // ===== QR ONLY (NO OCR) =====
             if (!hasOCR) {
                 if (hasQR) {
                     setValState('v-tamper', 'ok', 'Verified via QR only');
                     setValState('v-irregular', 'ok', 'Checked');
-                    setValState('v-grades', 'ok', 'No disqualifying grades found');
+
+                    // 🔍 CHECK DISQUALIFYING GRADES USING QR ROWS
+                    const disqualQr = hasDisqualFromRows(qrRows);
+
+                    if (disqualQr) {
+                        setValState('v-grades', 'fail', 'Found 2.75 / 3.00 / INC / DROP');
+                    } else {
+                        setValState('v-grades', 'ok', 'No disqualifying grades');
+                    }
 
                     lastParsedRows = qrRows.slice();
                     lastParsedMeta = mergeMetaPreferFilled(parsedFromQR.meta || {}, parsedFromOCR.meta || {});
@@ -2685,9 +2896,11 @@ async function runOtherValidations() {
                     renderGradesTable(lastParsedRows, lastParsedMeta);
                     await autoSaveCog(lastParsedMeta, lastParsedRows);
 
-                    validationPass = true;
+                    validationPass = !disqualQr;
+                    recomputeGradeEligibility();
                     return;
                 }
+
                 setValState('v-tamper', 'fail', 'No QR/OCR data');
                 const reasonEl = document.getElementById('tamperReason');
                 if (reasonEl) {
@@ -2699,6 +2912,7 @@ async function runOtherValidations() {
                 return;
             }
 
+            // ===== BOTH QR + OCR AVAILABLE =====
             const diff = diffQrOcrRows(qrRows, ocrRows);
             const mismatches = diff.mismatches || [];
 
@@ -2706,7 +2920,8 @@ async function runOtherValidations() {
                 setValState('v-tamper', 'fail', `${mismatches.length} mismatched grade(s)`);
                 const reasonEl = document.getElementById('tamperReason');
                 if (reasonEl) {
-                    reasonEl.innerHTML = `Found ${mismatches.length} grade discrepancy(ies) between official records and your uploaded document.`;
+                    reasonEl.innerHTML =
+                        `Found ${mismatches.length} grade discrepancy(ies) between official records and your uploaded document.`;
                 }
                 showModal('#tamperFailModal');
                 validationPass = false;
@@ -2715,39 +2930,78 @@ async function runOtherValidations() {
                 setValState('v-tamper', 'ok', 'QR and OCR grades match');
             }
             buildMismatchIndex(mismatches);
+
+            /* =======================================================
+               3) DISQUALIFYING GRADES (2.75 / 3.00 / INC / DRP)
+               ======================================================= */
+
+            // Prefer OCR rows; if empty, fall back to QR rows
+            let rowsForScan = [];
+            if (Array.isArray(ocrRows) && ocrRows.length) {
+                rowsForScan = ocrRows;
+            } else if (Array.isArray(qrRows) && qrRows.length) {
+                rowsForScan = qrRows;
+            }
+
+            let disqual = false;
+
+            if (rowsForScan.length) {
+                disqual = hasDisqualFromRows(rowsForScan);
+            } else if (qrGrades.length || ocrGrades.length) {
+                // fallback to flat grade lists if row objects are empty
+                disqual = hasDisqualFromFlat(qrGrades) || hasDisqualFromFlat(ocrGrades);
+            }
+
+            console.log('rowsForScan:', rowsForScan);
+            console.log('qrGrades(flat):', qrGrades);
+            console.log('ocrGrades(flat):', ocrGrades);
+            console.log('disqual (fallback):', disqual);
+
+            if (disqual) {
+                setValState('v-grades', 'fail', 'Found 2.75 / 3.00 / INC / DROP');
+            } else {
+                setValState('v-grades', 'ok', 'No disqualifying grades');
+            }
+
+            /* =======================================================
+               4) IRREGULAR CHECK (placeholder)
+               ======================================================= */
+
+            const isIrregular = false;
+            if (isIrregular) setValState('v-irregular', 'fail', 'Sequence mismatch');
+            else setValState('v-irregular', 'ok', 'Checked');
+
+            /* =======================================================
+               5) MERGE META + RENDER + SAVE
+               ======================================================= */
+
+            lastParsedMeta = mergeMetaPreferFilled(
+                mergeMetaPreferFilled(parsedFromQR?.meta || {}, parsedFromOCR?.meta || {}),
+                window.corMetaFromOcr || {}
+            );
+            lastParsedRows = rowsForScan.length
+                ? rowsForScan.slice()
+                : (parsedFromOCR?.rows || []).length
+                    ? parsedFromOCR.rows.slice()
+                    : qrRows.slice();
+
+            renderGradesTable(lastParsedRows, lastParsedMeta);
+            await autoSaveCog(lastParsedMeta, lastParsedRows);
+
+            validationPass = !disqual;
+
+            // ✅ FINAL GRADE ELIGIBILITY CHECK BASED ON TABLE ROWS
+            recomputeGradeEligibility();
         }
 
-        // DISQUALIFYING GRADES
-        const disqual = (Array.isArray(parsedFromOCR?.rows) ? parsedFromOCR.rows : []).some(r => {
-            const g = String(r.grade || '').toUpperCase().trim();
-            return g === 'INC' || g === 'DRP' || g === 'W' || parseFloat(g) >= DISQUAL_GRADE_MIN;
-        });
-        if (disqual) setValState('v-grades', 'fail', 'Found 2.75 / 3.00 / INC / DROP');
-        else setValState('v-grades', 'ok', 'No disqualifying grades');
-
-        // IRREGULAR CHECK
-        const isIrregular = false;
-        if (isIrregular) setValState('v-irregular', 'fail', 'Sequence mismatch');
-        else setValState('v-irregular', 'ok', 'Checked');
-
-        // MERGE META + RENDER + SAVE
-        lastParsedMeta = mergeMetaPreferFilled(
-            mergeMetaPreferFilled(parsedFromQR?.meta || {}, parsedFromOCR?.meta || {}),
-            window.corMetaFromOcr || {}
-        );
-        lastParsedRows = (parsedFromOCR?.rows || []).length ? parsedFromOCR.rows.slice() : qrRows.slice();
-
-        renderGradesTable(lastParsedRows, lastParsedMeta);
-        await autoSaveCog(lastParsedMeta, lastParsedRows);
-
-        validationPass = !disqual;
-        
     } catch (e) {
         console.error('Validation error', e);
         setValState('v-tamper', 'fail', 'Unexpected error');
         validationPass = false;
     }
 }
+
+
 
 /* ===== Update submitApplication to include Post_id ===== */
 async function submitApplication(){

@@ -4,17 +4,17 @@
 @php
     // --- Helper flags using your actual columns ---
     $req              = $graduationRequirements ?? null;
-    $hasAppSheet      = $req && !empty($req->Approval_Sheet);        // Approval Sheet
-    $hasLibCert       = $req && !empty($req->Certificate_Library);   // Library Clearance
-    $hasPsa           = $req && !empty($req->Birth_Certificate);     // PSA Birth Certificate
-    $hasTorF137       = $req && !empty($req->reportofgrade_path);    // Map TOR/F137 indicator to report of grades
-    $isHonorApplicant = false;                                       // adjust when you have a column
+    $hasAppSheet      = $req && !empty($req->Approval_Sheet);
+    $hasLibCert       = $req && !empty($req->Certificate_Library);
+    $hasPsa           = $req && !empty($req->Birth_Certificate);
+    $hasTorF137       = $req && !empty($req->reportofgrade_path);
+    $isHonorApplicant = false;
 @endphp
 
 <div class="container-fluid">
     <div class="row">
         <div class="col-md-12">
-            {{-- mt-3 = margin on top of the card/header --}}
+
             <div class="card shadow-sm mt-3">
                 <div class="card-header grad-header d-flex align-items-center justify-content-between">
                     <h4 class="mb-0">
@@ -30,7 +30,7 @@
                     <div class="alert alert-success alert-dismissible fade show" role="alert">
                         <i class="fas fa-check-circle me-2"></i>
                         {{ session('delete_success') }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                     @endif
 
@@ -39,7 +39,7 @@
                     <div class="alert alert-danger alert-dismissible fade show" role="alert">
                         <i class="fas fa-exclamation-circle me-2"></i>
                         {{ session('error') }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                     @endif
 
@@ -66,7 +66,7 @@
                                 <tr>
                                     <td class="text-center">1</td>
                                     <td class="text-center">{{ $student->SRCODE ?? 'N/A' }}</td>
-                                    <td>{{ $student->Last_name ?? '' }}, {{ $student->First_name ?? '' }} {{ $student->Middle_name ?? '' }}</td>
+                                    <td>{{ $student->Last_name }}, {{ $student->First_name }} {{ $student->Middle_name }}</td>
 
                                     <td class="text-center">
                                         <span class="grad-label text-success">
@@ -74,6 +74,7 @@
                                         </span>
                                     </td>
 
+                                    {{-- Requirements Icons --}}
                                     <td class="text-center">
                                         <span class="req-icon {{ $hasAppSheet ? 'text-success' : 'text-danger' }}">
                                             {{ $hasAppSheet ? '✔' : 'X' }}
@@ -107,7 +108,6 @@
                                     {{-- ACTION COLUMN --}}
                                     <td class="text-center">
                                         @if($graduationRequirements)
-                                            {{-- Edit -> open modal --}}
                                             <button type="button"
                                                     class="btn btn-sm btn-outline-primary mb-1"
                                                     data-bs-toggle="modal"
@@ -115,7 +115,6 @@
                                                 <i class="fas fa-edit"></i> Edit
                                             </button>
 
-                                            {{-- Delete -> open confirmation modal --}}
                                             <button type="button"
                                                     class="btn btn-sm btn-outline-danger mb-1"
                                                     data-bs-toggle="modal"
@@ -123,7 +122,6 @@
                                                 <i class="fas fa-trash-alt"></i> Delete
                                             </button>
                                         @else
-                                            {{-- No record yet -> Upload button opens same modal --}}
                                             <button type="button"
                                                     class="btn btn-sm btn-success"
                                                     data-bs-toggle="modal"
@@ -142,82 +140,8 @@
                         <span class="text-danger fw-bold">X</span> – not yet submitted / not cleared
                     </p>
 
-                    {{-- ================== APPLICATION DETAILS ================== --}}
-                    @if($graduationForm)
-                        <div class="row mt-4">
-                            <div class="col-md-12">
-                                <div class="card bg-light">
-                                    <div class="card-body">
-                                        <h6 class="card-title mb-3">
-                                            <i class="fas fa-info-circle me-1"></i> Application Details
-                                        </h6>
-                                        <div class="row">
-                                            <div class="col-md-6 mb-2">
-                                                <small class="text-muted d-block">Application Date:</small>
-                                                <span>
-                                                    {{ optional($graduationForm->created_at)->format('F j, Y') ?? 'N/A' }}
-                                                </span>
-                                            </div>
-                                            <div class="col-md-6 mb-2">
-                                                <small class="text-muted d-block">Last Updated:</small>
-                                                <span>
-                                                    {{ optional($graduationForm->updated_at)->format('F j, Y') ?? 'N/A' }}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    @endif
-
-                    {{-- ================== ACTION BUTTONS ================== --}}
-                    <div class="row mt-4">
-                        <div class="col-md-12">
-                            <div class="d-flex justify-content-end gap-2">
-                                <a href="{{ route('student.graduation.status.print') }}" class="btn btn-primary">
-                                    <i class="fas fa-print me-1"></i> Print Status
-                                </a>
-
-                                @if($graduationRequirements)
-                                    {{-- Requirements exist → allow downloads --}}
-                                    <div class="dropdown">
-                                        <button class="btn btn-outline-secondary dropdown-toggle" type="button"
-                                                data-bs-toggle="dropdown" aria-expanded="false">
-                                            <i class="fas fa-download me-1"></i> Download Documents
-                                        </button>
-                                        <ul class="dropdown-menu dropdown-menu-end">
-                                            @if(!empty($graduationForm->application_form_path))
-                                                <li>
-                                                    <a class="dropdown-item"
-                                                       href="{{ route('student.graduation.documents.download', 'application-form') }}">
-                                                        <i class="fas fa-file-pdf text-danger me-1"></i> Application Form
-                                                    </a>
-                                                </li>
-                                            @endif
-                                            @if(!empty($graduationRequirements->reportofgrade_path))
-                                                <li>
-                                                    <a class="dropdown-item"
-                                                       href="{{ route('student.graduation.documents.download', 'report-of-grades') }}">
-                                                        <i class="fas fa-file-pdf text-danger me-1"></i> Report of Grades
-                                                    </a>
-                                                </li>
-                                            @endif
-                                            @if(!empty($graduationRequirements->cor_path ?? null))
-                                                <li>
-                                                    <a class="dropdown-item"
-                                                       href="{{ route('student.graduation.documents.download', 'cor') }}">
-                                                        <i class="fas fa-file-pdf text-danger me-1"></i> Certificate of Registration
-                                                    </a>
-                                                </li>
-                                            @endif
-                                        </ul>
-                                    </div>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
-                    {{-- ================== END ACTIONS ================== --}}
+                    {{-- ================== APPLICATION DETAILS REMOVED ================== --}}
+                    {{-- ================== END ACTION BUTTONS ================== --}}
 
                 </div>
             </div>

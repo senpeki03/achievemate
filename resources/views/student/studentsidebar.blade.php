@@ -2,22 +2,18 @@
   use Illuminate\Support\Facades\Route;
   use App\Models\Application;
   use App\Models\StudentGrade;
-  use App\Models\GraduationForm; // Add this model
-  use App\Models\GraduationRequirement; // Add this model
+  use App\Models\GraduationForm;
+  use App\Models\GraduationRequirement;
+  use App\Models\Post; // ⬅️ idagdag ito
 
   $currentRoute = Route::currentRouteName();
   $studentId = session('Student_id');
 
-  // Check if student has applications
   $hasApplications = $studentId ? Application::where('Student_id', $studentId)->exists() : false;
-
-  // Check if student has uploaded grades
   $hasUploadedGrades = $studentId ? StudentGrade::where('Student_id', $studentId)->exists() : false;
 
-  // Check if student has applied for graduation
   $hasGraduationApplication = $studentId ? GraduationForm::where('Student_id', $studentId)->exists() : false;
 
-  // Check if student has graduation requirements (COR/COG uploaded)
   $hasGraduationRequirements = false;
   if ($studentId && $hasGraduationApplication) {
       $graduationForm = GraduationForm::where('Student_id', $studentId)->first();
@@ -26,17 +22,24 @@
       }
   }
 
-  // All routes that belong to "Application"
+  // 🔽 DEPENDE SA LOGIC MO KUNG PANO MO I-FI-FILTER YUNG POST
+  // example lang: kunin yung latest Dean’s Honor post for the student
+  $deansPost = Post::where('Title', 'LIKE', '%Dean%Honor%')
+      ->orderByDesc('Post_id')
+      ->first();
+
+  // true kung may post at active pa sya (Start_date/End_date ok pa)
+  $canApplyDeansHonor = $deansPost && $deansPost->is_active;
+
   $applicationPatterns = [
     'student.application', 'student.application.*',
     'student.application.status', 'student.application.status.*',
     'student.graduation',  'student.graduation.*',
-    'student.graduation.status', 'student.graduation.status.*', // Add graduation status routes
+    'student.graduation.status', 'student.graduation.status.*',
     'student.latin',       'student.latin.*',
   ];
   $isApplicationActive = request()->routeIs($applicationPatterns);
 
-  // Grade routes patterns
   $gradePatterns = [
     'student.grades.*',
     'student.studentgrade',
@@ -47,6 +50,7 @@
   $unreadCount     = $unreadCount ?? 0;
   $profilePhotoUrl = route('student.profile.photo', ['_v' => time()]);
 @endphp
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -58,7 +62,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="{{ asset('css/style.css') }}">
-  
+
   <style>
     /* Submenu look/feel */
     #appMenu a.bg-light { color:#0d6efd; }
@@ -68,10 +72,12 @@
     .sidebar.collapsed #appMenu { display: none !important; }
   </style>
 </head>
-<body class="sidebar-collapsed">
+{{-- ✅ remove sidebar-collapsed so layout starts open --}}
+<body>
 
   <!-- SIDEBAR -->
-  <div class="sidebar collapsed" id="sidebar">
+  {{-- ✅ remove "collapsed" so sidebar is steady open by default --}}
+  <div class="sidebar" id="sidebar">
     <div class="sidebar-header sidebar-logo">
       <img src="{{ asset('img/achievemate.png') }}" alt="Logo">
       <i class="bi bi-list burger" id="burgerToggle"></i>
@@ -114,29 +120,39 @@
       <div id="appMenu" class="collapse {{ $isApplicationActive ? 'show' : '' }}">
         <ul class="list-unstyled my-2 ms-4">
           <li class="mb-1">
-            <!-- Dynamic Dean's Honor Link -->
             @if($hasApplications)
-              <!-- If student has applications, go to status page -->
+              {{-- ✅ May existing application → View Status --}}
               <a href="{{ route('student.application.status') }}"
                 class="app-sub-link d-flex align-items-center gap-2 px-3 py-2 rounded-3 text-decoration-none {{ request()->routeIs('student.application.status*') ? 'bg-light fw-semibold' : '' }}">
                 <i class="bi bi-award"></i>
                 <span class="small">Dean's Honor</span>
                 <span class="badge bg-success ms-1">View Status</span>
               </a>
-            @else
-              <!-- If no applications, go to application form -->
+
+            @elseif($canApplyDeansHonor)
+              {{-- ✅ Walang application, pero active pa ang Post → Apply Now --}}
               <a href="{{ route('student.application') }}"
                 class="app-sub-link d-flex align-items-center gap-2 px-3 py-2 rounded-3 text-decoration-none {{ request()->routeIs('student.application*') ? 'bg-light fw-semibold' : '' }}">
                 <i class="bi bi-award"></i>
                 <span class="small">Dean's Honor</span>
                 <span class="badge bg-primary ms-1">Apply Now</span>
               </a>
+
+            @else
+              {{-- ❌ Walang application + closed na (End_date done) --}}
+              <button type="button"
+                      class="app-sub-link d-flex align-items-center gap-2 px-3 py-2 rounded-3 text-decoration-none bg-light text-muted w-100"
+                      data-bs-toggle="modal"
+                      data-bs-target="#deansClosedModal">
+                <i class="bi bi-award"></i>
+                <span class="small">Dean's Honor</span>
+                <span class="badge bg-secondary ms-1">Closed</span>
+              </button>
             @endif
           </li>
+
           <li class="mb-1">
-            <!-- Dynamic Graduation Link -->
             @if($hasGraduationApplication && $hasGraduationRequirements)
-              <!-- If student has applied for graduation AND uploaded requirements, go to status page -->
               <a href="{{ route('student.graduation.status') }}"
                 class="app-sub-link d-flex align-items-center gap-2 px-3 py-2 rounded-3 text-decoration-none {{ request()->routeIs('student.graduation.status*') ? 'bg-light fw-semibold' : '' }}">
                 <i class="bi bi-mortarboard"></i>
@@ -144,7 +160,6 @@
                 <span class="badge bg-success ms-1">View Status</span>
               </a>
             @elseif($hasGraduationApplication)
-              <!-- If student has applied but missing requirements, go to application form to complete -->
               <a href="{{ route('student.graduation.show') }}"
                 class="app-sub-link d-flex align-items-center gap-2 px-3 py-2 rounded-3 text-decoration-none {{ request()->routeIs(['student.graduation','student.graduation.*']) ? 'bg-light fw-semibold' : '' }}">
                 <i class="bi bi-mortarboard"></i>
@@ -152,7 +167,6 @@
                 <span class="badge bg-warning ms-1">Complete Requirements</span>
               </a>
             @else
-              <!-- If no graduation application, go to graduation form -->
               <a href="{{ route('student.graduation.show') }}"
                 class="app-sub-link d-flex align-items-center gap-2 px-3 py-2 rounded-3 text-decoration-none {{ request()->routeIs(['student.graduation','student.graduation.*']) ? 'bg-light fw-semibold' : '' }}">
                 <i class="bi bi-mortarboard"></i>
@@ -175,7 +189,6 @@
     <!-- Upload Grade / View Grades (Dynamic) -->
     <div class="card shadow-sm border-0 m-2">
       @if($hasUploadedGrades)
-        <!-- If student has uploaded grades, go to view grades page -->
         <a href="{{ route('student.grades.view') }}"
            class="card-body py-3 px-4 d-flex align-items-center gap-4 nav-link text-decoration-none rounded-4 {{ $isGradeActive ? 'custom-bg-primary' : '' }}">
           <i class="fas fa-chart-bar fs-6 {{ $isGradeActive ? 'text-white' : '' }}"></i>
@@ -183,7 +196,6 @@
           <span class="badge bg-success ms-auto">Uploaded</span>
         </a>
       @else
-        <!-- If no grades uploaded, go to upload form -->
         <a href="{{ route('student.studentgrade') }}"
            class="card-body py-3 px-4 d-flex align-items-center gap-4 nav-link text-decoration-none rounded-4 {{ $isGradeActive ? 'custom-bg-primary' : '' }}">
           <i class="fas fa-upload fs-6 {{ $isGradeActive ? 'text-white' : '' }}"></i>
@@ -196,7 +208,8 @@
   </div>
 
   <!-- TOPBAR -->
-  <div class="topbar-wrapper collapsed" id="topbarWrapper">
+  {{-- ✅ remove "collapsed" so topbar aligns with open sidebar --}}
+  <div class="topbar-wrapper" id="topbarWrapper">
     <div class="topbar">
       <div class="search-wrapper text-black">
         <div class="search-box text-white">
@@ -254,9 +267,9 @@
     @yield('content')
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-  <script>
+<script>
     // Pass active state from PHP to JS
     const IS_APP_ACTIVE = @json($isApplicationActive);
 
@@ -294,20 +307,32 @@
         if (appCollapse && IS_APP_ACTIVE) appCollapse.show();
       }
 
-      // Start collapsed
-      collapseSidebar();
+      // ✅ SIDEBAR STATE PERSISTENCE (localStorage)
+      const savedState = localStorage.getItem('studentSidebarOpen'); // '1' or '0'
+      if (savedState === null || savedState === '1') {
+          // default: OPEN
+          expandSidebar();
+          stickOpen = true;
+      } else {
+          collapseSidebar();
+          stickOpen = false;
+      }
 
-      // Hover expand/collapse (disabled when user pinned it open)
-      sidebar.addEventListener('mouseenter', () => { if (!stickOpen) expandSidebar(); });
-      sidebar.addEventListener('mouseleave', () => { if (!stickOpen) collapseSidebar(); });
+      // ❌ REMOVE HOVER OPEN/CLOSE — wala nang mouseenter/mouseleave
 
-      // Burger toggles sticky open
+      // ✅ BURGER BUTTON TOGGLES + SAVE STATE
       burgerToggle.addEventListener('click', () => {
         stickOpen = !stickOpen;
-        if (stickOpen) expandSidebar(); else collapseSidebar();
+        if (stickOpen) {
+          expandSidebar();
+          localStorage.setItem('studentSidebarOpen', '1'); // remember OPEN
+        } else {
+          collapseSidebar();
+          localStorage.setItem('studentSidebarOpen', '0'); // remember CLOSED
+        }
       });
 
-      // Chevron icon feedback
+      // Chevron icon feedback for submenu
       if (appMenu && appParentBtn) {
         appMenu.addEventListener('shown.bs.collapse', () => {
           const icon = appParentBtn.querySelector('i.bi:last-child');
@@ -318,16 +343,39 @@
           if (icon) icon.classList.replace('bi-chevron-up', 'bi-chevron-down');
         });
 
-        // Auto-close submenu after clicking a child link (nice UX)
+        // OPTIONAL: auto-close submenu when clicking a child,
+        // pero HINDI nito gagalawin ang sidebar (submenu lang)
         document.querySelectorAll('.app-sub-link').forEach(a => {
           a.addEventListener('click', () => {
-            if (!stickOpen) { // if sidebar isn't pinned, close on navigate
+            if (!stickOpen && appCollapse) {
               appCollapse.hide();
             }
           });
         });
       }
     });
-  </script>
+</script>
+
+
+<div class="modal fade" id="deansClosedModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0">
+        <h5 class="modal-title">Dean's Honor Application</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        The application period for <strong>Dean's Honor</strong> is already closed.
+        Please wait for the next announcement.
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
 </body>
 </html>

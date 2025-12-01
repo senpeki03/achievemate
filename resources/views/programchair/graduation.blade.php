@@ -3,6 +3,7 @@
 @section('title', 'Graduation Status')
 
 @section('content')
+
 <style>
   :root {
     --brand:#0C2340;
@@ -12,7 +13,6 @@
     --line:#e5e7eb;
   }
 
-  /* Wrapper so card is not touching header and has left/right margin */
   .grad-wrapper{
     margin:20px 25px;
   }
@@ -88,7 +88,7 @@
   }
 
   .status-enrolled {
-    color:var(--success); /* Green for enrolled status */
+    color:var(--success);
     font-weight:700;
     text-align:center;
   }
@@ -108,35 +108,66 @@
     text-align:center;
   }
 
-  .ok-mark{
-    color:#16a34a; /* green */
-  }
-  .x-mark{
-    color:#dc2626; /* red */
-  }
+  .ok-mark{ color:#16a34a; }
+  .x-mark{ color:#dc2626; }
 
   .academic-deficiencies {
     font-size:12px;
     text-align:center;
   }
 
-  /* Center alignment for status columns */
-  .graduation-status-cell {
-    text-align:center;
+  /* PAGINATION */
+  .pagination-wrapper {
+    display:flex;
+    justify-content:flex-end;
+    margin-top:15px;
+    margin-right:30px;
+  }
+
+  /* Pagination Button Styling */
+  .pagination .page-link {
+      color:#660000;
+      border:1px solid #66000066 !important;
+  }
+
+  .pagination .page-link:hover {
+      color:white !important;
+      background:#660000 !important;
+  }
+
+  .pagination .active .page-link {
+      background:#660000 !important;
+      color:white !important;
+      border-color:#660000 !important;
+  }
+
+  /* REMOVE "Showing 1 to X of X results" */
+  .pagination-wrapper .text-muted {
+      display:none !important;
   }
 </style>
 
-    <div class="d-flex justify-content-end mb-3">
-        <a href="{{ route('programchair.graduation.report') }}" 
-          class="btn btn-outline-primary"
-          style="border:1px solid #ffff; color:#ffff; font-weight:600;">
-            <i class="fas fa-download"></i> Download Report
-        </a>
-    </div>
+
+{{-- DOWNLOAD BUTTON (TOP-RIGHT) --}}
+<div class="d-flex justify-content-end mb-3" style="margin-right:30px;">
+    <a href="{{ route('programchair.graduation.report') }}" 
+       class="btn"
+       style="
+           background:#660000;
+           color:#fff;
+           font-weight:600;
+           border-radius:6px;
+           border:1px solid #ffffff;   /* ← WHITE BORDER */
+       ">
+        <i class="fas fa-download"></i> Download Report
+    </a>
+</div>
+
+
+
 <div class="grad-wrapper">
   <div class="grad-container">
 
-    {{-- Top header: College + Program --}}
     <div class="grad-header">
       {{ $designation->college->College_name ?? 'College' }}
     </div>
@@ -145,143 +176,135 @@
       {{ $designation->program->Program_name ?? '' }}
     </div>
 
-
     <table class="grad-table">
       <thead>
         <tr>
-          <th style="width:45px;">No.</th>
-          <th style="width:110px;">SR CODE</th>
+          <th>No.</th>
+          <th>SR CODE</th>
           <th>NAME</th>
-          <th style="width:140px;">Graduation Status</th>
-          <th style="width:220px;">Academic Deficiencies / Currently Enrolled Courses</th>
-          <th style="width:70px;">AppSheet</th>
-          <th style="width:70px;">Lib Cert</th>
-          <th style="width:70px;">PSA</th>
-          <th style="width:90px;">TOR/F137</th>
-          <th style="width:110px;">Honor Applicant?</th>
+          <th>Graduation Status</th>
+          <th>Academic Deficiencies / Enrolled</th>
+          <th>AppSheet</th>
+          <th>Lib Cert</th>
+          <th>PSA</th>
+          <th>TOR/F137</th>
+          <th>Honor Applicant?</th>
         </tr>
       </thead>
 
       <tbody>
-        @php $rowNum = 1; @endphp
+
+        @php 
+            $rowNum = ($studentsPaginated->currentPage()-1) * $studentsPaginated->perPage() + 1; 
+        @endphp
 
         @forelse ($groups as $groupKey => $students)
           @php
-            list($year, $majorName) = explode('|', $groupKey, 2);
+              list($year, $majorName) = explode('|', $groupKey, 2);
           @endphp
 
-          {{-- SECTION HEADER PER YEAR + MAJOR --}}
           <tr>
             <td colspan="10" class="section-title">
               <div class="section-flex">
                 <span class="year-left">{{ $year }}</span>
-
                 @if($majorName !== 'No Major')
-                  <span class="major-center">Major in {{ $majorName }}</span>
+                    <span class="major-center">Major in {{ $majorName }}</span>
                 @endif
               </div>
             </td>
           </tr>
 
-          @foreach ($students as $student)
+          @foreach($students as $student)
             @php
               $form = $student->graduationForm;
-              $req = $form?->requirement;
-              
-              // Determine graduation status based on remarks
+              $req  = $form?->requirement;
+
               $graduationStatus = '';
-              $academicDeficiencies = '';
-              
+              $academicDef = '';
+
               if ($req && !empty($req->remarks)) {
                   $remarks = strtoupper(trim($req->remarks));
                   if (str_contains($remarks, 'GRADUATING')) {
                       $graduationStatus = 'GRADUATING';
-                      $academicDeficiencies = 'ENROLLED';
+                      $academicDef = 'ENROLLED';
                   } else {
                       $graduationStatus = $remarks;
                   }
               }
-              // If no remarks or no requirement, leave both columns blank
             @endphp
 
             <tr>
-              <td style="text-align:center;">{{ $rowNum++ }}</td>
-              <td style="text-align:center;">{{ $student->SRCODE }}</td>
+              <td class="text-center">{{ $rowNum++ }}</td>
+              <td class="text-center">{{ $student->SRCODE }}</td>
+
               <td>
-                {{ $student->Last_name }},
-                {{ $student->First_name }}
+                {{ $student->Last_name }}, {{ $student->First_name }}
                 @if($student->Middle_name)
-                  {{ mb_substr($student->Middle_name, 0, 1) }}.
+                  {{ substr($student->Middle_name,0,1) }}.
                 @endif
               </td>
 
-              {{-- Graduation Status Column --}}
-              <td class="graduation-status-cell @if($graduationStatus === 'GRADUATING') status-graduating @elseif(!empty($graduationStatus)) status-not @endif">
+              <td class="text-center 
+                  {{ $graduationStatus=='GRADUATING' ? 'status-graduating' : ($graduationStatus ? 'status-not' : '') }}">
                 {{ $graduationStatus }}
               </td>
 
-              {{-- Academic Deficiencies / Currently Enrolled Courses Column --}}
-              <td class="@if($academicDeficiencies === 'ENROLLED') status-enrolled @else academic-deficiencies @endif">
-                {{ $academicDeficiencies }}
+              <td class="text-center {{ $academicDef=='ENROLLED' ? 'status-enrolled' : 'academic-deficiencies' }}">
+                {{ $academicDef }}
               </td>
 
-              {{-- AppSheet -> Approval_Sheet --}}
               <td class="check">
-                @if(!$req)
-                  {{-- walang GraduationRequirement row => BLANK --}}
-                @elseif(!empty($req->Approval_Sheet))
-                  <span class="ok-mark">✓</span>
-                @else
-                  <span class="x-mark">✗</span>
+                @if($req && $req->Approval_Sheet)
+                    <span class="ok-mark">✓</span>
+                @elseif($req)
+                    <span class="x-mark">✗</span>
                 @endif
               </td>
 
-              {{-- Lib Cert -> Certificate_Library --}}
               <td class="check">
-                @if(!$req)
-                  {{-- walang row => BLANK --}}
-                @elseif(!empty($req->Certificate_Library))
-                  <span class="ok-mark">✓</span>
-                @else
-                  <span class="x-mark">✗</span>
+                @if($req && $req->Certificate_Library)
+                    <span class="ok-mark">✓</span>
+                @elseif($req)
+                    <span class="x-mark">✗</span>
                 @endif
               </td>
 
-              {{-- PSA -> Birth_Certificate --}}
               <td class="check">
-                @if(!$req)
-                  {{-- walang row => BLANK --}}
-                @elseif(!empty($req->Birth_Certificate))
-                  <span class="ok-mark">✓</span>
-                @else
-                  <span class="x-mark">✗</span>
+                @if($req && $req->Birth_Certificate)
+                    <span class="ok-mark">✓</span>
+                @elseif($req)
+                    <span class="x-mark">✗</span>
                 @endif
               </td>
 
-              {{-- TOR/F137 -> reportofgrade_path --}}
               <td class="check">
-                @if(!$req)
-                  {{-- walang row => BLANK --}}
-                @elseif(!empty($req->reportofgrade_path))
-                  <span class="ok-mark">✓</span>
-                @else
-                  <span class="x-mark">✗</span>
+                @if($req && $req->reportofgrade_path)
+                    <span class="ok-mark">✓</span>
+                @elseif($req)
+                    <span class="x-mark">✗</span>
                 @endif
               </td>
 
               <td class="check"></td>
             </tr>
+
           @endforeach
 
         @empty
-          <tr>
-            <td colspan="10" class="text-center text-muted">
-              No students found for this College / Program / Major.
-            </td>
-          </tr>
+            <tr>
+                <td colspan="10" class="text-center text-muted">No students found.</td>
+            </tr>
         @endforelse
+
       </tbody>
     </table>
+
   </div>
 </div>
+
+{{-- PAGINATION (BOTTOM-RIGHT) --}}
+<div class="pagination-wrapper">
+    {{ $studentsPaginated->links('pagination::bootstrap-5') }}
+</div>
+
 @endsection

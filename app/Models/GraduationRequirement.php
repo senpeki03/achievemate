@@ -22,6 +22,7 @@ class GraduationRequirement extends Model
         'applicationform_grad',
         'reportofgrade_path',
         'remarks',
+        'status'
     ];
 
     public function form()

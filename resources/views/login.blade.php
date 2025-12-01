@@ -240,7 +240,7 @@
   </div>
   <div class="footer-separator" aria-hidden="true"></div>
   <div class="container footer-bottom">
-    <div class="footer-copy">&copy; {{ date('Y') }} Copy Right AchieveMate - Batangas State University - TNEU</div>
+    <div class="footer-copy">&copy; {{ date('Y') }} Copy Right AchieveMate - Batangas State University TNEU</div>
     <div class="footer-privacy"><a href="#privacy">Privacy Policy</a></div>
     <div class="footer-terms"><a href="#terms">Terms of Service</a></div>
   </div>
