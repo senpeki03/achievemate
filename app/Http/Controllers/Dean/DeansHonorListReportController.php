@@ -7,107 +7,297 @@ use Illuminate\Http\Request;
 use App\Models\Application;
 use App\Models\Program;
 use App\Models\College;
+use App\Models\Post;
+use App\Models\UserDesignation;
+use App\Models\Designation;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Str;
 
 class DeansHonorListReportController extends Controller
 {
+    /**
+     * OPTIONS endpoint for Dean:
+     * Returns available Academic Year + Semester for a given program.
+     * Ginagamit sa modal dropdown (report lang, walang posting).
+     */
+    public function options(int $programId)
+    {
+        $posts = Post::with('userDesignation')
+            ->whereHas('userDesignation', function ($q) use ($programId) {
+                $q->where('Program_id', $programId);
+            })
+            ->orderByDesc('Start_date')
+            ->orderByDesc('Post_id')
+            ->get(['Academic_year', 'Semester', 'Start_date', 'Post_id']);
+
+        $years = $posts->pluck('Academic_year')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $sems = $posts->pluck('Semester')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $latest = $posts->first();
+
+        // fallbacks kung walang posts
+        if (empty($years)) {
+            $now = now();
+            $y   = $now->year;
+            $m   = $now->month;
+
+            $years[] = ($m >= 8)
+                ? "{$y}-" . ($y + 1)
+                : ($y - 1) . "-{$y}";
+        }
+
+        if (empty($sems)) {
+            $now = now();
+            $m   = $now->month;
+
+            if ($m >= 8 && $m <= 12) {
+                $sems[] = 'First Semester';
+            } elseif ($m >= 1 && $m <= 5) {
+                $sems[] = 'Second Semester';
+            } else {
+                $sems[] = 'Midyear Term';
+            }
+        }
+
+        return response()->json([
+            'academic_years'   => $years,
+            'semesters'        => $sems,
+            'default_ay'       => $latest->Academic_year ?? $years[0] ?? null,
+            'default_semester' => $latest->Semester      ?? $sems[0]  ?? null,
+        ]);
+    }
+
+    /**
+     * Dean Download – Dean's Honor List PDF for a program.
+     * Query is aligned with Program Chair's controller so parehong data lalabas.
+     */
     public function download(Request $request, int $programId)
     {
-        // Inputs from query string
-        $term = trim((string) $request->query('term', ''));
-        $ay   = trim((string) $request->query('ay', ''));
+        $term = trim((string) $request->query('term', '')); // e.g. "Second Semester"
+        $ay   = trim((string) $request->query('ay', ''));   // e.g. "2024-2025"
 
-        // Program + College for labels/filename
         $program = Program::findOrFail($programId);
         $college = College::find($program->College_id);
 
-        // 1) Eager-load WITHOUT forcing 'Year_level' in the select
+        // 1. Get all APPROVED applications for this program (same as Program Chair)
+        $approvedStatuses = [
+            'Approved',
+            // 'Approved by Dean',
+            // 'Dean Approved',
+        ];
+
         $apps = Application::with([
-                'student', // <-- let Eloquent select all student columns that exist
+                // From StudentCourse → Program
+                'student.studentCourse.program' => function ($q) {
+                    $q->select('Program_id', 'Program_name', 'Abbreviation');
+                },
+                // Fallback from curriculumAy → Program
                 'student.curriculum.curriculumAy.program' => function ($q) {
-                    $q->select('Program_id','Program_name','Abbreviation');
+                    $q->select('Program_id', 'Program_name', 'Abbreviation');
                 },
             ])
-            ->where('Type', 'DeanLister')
-            ->where('Status', 'Approved')
-            ->whereHas('student.curriculum.curriculumAy', function ($q) use ($programId) {
-                $q->where('Program_id', $programId);
+            ->withStatusIn($approvedStatuses)
+            // Program filter via student_course.Program_id (primary)
+            // with fallback to curriculumAy.Program_id
+            ->whereHas('student', function ($q) use ($programId) {
+                $q->whereHas('studentCourse', function ($qq) use ($programId) {
+                    $qq->where('Program_id', $programId);
+                })->orWhereHas('curriculum.curriculumAy', function ($qq) use ($programId) {
+                    $qq->where('Program_id', $programId);
+                });
             })
             ->get();
 
+        // 2. Build rows (sorted by GWA, then name) – same logic as Program Chair
         $rows = $apps->map(function ($a) {
-            $s = $a->student;
+                $s = $a->student;
+                if (!$s) {
+                    return null; // safety guard if orphaned
+                }
 
-            // name
-            $first  = (string)($s->First_name ?? '');
-            $middle = (string)($s->Middle_name ?? '');
-            $last   = (string)($s->Last_name ?? '');
-            $mi     = $middle !== '' ? (mb_strtoupper(mb_substr($middle, 0, 1)).'.') : '';
-            $pretty = fn($v) => mb_convert_case(trim((string)$v), MB_CASE_TITLE, 'UTF-8');
-            $fullname = trim($pretty($first).' '.($mi ? $mi.' ' : '').$pretty($last));
+                // Full name
+                $first  = (string) ($s->First_name ?? '');
+                $middle = (string) ($s->Middle_name ?? '');
+                $last   = (string) ($s->Last_name ?? '');
+                $title  = (string) ($s->Title ?? '');
+                $mi     = $middle !== '' ? (mb_strtoupper(mb_substr($middle, 0, 1)) . '.') : '';
 
-            // gwa
-            $gwaNum = is_numeric($a->GWA) ? (float)$a->GWA : INF;
+                $pretty = fn ($v) => mb_convert_case(trim((string) $v), MB_CASE_TITLE, 'UTF-8');
 
-            // program label
-            $prog = $s->curriculum?->curriculumAy?->program;
-            $programLabel = strtoupper((string)($prog->Abbreviation ?? $prog->Program_name ?? ''));
+                $fullname = trim(
+                    ($title ? $title . ' ' : '') .
+                    $pretty($first) . ' ' .
+                    ($mi ? $mi . ' ' : '') .
+                    $pretty($last)
+                );
 
-            // 2) YEAR LEVEL – try several possible columns; format nicely
-            $rawYear =
-                $s->Year_level
-                ?? $s->year_level
-                ?? $s->Year
-                ?? $s->year
-                ?? $a->Year_level
-                ?? null;
+                // GWA numeric for sorting
+                $gwaNum = is_numeric($a->GWA) ? (float) $a->GWA : INF;
 
-            $year = match (true) {
-                is_numeric($rawYear) && (int)$rawYear === 1 => 'FIRST YEAR',
-                is_numeric($rawYear) && (int)$rawYear === 2 => 'SECOND YEAR',
-                is_numeric($rawYear) && (int)$rawYear === 3 => 'THIRD YEAR',
-                is_numeric($rawYear) && (int)$rawYear === 4 => 'FOURTH YEAR',
-                default => ($rawYear ? strtoupper((string)$rawYear) : '—'),
-            };
+                // Program label (handle collection vs single relation)
+                $progFromCourse = null;
 
-            return [
-                '_sort_gwa' => $gwaNum,
-                'no'        => 0,
-                'name'      => $fullname,
-                'program'   => $programLabel ?: '—',
-                'year'      => $year,
-                'gwa'       => is_finite($gwaNum) ? number_format($gwaNum, 4) : '—',
-                'rank'      => $this->rankLabel(is_finite($gwaNum) ? $gwaNum : 10),
-            ];
-        })
-        ->sortBy([['_sort_gwa','asc'], ['name','asc']])
-        ->values()
-        ->map(function ($r,$i){ $r['no']=$i+1; unset($r['_sort_gwa']); return $r; })
-        ->all();
+                if ($s->relationLoaded('studentCourse')) {
+                    $rel = $s->studentCourse;
 
+                    if ($rel instanceof \Illuminate\Support\Collection) {
+                        $progFromCourse = $rel->first()?->program;
+                    } else {
+                        $progFromCourse = $rel?->program;
+                    }
+                }
 
-        // Header payload used by your Blade
+                // Fallback from curriculumAy
+                $progFromCurr = $s->curriculum?->curriculumAy?->program;
+                $prog = $progFromCourse ?? $progFromCurr;
+
+                $programLabel = strtoupper((string) (
+                    $prog->Abbreviation
+                    ?? $prog->Program_name
+                    ?? ''
+                ));
+
+                // Year level
+                $yearLabel = $this->resolveStudentYear($s) ?? '—';
+
+                return [
+                    '_sort_gwa' => $gwaNum,
+                    'no'        => 0, // set after sort
+                    'name'      => $fullname,
+                    'program'   => $programLabel ?: '—',
+                    'year'      => $yearLabel,
+                    'gwa'       => is_finite($gwaNum) ? number_format($gwaNum, 4) : '—',
+                    'rank'      => $this->rankLabel(is_finite($gwaNum) ? $gwaNum : 10),
+                ];
+            })
+            ->filter() // remove nulls
+            ->sortBy([['_sort_gwa', 'asc'], ['name', 'asc']])
+            ->values()
+            ->map(function ($r, $i) {
+                $r['no'] = $i + 1;
+                unset($r['_sort_gwa']);
+                return $r;
+            })
+            ->all();
+
+        // 3. Header (from dropdown / fallback)
+        if ($term === '') {
+            $term = 'Second Semester';
+        }
+
+        if ($ay === '') {
+            $year = now()->year;
+            $ay   = $year . '-' . ($year + 1);
+        }
+
         $header = [
-            'title'       => 'DEAN’S HONORS LIST',
-            'department'  => 'INFORMATION TECHNOLOGY EDUCATION PROGRAMS DEPARTMENT',
-            'term'        => $term !== '' ? mb_strtoupper($term) : 'SECOND SEMESTER',
-            'ay'          => $ay !== '' ? $ay : ('A.Y. '.now()->year.'-'.(now()->year + 1)),
-            'university'  => 'BATANGAS STATE UNIVERSITY',
-            'campus'      => '',
-            'college'     => (string)($college->College_name ?? ''),
+            'title'      => "DEAN’S HONORS LIST",
+            'department' => 'Information Technology Education Programs Department',
+            'term'       => mb_strtoupper($term),
+            'ay'         => $ay,
+            'university' => 'BATANGAS STATE UNIVERSITY',
+            'campus'     => 'ARASOF - Nasugbu Campus',
+            'college'    => (string) ($college->College_name ?? 'College of Informatics and Computing Sciences'),
         ];
 
-        // Render and force download (browser save dialog)
+        // 4. FOOTER — Correct Program Chair and Dean
+
+        // Helper for proper case (no capslock)
+        $pretty = fn ($v) => mb_convert_case(trim((string) $v), MB_CASE_TITLE, 'UTF-8');
+
+        // ----------------------
+        // PROGRAM CHAIR (Prepared by:)
+        // ----------------------
+        $pcUD = UserDesignation::with(['user', 'designation'])
+            ->where('Program_id', $programId)
+            ->whereHas('designation', function ($q) {
+                $q->where('Designation_name', 'LIKE', '%Program Chair%')
+                ->orWhere('Access', 'Program Chair');
+            })
+            ->first();
+
+        if ($pcUD && $pcUD->user) {
+            $u = $pcUD->user;
+
+            $first  = $pretty($u->First_name ?? '');
+            $middle = $u->Middle_name ? strtoupper(mb_substr($u->Middle_name, 0, 1)) . '.' : '';
+            $last   = $pretty($u->Last_name ?? '');
+            $title  = $u->Title ? $u->Title . ' ' : '';
+
+            $preparedName = trim("{$title}{$first} " . ($middle ? "$middle " : '') . "{$last}");
+            $preparedTitle = $pcUD->designation->Designation_name ?? 'Program Chairperson';
+        } else {
+            $preparedName  = 'Program Chairperson';
+            $preparedTitle = 'Program Chairperson';
+        }
+
+        // ----------------------
+        // DEAN (Certified Correct:)
+        // ----------------------
+        $deanDesignationIds = Designation::query()
+            ->where('Access', 'Dean')
+            ->orWhere('Designation_name', 'LIKE', '%Dean%')
+            ->pluck('Designation_id');
+
+        $deanUD = UserDesignation::with(['user', 'designation'])
+            ->whereIn('Designation_id', $deanDesignationIds)
+            ->where('College_id', $program->College_id)
+            ->first();
+
+        $collegeShort = $college->Abbreviation
+            ?? $college->College_shortname
+            ?? $college->College_name
+            ?? 'CICS';
+
+        $certName  = 'Dean';
+        $certTitle = 'Dean, ' . $collegeShort;
+
+        if ($deanUD && $deanUD->user) {
+            $u = $deanUD->user;
+
+            $first  = $pretty($u->First_name ?? '');
+            $middle = $u->Middle_name ? strtoupper(mb_substr($u->Middle_name, 0, 1)) . '.' : '';
+            $last   = $pretty($u->Last_name ?? '');
+            $title  = $u->Title ? $u->Title . ' ' : '';
+
+            $certName = trim("{$title}{$first} " . ($middle ? "$middle " : '') . "{$last}");
+
+            $desigName = $deanUD->designation->Designation_name ?? 'Dean';
+
+            if (stripos($desigName, $collegeShort) === false) {
+                $certTitle = "{$desigName}, {$collegeShort}";
+            } else {
+                $certTitle = $desigName;
+            }
+        }
+
+        $footer = [
+            'prepared_name'   => $preparedName,
+            'prepared_title'  => $preparedTitle,
+            'prepared_date'   => now()->format('m/d/Y'),
+            'certified_name'  => $certName,
+            'certified_title' => $certTitle,
+        ];
+
+
         $pdf = Pdf::loadView('reports.deans_honor_list', [
                 'header'   => $header,
+                'footer'   => $footer,
                 'rows'     => $rows,
-                // (legacy vars — safe if your Blade uses them)
                 'program'  => $program,
                 'college'  => $college,
                 'students' => $apps,
-                'term'     => $term,
-                'ay'       => $ay,
+                'term'     => $header['term'],
+                'ay'       => $header['ay'],
             ])
             ->setPaper('A4', 'portrait');
 
@@ -120,11 +310,60 @@ class DeansHonorListReportController extends Controller
         return $pdf->download($filename);
     }
 
+    // -------------------------------------------------
+    // Rank label helper
+    // -------------------------------------------------
     private function rankLabel(float $gwa): string
     {
         if ($gwa >= 1.0000 && $gwa <= 1.2500) return 'Tech Savant';
         if ($gwa <= 1.5000)                    return 'Tech Virtuoso';
         if ($gwa <= 1.7500)                    return 'Tech Prodigy';
         return '—';
+    }
+
+    // -------------------------------------------------
+    // Year-level helpers (same as Program Chair)
+    // -------------------------------------------------
+    private function resolveStudentYear($student): ?string
+    {
+        $candidates = [
+            $student->Year_level ?? null,
+            $student->YearLevel ?? null,
+            $student->Year ?? null,
+            $student->year_level ?? null,
+            $student->Section ?? null,
+            $student->section ?? null,
+        ];
+
+        foreach ($candidates as $v) {
+            $norm = $this->normalizeYearLevel($v);
+            if ($norm) return $norm;
+        }
+
+        return null;
+    }
+
+    private function normalizeYearLevel($value): ?string
+    {
+        if ($value === null || $value === '') return null;
+
+        // numeric → label
+        if (is_numeric($value)) {
+            $map = [
+                1 => 'FIRST YEAR',
+                2 => 'SECOND YEAR',
+                3 => 'THIRD YEAR',
+                4 => 'FOURTH YEAR',
+            ];
+            $n = (int) $value;
+            return $map[$n] ?? strtoupper((string) $value);
+        }
+
+        // extract number from "BSIT 3-1", "3A", etc.
+        if (preg_match('/\b([1-4])\b/', (string) $value, $m)) {
+            return $this->normalizeYearLevel((int) $m[1]);
+        }
+
+        return strtoupper((string) $value);
     }
 }

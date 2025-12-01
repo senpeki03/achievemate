@@ -25,16 +25,17 @@
 
     <div style="height: 40px;"></div>
 
-    <!-- Dashboard Card -->
+    <!-- Home -->
     <div class="card shadow-sm border-0 m-2">
       <a href="{{ route('registrar.dashboard') }}"
-        class="card-body py-3 px-4 d-flex align-items-center gap-4 nav-link text-decoration-none rounded-4 {{ $currentRoute == 'registrar.dashboard' ? 'custom-bg-primary' : '' }}">
+        class="card-body py-3 px-4 d-flex align-items-center gap-4 nav-link text-decoration-none rounded-4 
+        {{ $currentRoute == 'registrar.dashboard' ? 'custom-bg-primary' : '' }}">
         <i class="bi bi-house-door fs-6 {{ $currentRoute == 'registrar.dashboard' ? 'text-white' : '' }}"></i>
         <span class="fw-semibold small ms-1 {{ $currentRoute == 'registrar.dashboard' ? 'text-white' : 'text-dark' }}">Home</span>
       </a>
     </div>
 
-    <!-- Student Management Card -->
+    <!-- Student Management -->
     <div class="card shadow-sm border-0 m-2">
       <a href="{{ route('registrar.student') }}"
         class="card-body py-3 px-4 d-flex align-items-center gap-4 nav-link text-decoration-none rounded-4 
@@ -46,9 +47,11 @@
       </a>
     </div>
 
+    <!-- Graduation List -->
     <div class="card shadow-sm border-0 m-2">
       <a href="{{ route('registrar.graduationlist') }}"
-        class="card-body py-3 px-4 d-flex align-items-center gap-4 nav-link text-decoration-none rounded-4 {{ $currentRoute == 'registrar.graduationlist' ? 'custom-bg-primary' : '' }}">
+        class="card-body py-3 px-4 d-flex align-items-center gap-4 nav-link text-decoration-none rounded-4 
+        {{ $currentRoute == 'registrar.graduationlist' ? 'custom-bg-primary' : '' }}">
         <i class="bi bi-mortarboard fs-6 {{ $currentRoute == 'registrar.graduationlist' ? 'text-white' : '' }}"></i>
         <span class="fw-semibold small ms-1 {{ $currentRoute == 'registrar.graduationlist' ? 'text-white' : 'text-dark' }}">Graduation List</span>
       </a>
@@ -65,13 +68,17 @@
           <input type="text-white" placeholder="Search">
         </div>
       </div>
+
       <div class="icons">
         <i class="bi bi-bell text-white"></i>
         <i class="bi bi-files text-white"></i>
       </div>
+
       <div class="dropdown profile">
-        <a href="#" class="d-flex align-items-center gap-2 text-decoration-none dropdown-toggle" id="profileDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-          <img src="{{ asset('img/profile-placeholder.png') }}" alt="Profile" class="rounded-circle" width="36" height="36" style="cursor: pointer;">
+        <a href="#" class="d-flex align-items-center gap-2 text-decoration-none dropdown-toggle"
+           id="profileDropdown" data-bs-toggle="dropdown">
+          <img src="{{ asset('img/profile-placeholder.png') }}"
+               class="rounded-circle" width="36" height="36" style="cursor:pointer;">
           <div class="text-white">
             <span class="fw-semibold d-block text-white">
               Hi, {{ session('First_name') }} {{ session('Last_name') }}!
@@ -81,14 +88,15 @@
             </small>
           </div>
         </a>
-        <ul class="dropdown-menu dropdown-menu-end mt-2 shadow-sm" aria-labelledby="profileDropdown">
+
+        <ul class="dropdown-menu dropdown-menu-end mt-2 shadow-sm">
           <li class="px-3 py-2 text-muted small">WELCOME!</li>
-          <li><a class="dropdown-item d-flex align-items-center gap-2" href="#"><i class="bi bi-person"></i> My profile</a></li>
-          <li><a class="dropdown-item d-flex align-items-center gap-2" href="#"><i class="bi bi-gear"></i> Settings</a></li>
-          <li><a class="dropdown-item d-flex align-items-center gap-2" href="#"><i class="bi bi-calendar-event"></i> Activity</a></li>
-          <li><a class="dropdown-item d-flex align-items-center gap-2" href="#"><i class="bi bi-life-preserver"></i> Support</a></li>
+          <li><a class="dropdown-item d-flex gap-2" href="#"><i class="bi bi-person"></i> My profile</a></li>
+          <li><a class="dropdown-item d-flex gap-2" href="#"><i class="bi bi-gear"></i> Settings</a></li>
+          <li><a class="dropdown-item d-flex gap-2" href="#"><i class="bi bi-calendar-event"></i> Activity</a></li>
+          <li><a class="dropdown-item d-flex gap-2" href="#"><i class="bi bi-life-preserver"></i> Support</a></li>
           <li><hr class="dropdown-divider"></li>
-          <li><a class="dropdown-item d-flex align-items-center gap-2 text-danger" href="{{ route('logout') }}"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
+          <li><a class="dropdown-item d-flex gap-2 text-danger" href="{{ route('logout') }}"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
         </ul>
       </div>
     </div>
@@ -98,12 +106,14 @@
   <div class="main-content">
     @yield('content')
   </div>
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+  <!-- JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-  <!-- SIDEBAR TOGGLE SCRIPT -->
+  <!-- FIXED SIDEBAR SCRIPT (NO HOVER) -->
   <script>
     document.addEventListener('DOMContentLoaded', function () {
+
       const sidebar = document.getElementById('sidebar');
       const burgerToggle = document.getElementById('burgerToggle');
       const topbarWrapper = document.getElementById('topbarWrapper');
@@ -111,40 +121,43 @@
 
       let stickOpen = false;
 
-      // Function to collapse sidebar
       function collapseSidebar() {
         sidebar.classList.add('collapsed');
         topbarWrapper.classList.add('collapsed');
         body.classList.add('sidebar-collapsed');
       }
 
-      // Function to expand sidebar
       function expandSidebar() {
         sidebar.classList.remove('collapsed');
         topbarWrapper.classList.remove('collapsed');
         body.classList.remove('sidebar-collapsed');
       }
 
-      // Start in collapsed mode
-      collapseSidebar();
+      // READ saved state
+      const saved = localStorage.getItem('registrarSidebarOpen');
 
-      // Hover: Expand/collapse on mouse enter/leave
-      sidebar.addEventListener('mouseenter', () => {
-        if (!stickOpen) expandSidebar();
-      });
+      if (saved === '1') {
+        expandSidebar();
+        stickOpen = true;
+      } else {
+        collapseSidebar();
+        stickOpen = false;
+      }
 
-      sidebar.addEventListener('mouseleave', () => {
-        if (!stickOpen) collapseSidebar();
-      });
+      // REMOVE hover functionality
+      // ❌ sidebar.addEventListener('mouseenter', ...)
+      // ❌ sidebar.addEventListener('mouseleave', ...)
 
-      // Burger toggle: Stick/unstick sidebar open
+      // Toggle only via burger
       burgerToggle.addEventListener('click', () => {
         stickOpen = !stickOpen;
 
         if (stickOpen) {
           expandSidebar();
+          localStorage.setItem('registrarSidebarOpen', '1');
         } else {
           collapseSidebar();
+          localStorage.setItem('registrarSidebarOpen', '0');
         }
       });
     });

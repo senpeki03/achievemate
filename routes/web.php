@@ -92,6 +92,11 @@ use App\Http\Controllers\Dean\ApplicationNotifController;
 use App\Http\Controllers\Dean\DeanDashboardController;
 use App\Http\Controllers\Dean\DeansHonorListReportController as DeanReport;
 use App\Http\Controllers\Dean\DeanProfileController;
+use App\Http\Controllers\Dean\DeanGraduationListController;
+
+// VCAA
+use App\Http\Controllers\Vcaa\VcaaSidebarController;
+
 
 // EXTRA (appeared mid-file originally — lifting to top to keep tidy)
 use App\Http\Controllers\Dean\DeanApplicationController;
@@ -408,9 +413,8 @@ Route::get('/media/{path}', function (string $path) {
 })->where('path', '.*')->name('media');
 
 
-Route::get('/awards/claim/{token}', [\App\Http\Controllers\Student\AwardClaimController::class, 'claim'])
-    ->middleware(['web','auth'])
-    ->name('student.award.claim');
+Route::get('/student/award/claim/{token}', [AwardClaimController::class, 'claim'])->name('student.award.claim');
+
 
 Route::get('/student/certificates/{applicationId}/png', [CertificateController::class, 'generatePng'])
     ->name('student.certificates.png');
@@ -581,32 +585,23 @@ Route::middleware(['web', 'auth'])
     ->prefix('dean')
     ->name('dean.')
     ->group(function () {
+        Route::get('/deansidebar', [DeanSidebarController::class, 'index'])->name('deansidebar');
+        Route::get('/honorlist/{campusId?}', [HonorListController::class, 'index'])->name('honorlist');
+        Route::get('/programs/{collegeId}', [HonorListController::class, 'getProgramsByCollege'])->name('programs');
+        Route::get('/students-by-program/{programId}', [HonorListController::class, 'getStudentsByProgram'])->name('students.by.program');
+        Route::get('/application/view/{id}', [HonorListController::class, 'viewFile'])->name('application.view');
+        Route::post('/application/update-status', [DeanApplicationController::class, 'updateStatus'])->name('application.update-status');
+        Route::post('/application/bulk-approve', [DeanApplicationController::class, 'bulkApprove'])->name('application.bulk-approve');
+        Route::get('/profile',        [DeanProfileController::class, 'show'])->name('profile');
+        Route::get('/profile/photo',  [DeanProfileController::class, 'photo'])->name('profile.photo');
+        Route::post('/profile/save',  [DeanProfileController::class, 'save'])->name('profile.save');
+        Route::post('/password/change', [DeanProfileController::class, 'change'])->name('password.change');
+        Route::get('/graduationlist', [DeanGraduationListController::class, 'index'])->name('reviewedgraduationlist');
+        Route::get('/graduationlist/students', [DeanGraduationListController::class, 'students'])->name('reviewedgraduationlist.students');
 
-        Route::get('/deansidebar', [DeanSidebarController::class, 'index'])
-            ->name('deansidebar');
-
-        Route::get('/honorlist/{campusId?}', [HonorListController::class, 'index'])
-            ->name('honorlist');
-
-        Route::get('/programs/{collegeId}', [HonorListController::class, 'getProgramsByCollege'])
-            ->name('programs');
-
-        Route::get('/students-by-program/{programId}', [HonorListController::class, 'getStudentsByProgram'])
-            ->name('students.by.program');
-
-        Route::get('/application/view/{id}', [HonorListController::class, 'viewFile'])
-            ->name('application.view');
-
-        // ===== Dean – approve (single + bulk) =====
-        Route::post('/application/update-status', [DeanApplicationController::class, 'updateStatus'])
-            ->name('application.update-status');
-
-        Route::post('/application/bulk-approve', [DeanApplicationController::class, 'bulkApprove'])
-            ->name('application.bulk-approve');
     }); 
-    Route::get('/dean/profile',        [DeanProfileController::class, 'show'])->name('dean.profile');
-    Route::get('/dean/profile/photo',  [DeanProfileController::class, 'photo'])->name('dean.profile.photo');
-    Route::post('/dean/profile/save',  [DeanProfileController::class, 'save'])->name('dean.profile.save');
+
+
 
 
 Route::middleware(['web','auth','usertype:Dean'])
@@ -615,7 +610,21 @@ Route::middleware(['web','auth','usertype:Dean'])
     ->group(function () {
         Route::get('/deanshonorlist/report/{programId}', [DeanReport::class, 'download'])
             ->name('deanshonorlist.report');
+
+        Route::get('/deanshonorlist/options/{programId}', [DeanReport::class, 'options'])->name('deanshonorlist.options');
     });
+
+
+
+
+Route::middleware(['web'])
+    ->prefix('vcaa')
+    ->name('vcaa.')
+    ->group(function () {
+        Route::get('/dashboard', [VcaaSidebarController::class, 'index'])
+            ->name('dashboard');
+    });
+
 
 
 Route::get('/dean/dashboard', [DeanDashboardController::class, 'index'])->name('dean.dashboard');

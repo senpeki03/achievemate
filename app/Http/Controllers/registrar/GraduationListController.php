@@ -25,32 +25,22 @@ class GraduationListController extends Controller
     public function index(Request $request)
     {
         $login = auth()->user();
-        if (!$login) {
-            abort(403, 'Unauthorized');
-        }
+        if (!$login) abort(403, 'Unauthorized');
 
-        // ===== Registrar designation (campus-based) =====
         $designation = UserDesignation::with('campus')
             ->where('Login_id', $login->Login_id)
             ->first();
 
-        if (!$designation) {
-            abort(403, 'No designation found for this user.');
-        }
+        if (!$designation) abort(403, 'No designation found for this user.');
 
         $userCampusId   = $designation->Campus_id;
         $userCampusName = optional($designation->campus)->Campus_name;
 
-        // ===== Level + filters from query =====
-        $level     = $request->query('level', 'college');  // college | program | major
-        $campusId  = $request->query('campus_id', $userCampusId);
+        $level     = $request->query('level', 'college');
+        $campusId  = $userCampusId;
         $collegeId = $request->query('college_id');
         $programId = $request->query('program_id');
 
-        // Safety: force campus to registrar campus
-        $campusId = $userCampusId;
-
-        // ===== Base query for Fourth-Year graduating =====
         $base = StudentCourse::from('student_course as sc')
             ->join('student_manage as sm', 'sm.Student_id', '=', 'sc.Student_id')
             ->join('graduation_form as gf', 'gf.Student_id', '=', 'sc.Student_id')
@@ -58,33 +48,31 @@ class GraduationListController extends Controller
             ->where('sc.Campus_id', $campusId)
             ->where('sm.Year', 'FOURTH YEAR');
 
-        // ===== Build rows depending on level =====
         $rows = collect();
 
         if ($level === 'college') {
-            // Group actual graduating students by college
             $grouped = (clone $base)
                 ->select('sc.College_id', 'sc.Student_id')
                 ->get()
                 ->groupBy('College_id');
 
-            // Get ALL colleges in this campus
             $colleges = College::where('Campus_id', $campusId)
                 ->orderBy('College_name')
                 ->get();
 
-            // Build rows for ALL colleges (0 count allowed)
             $rows = $colleges->map(function ($college) use ($grouped) {
                 $items      = $grouped->get($college->College_id, collect());
                 $studentIds = $items->pluck('Student_id')->unique();
 
-                return (object) [
+                return (object)[
                     'id'    => $college->College_id,
                     'name'  => $college->College_name,
-                    'total' => $studentIds->count(),   // 0 if no Fourth-Year graduating
+                    'total' => $studentIds->count(),
                 ];
             })->values();
-        } elseif ($level === 'program') {
+        }
+
+        elseif ($level === 'program') {
             if (!$collegeId) {
                 return redirect()->route('registrar.graduationlist', ['level' => 'college']);
             }
@@ -105,14 +93,15 @@ class GraduationListController extends Controller
                 $program = $programs->get($pid);
                 if (!$program) return null;
 
-                $studentIds = $items->pluck('Student_id')->unique();
-                return (object) [
+                return (object)[
                     'id'    => $program->Program_id,
                     'name'  => $program->Program_name,
-                    'total' => $studentIds->count(),
+                    'total' => $items->pluck('Student_id')->unique()->count(),
                 ];
             })->filter()->values();
-        } else { // level === 'major'
+        }
+
+        else { // major level
             if (!$collegeId || !$programId) {
                 return redirect()->route('registrar.graduationlist', ['level' => 'college']);
             }
@@ -122,7 +111,7 @@ class GraduationListController extends Controller
                 ->where('sc.Program_id', $programId)
                 ->select('sc.Major_id', 'sc.Student_id')
                 ->get()
-                ->groupBy('Major_id');   // may null = no major
+                ->groupBy('Major_id');
 
             $majors = Major::where('Campus_id', $campusId)
                 ->where('College_id', $collegeId)
@@ -132,73 +121,49 @@ class GraduationListController extends Controller
                 ->keyBy('Major_id');
 
             $rows = $grouped->map(function ($items, $mid) use ($majors) {
-                $midInt  = $mid === '' ? null : $mid;
-                $major   = $midInt ? $majors->get($midInt) : null;
-                $name    = $major ? $major->Major_name : 'No Major';
+                $midInt = $mid === '' ? null : $mid;
+                $major  = $midInt ? $majors->get($midInt) : null;
 
-                $studentIds = $items->pluck('Student_id')->unique();
-
-                return (object) [
-                    'id'    => $midInt,    // can be null
-                    'name'  => $name,
-                    'total' => $studentIds->count(),
+                return (object)[
+                    'id'    => $midInt,
+                    'name'  => $major ? $major->Major_name : 'No Major',
+                    'total' => $items->pluck('Student_id')->unique()->count(),
                 ];
             })->values();
         }
 
-        $title = 'Graduation List';
-
         return view('registrar.graduationlist', compact(
-            'rows',
-            'title',
-            'userCampusId',
-            'userCampusName',
-            'level',
-            'campusId',
-            'collegeId',
-            'programId'
+            'rows', 'userCampusId', 'userCampusName', 'level', 'campusId', 'collegeId', 'programId'
         ));
     }
 
     /**
-     * Detailed list of graduating students (FOURTH YEAR) per program/major.
-     * Route: registrar/graduationlist/students
+     * Detailed list of graduating students (FOURTH YEAR)
      */
     public function students(Request $request)
     {
         $login = auth()->user();
-        if (!$login) {
-            abort(403, 'Unauthorized');
-        }
+        if (!$login) abort(403, 'Unauthorized');
 
         $designation = UserDesignation::with('campus')
             ->where('Login_id', $login->Login_id)
             ->first();
 
-        if (!$designation) {
-            abort(403, 'No designation found for this user.');
-        }
+        if (!$designation) abort(403, 'No designation found for this user.');
 
-        $campusId = $designation->Campus_id;
-
+        $campusId  = $designation->Campus_id;
         $collegeId = $request->query('college_id');
         $programId = $request->query('program_id');
-        $majorId   = $request->query('major_id'); // 0 or empty = no major
+        $majorId   = $request->query('major_id');
 
         if (!$collegeId || !$programId) {
             return redirect()->route('registrar.graduationlist', ['level' => 'college']);
         }
 
-        // ===== Header info =====
         $college = College::find($collegeId);
         $program = Program::find($programId);
-        $major   = null;
+        $major   = ($majorId && (int)$majorId !== 0) ? Major::find($majorId) : null;
 
-        if ($majorId && (int)$majorId !== 0) {
-            $major = Major::find($majorId);
-        }
-
-        // ===== Query graduating Fourth Year students =====
         $query = StudentCourse::from('student_course as sc')
             ->join('student_manage as sm', 'sm.Student_id', '=', 'sc.Student_id')
             ->join('graduation_form as gf', 'gf.Student_id', '=', 'sc.Student_id')
@@ -208,194 +173,115 @@ class GraduationListController extends Controller
             ->where('sc.Program_id', $programId)
             ->where('sm.Year', 'FOURTH YEAR');
 
-        if ($majorId === '0' || $majorId === 0 || $majorId === null || $majorId === '') {
+        if (!$majorId || $majorId == '0') {
             $query->whereNull('sc.Major_id');
         } else {
             $query->where('sc.Major_id', $majorId);
         }
 
-        $students = $query
-            ->select(
-                'sm.*',
-                'sc.Student_id',
-                'sc.Major_id',
-                'gf.GraduationForm_id',
-                'gr.GraduationReq_id',      // for Action button
-                'gr.Approval_Sheet',
-                'gr.Certificate_Library',
-                'gr.Barangay_Clearance',
-                'gr.Birth_Certificate',
-                'gr.applicationform_grad',  // path to generated PDF
-                'gr.reportofgrade_path',
-                'gr.remarks'
-            )
-            ->orderBy('sm.Last_name')
-            ->get();
-
-        $title = 'Graduation List';
+        $students = $query->select(
+            'sm.*', 'sc.Student_id', 'sc.Major_id',
+            'gf.GraduationForm_id',
+            'gr.GraduationReq_id',
+            'gr.Approval_Sheet', 'gr.Certificate_Library',
+            'gr.Barangay_Clearance', 'gr.Birth_Certificate',
+            'gr.applicationform_grad', 'gr.reportofgrade_path',
+            'gr.remarks', 'gr.status'
+        )
+        ->orderBy('sm.Last_name')
+        ->get();
 
         return view('registrar.graduationlist_students', compact(
-            'students',
-            'college',
-            'program',
-            'major',
-            'title'
+            'students', 'college', 'program', 'major'
         ));
     }
 
+
     /**
-     * Called when registrar confirms "Evaluate" in the modal.
-     * - DOES NOT save anything to DB
-     * - Opens the student's applicationform_grad PDF
-     * - Stamps the registrar's name into the PDF (overwrites same file)
+     * Stamp Registrar Name on Application Form PDF + Mark as Evaluated
      */
     public function evaluate(Request $request)
     {
-        Log::info('Registrar.evaluate: start', [
-            'payload' => $request->all(),
-        ]);
-
         $request->validate([
             'graduation_req_id' => 'required|integer|exists:graduation_requirements,GraduationReq_id',
         ]);
 
         $login = auth()->user();
-        if (!$login) {
-            Log::warning('Registrar.evaluate: no auth user');
-            abort(403, 'Unauthorized');
-        }
+        if (!$login) abort(403, 'Unauthorized');
 
-        // Kunin designation + user profile para sa full_name
+        // Get registrar name
         $designation = UserDesignation::with('user')
             ->where('Login_id', $login->Login_id)
             ->first();
 
-        if (!$designation || !$designation->user) {
-            Log::warning('Registrar.evaluate: no designation/user for login', [
-                'login_id' => $login->Login_id ?? null,
-            ]);
-            $registrarName = 'Registrar Staff';
-        } else {
-            $registrarName = $designation->user->full_name;
-        }
+        $registrarName = $designation && $designation->user
+            ? $designation->user->full_name
+            : 'Registrar Staff';
 
-        Log::info('Registrar.evaluate: resolved registrar name', [
-            'login_id'      => $login->Login_id ?? null,
-            'registrarName' => $registrarName,
-        ]);
-
-        // Get graduation requirement row to access PDF path
+        // Get requirement row
         $req = GraduationRequirement::findOrFail($request->graduation_req_id);
 
-        $relativePath = $req->applicationform_grad; // e.g. "/storage/pdf_output/graduation_form_80.pdf"
-        Log::info('Registrar.evaluate: graduation requirement record', [
-            'GraduationReq_id'      => $req->GraduationReq_id,
-            'applicationform_grad'  => $relativePath,
-        ]);
-
+        $relativePath = $req->applicationform_grad;
         if (!$relativePath) {
-            Log::warning('Registrar.evaluate: no applicationform_grad path');
             return response()->json([
                 'success' => false,
                 'message' => 'No application form PDF found for this student.',
             ], 422);
         }
 
-        /**
-         * Normalize the URL-style path to real storage path:
-         *  - "/storage/pdf_output/graduation_form_80.pdf"
-         *  - "storage/pdf_output/graduation_form_80.pdf"
-         *  => storage_path("app/public/pdf_output/graduation_form_80.pdf")
-         */
-        $clean = ltrim($relativePath, '/');              // "storage/pdf_output/..."
+        // Normalize path
+        $clean = ltrim($relativePath, '/');
         if (str_starts_with($clean, 'storage/')) {
-            $clean = substr($clean, strlen('storage/')); // "pdf_output/..."
+            $clean = substr($clean, 8);
         }
 
         $pdfPath = storage_path('app/public/' . $clean);
 
-        Log::info('Registrar.evaluate: resolved pdfPath', [
-            'pdfPath'     => $pdfPath,
-            'file_exists' => file_exists($pdfPath),
-        ]);
-
         if (!file_exists($pdfPath)) {
-            Log::error('Registrar.evaluate: PDF file does not exist', [
-                'graduation_req_id' => $req->GraduationReq_id,
-                'relativePath'      => $relativePath,
-                'resolvedPath'      => $pdfPath,
-            ]);
-
             return response()->json([
                 'success' => false,
-                'message' => 'Application form PDF file does not exist on the server.',
+                'message' => 'PDF file does not exist on the server.',
             ], 404);
         }
 
-        // ==========================
-        //  Stamp registrar name on PDF
-        // ==========================
+        // === Stamp Registrar Name ===
         try {
-            Log::info('Registrar.evaluate: FPDI processing start', [
-                'pdfPath' => $pdfPath,
-            ]);
-
-            $pdf = new Fpdi();
-
+            $pdf = new FPDI();
             $pageCount = $pdf->setSourceFile($pdfPath);
-            Log::info('Registrar.evaluate: source file loaded', [
-                'pageCount' => $pageCount,
-            ]);
 
             for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
-                $tplId = $pdf->importPage($pageNo);
-                $size  = $pdf->getTemplateSize($tplId);
+                $tpl = $pdf->importPage($pageNo);
+                $size = $pdf->getTemplateSize($tpl);
 
                 $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
-                $pdf->useTemplate($tplId);
+                $pdf->useTemplate($tpl);
 
-                // Assuming signature area is on page 1 – adjust coordinates if needed
                 if ($pageNo === 1) {
-                    $pdf->SetFont('Times', '', 12);
+                    $pdf->SetFont('Helvetica', '', 12);
                     $pdf->SetTextColor(0, 0, 0);
 
-                    // Adjust coordinates to match the "Registrar's Staff" line
-                    $pdf->SetXY(160, 140); // tweak if kailangan
-                    $pdf->Cell(60, 5, $registrarName, 0, 0, 'C');
-
-                    Log::info('Registrar.evaluate: stamping name on page 1', [
-                        'x'             => 160,
-                        'y'             => 140,
-                        'registrarName' => $registrarName,
-                    ]);
+                    // Final coordinates (adjust if needed)
+                    $pdf->SetXY(150, 138);
+                    $pdf->Cell(55, 5, utf8_decode($registrarName), 0, 0, 'C');
                 }
             }
 
-            // dest = 'F' (file), name = $pdfPath
             $pdf->Output('F', $pdfPath);
 
-            Log::info('Registrar.evaluate: FPDI output written', [
-                'pdfPath' => $pdfPath,
-            ]);
-        } catch (\Throwable $e) {
-            Log::error('Registrar.evaluate: PDF update failed', [
-                'graduation_req_id' => $req->GraduationReq_id,
-                'error'             => $e->getMessage(),
-            ]);
+            // Update STATUS
+            $req->status = 'Evaluated';
+            $req->save();
 
+        } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update the PDF file.',
+                'message' => 'Failed to update PDF: ' . $e->getMessage(),
             ], 500);
         }
 
-        Log::info('Registrar.evaluate: success', [
-            'graduation_req_id' => $req->GraduationReq_id,
-        ]);
-
         return response()->json([
             'success' => true,
-            'message' => 'Student evaluated successfully. Registrar name inserted into PDF.',
+            'message' => 'Student evaluated successfully. PDF updated.',
         ]);
     }
 }

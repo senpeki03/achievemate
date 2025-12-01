@@ -4,7 +4,6 @@
   $isCampusActive = in_array($currentRoute, $campusRoutes);
 @endphp
 
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -13,7 +12,6 @@
   <title>Admin Sidebar Layout</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="{{ asset('css/style.css') }}">
 </head>
 <body class="sidebar-collapsed">
@@ -27,65 +25,65 @@
 
     <div style="height: 40px;"></div>
 
-      <div class="card shadow-sm border-0 m-2" id="campusDropdownCard">
-        <a href="#campusSubmenu"
-          class="card-body py-3 px-4 d-flex align-items-center justify-content-between nav-link text-decoration-none rounded-4 {{ $isCampusActive ? 'custom-bg-primary' : '' }}"
-          data-bs-toggle="collapse"
-          aria-expanded="{{ $isCampusActive ? 'true' : 'false' }}">
-          <div class="d-flex align-items-center gap-3">
-            <i class="bi bi-building fs-6 {{ $isCampusActive ? 'text-white' : '' }}"></i>
-            <span class="fw-semibold small ms-1 {{ $isCampusActive ? 'text-white' : 'text-dark' }}">Campus</span>
-          </div>
-          <span class="chevron-toggle">
-            <i class="bi bi-chevron-down {{ $isCampusActive ? 'text-white' : 'text-muted' }}"></i>
-          </span>
-        </a>
-
-        <!-- ✅ Submenu -->
-        <div class="collapse submenu {{ $isCampusActive ? 'show' : '' }}" id="campusSubmenu" data-bs-parent="#sidebar">
-          <ul class="list-unstyled ms-5 mb-0">
-            <li>
-              <a href="{{ route('admin.campus') }}"
-                class="nav-link py-2 px-2 small {{ $currentRoute == 'admin.campus' ? 'text-primary fw-bold' : 'text-dark' }}">
-                Campus
-              </a>
-            </li>
-            <li>
-              <a href="{{ route('admin.college') }}"
-                class="nav-link py-2 px-2 small {{ $currentRoute == 'admin.college' ? 'text-primary fw-bold' : 'text-dark' }}">
-                College
-              </a>
-            </li>
-            <li>
-              <a href="{{ route('admin.program') }}"
-                class="nav-link py-2 px-2 small {{ $currentRoute == 'admin.program' ? 'text-primary fw-bold' : 'text-dark' }}">
-                Program
-              </a>
-            </li>
-            <li>
-              <a href="{{ route('admin.major') }}"
-                class="nav-link py-2 px-2 small {{ $currentRoute == 'admin.major' ? 'text-primary fw-bold' : 'text-dark' }}">
-                Major
-              </a>
-            </li>
-          </ul>
+    <div class="card shadow-sm border-0 m-2" id="campusDropdownCard">
+      <a href="#campusSubmenu"
+        class="card-body py-3 px-4 d-flex align-items-center justify-content-between nav-link text-decoration-none rounded-4 {{ $isCampusActive ? 'custom-bg-primary' : '' }}"
+        data-bs-toggle="collapse"
+        aria-expanded="{{ $isCampusActive ? 'true' : 'false' }}">
+        <div class="d-flex align-items-center gap-3">
+          <i class="bi bi-building fs-6 {{ $isCampusActive ? 'text-white' : '' }}"></i>
+          <span class="fw-semibold small ms-1 {{ $isCampusActive ? 'text-white' : 'text-dark' }}">Campus</span>
         </div>
-      </div>
+        <span class="chevron-toggle">
+          <i class="bi bi-chevron-down {{ $isCampusActive ? 'text-white' : 'text-muted' }}"></i>
+        </span>
+      </a>
 
-    <div class="card shadow-sm border-0 m-2">
-    <a href="{{ route('admin.usermanage') }}"
-      class="card-body py-3 px-4 d-flex align-items-center gap-4 nav-link text-decoration-none rounded-4 
-        {{ in_array($currentRoute, ['admin.usermanage', 'admin.userdesignation']) ? 'custom-bg-primary' : '' }}">
-      <i class="bi bi-person fs-6 
-        {{ in_array($currentRoute, ['admin.usermanage', 'admin.userdesignation']) ? 'text-white' : '' }}"></i>
-      <span class="fw-semibold small ms-1 
-        {{ in_array($currentRoute, ['admin.usermanage', 'admin.userdesignation']) ? 'text-white' : 'text-dark' }}">
-        User Management
-      </span>
-    </a>
+      <!-- ✅ Submenu -->
+      <div class="collapse submenu {{ $isCampusActive ? 'show' : '' }}" id="campusSubmenu" data-bs-parent="#sidebar">
+        <ul class="list-unstyled ms-5 mb-0">
+          <li>
+            <a href="{{ route('admin.campus') }}"
+              class="nav-link py-2 px-2 small {{ $currentRoute == 'admin.campus' ? 'text-primary fw-bold' : 'text-dark' }}">
+              Campus
+            </a>
+          </li>
+          <li>
+            <a href="{{ route('admin.college') }}"
+              class="nav-link py-2 px-2 small {{ $currentRoute == 'admin.college' ? 'text-primary fw-bold' : 'text-dark' }}">
+              College
+            </a>
+          </li>
+          <li>
+            <a href="{{ route('admin.program') }}"
+              class="nav-link py-2 px-2 small {{ $currentRoute == 'admin.program' ? 'text-primary fw-bold' : 'text-dark' }}">
+              Program
+            </a>
+          </li>
+          <li>
+            <a href="{{ route('admin.major') }}"
+              class="nav-link py-2 px-2 small {{ $currentRoute == 'admin.major' ? 'text-primary fw-bold' : 'text-dark' }}">
+              Major
+            </a>
+          </li>
+        </ul>
+      </div>
     </div>
 
-    <!-- Maps Card -->
+    <div class="card shadow-sm border-0 m-2">
+      <a href="{{ route('admin.usermanage') }}"
+        class="card-body py-3 px-4 d-flex align-items-center gap-4 nav-link text-decoration-none rounded-4 
+          {{ in_array($currentRoute, ['admin.usermanage', 'admin.userdesignation']) ? 'custom-bg-primary' : '' }}">
+        <i class="bi bi-person fs-6 
+          {{ in_array($currentRoute, ['admin.usermanage', 'admin.userdesignation']) ? 'text-white' : '' }}"></i>
+        <span class="fw-semibold small ms-1 
+          {{ in_array($currentRoute, ['admin.usermanage', 'admin.userdesignation']) ? 'text-white' : 'text-dark' }}">
+          User Management
+        </span>
+      </a>
+    </div>
+
+    <!-- Designation Card -->
     <div class="card shadow-sm border-0 m-2">
       <a href="{{ route('admin.designation') }}"
         class="card-body py-3 px-4 d-flex align-items-center gap-4 nav-link text-decoration-none rounded-4 {{ $currentRoute == 'admin.designation' ? 'custom-bg-primary' : '' }}">
@@ -140,58 +138,64 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-<!-- SIDEBAR TOGGLE SCRIPT -->
-<script>
-  document.addEventListener('DOMContentLoaded', function () {
-    const sidebar = document.getElementById('sidebar');
-    const burgerToggle = document.getElementById('burgerToggle');
-    const topbarWrapper = document.getElementById('topbarWrapper');
-    const body = document.body;
-    const campusSubmenu = document.getElementById('campusSubmenu');
+  <!-- SIDEBAR TOGGLE SCRIPT -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const sidebar       = document.getElementById('sidebar');
+      const burgerToggle  = document.getElementById('burgerToggle');
+      const topbarWrapper = document.getElementById('topbarWrapper');
+      const body          = document.body;
+      const campusSubmenu = document.getElementById('campusSubmenu');
 
-    const collapseCampus = new bootstrap.Collapse(campusSubmenu, {
-      toggle: false
-    });
+      const collapseCampus = campusSubmenu
+        ? new bootstrap.Collapse(campusSubmenu, { toggle: false })
+        : null;
 
-    let stickOpen = false;
+      let stickOpen = false;
 
-    function collapseSidebar() {
-      sidebar.classList.add('collapsed');
-      topbarWrapper.classList.add('collapsed');
-      body.classList.add('sidebar-collapsed');
-      collapseCampus.hide(); // ✅ Always collapse submenu
-    }
+      function collapseSidebar() {
+        sidebar.classList.add('collapsed');
+        topbarWrapper.classList.add('collapsed');
+        body.classList.add('sidebar-collapsed');
+        if (collapseCampus) collapseCampus.hide(); // close submenu when sidebar is closed
+      }
 
-    function expandSidebar() {
-      sidebar.classList.remove('collapsed');
-      topbarWrapper.classList.remove('collapsed');
-      body.classList.remove('sidebar-collapsed');
-    }
+      function expandSidebar() {
+        sidebar.classList.remove('collapsed');
+        topbarWrapper.classList.remove('collapsed');
+        body.classList.remove('sidebar-collapsed');
+      }
 
-    // Start in collapsed mode
-    collapseSidebar();
+      // 🔐 Remember state for Admin sidebar
+      const savedState = localStorage.getItem('adminSidebarOpen'); // '1' = open, '0' = closed
 
-    // Hover: Expand/collapse on mouse enter/leave
-    sidebar.addEventListener('mouseenter', () => {
-      if (!stickOpen) expandSidebar();
-    });
-
-    sidebar.addEventListener('mouseleave', () => {
-      if (!stickOpen) collapseSidebar();
-    });
-
-    // Burger toggle: Stick/unstick sidebar open
-    burgerToggle.addEventListener('click', () => {
-      stickOpen = !stickOpen;
-
-      if (stickOpen) {
+      if (savedState === null || savedState === '1') {
+        // Default: open on first load
         expandSidebar();
+        stickOpen = true;
       } else {
         collapseSidebar();
+        stickOpen = false;
       }
+
+      // ❌ REMOVE hover behavior – no mouseenter/mouseleave
+      // sidebar.addEventListener('mouseenter', ...)  // removed
+      // sidebar.addEventListener('mouseleave', ...)  // removed
+
+      // ✅ Burger toggle: Stick/unstick sidebar open, and save state
+      burgerToggle.addEventListener('click', () => {
+        stickOpen = !stickOpen;
+
+        if (stickOpen) {
+          expandSidebar();
+          localStorage.setItem('adminSidebarOpen', '1');
+        } else {
+          collapseSidebar();
+          localStorage.setItem('adminSidebarOpen', '0');
+        }
+      });
     });
-  });
-</script>
+  </script>
 
 </body>
 </html>

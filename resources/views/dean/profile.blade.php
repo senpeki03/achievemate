@@ -1,4 +1,3 @@
-
 {{-- resources/views/dean/profile.blade.php --}}
 @extends('dean.deansidebar')
 @section('title', 'Dean Profile | AchieveMate')
@@ -17,7 +16,7 @@
              class="rounded-circle border border-3 border-primary mb-3"
              style="width:140px;height:140px;object-fit:cover;" alt="Profile">
 
-        <!-- Camera button -->
+        <!-- Camera button opens file picker -->
         <label for="fileUpload"
                class="position-absolute d-flex justify-content-center align-items-center shadow"
                title="Choose photo"
@@ -45,29 +44,87 @@
       <table class="w-100">
         <tr>
           <th style="width:25%;padding:14px;">Contact Number</th>
-          <td style="padding:10px;"><input type="text" class="form-control form-control-sm" value="{{ $contactNumber }}" disabled></td>
+          <td style="padding:10px;">
+            <input type="text" class="form-control form-control-sm" value="{{ $contactNumber }}" disabled>
+          </td>
         </tr>
         <tr>
           <th style="padding:14px;">Date of Birth</th>
-          <td style="padding:10px;"><input type="date" class="form-control form-control-sm" value="{{ $dobYmd }}" disabled></td>
+          <td style="padding:10px;">
+            <input type="date" class="form-control form-control-sm" value="{{ $dobYmd }}" disabled>
+          </td>
         </tr>
         <tr>
           <th style="padding:14px;">Place of Birth</th>
-          <td style="padding:10px;"><input type="text" class="form-control form-control-sm" value="{{ $placeOfBirth }}" disabled></td>
+          <td style="padding:10px;">
+            <input type="text" class="form-control form-control-sm" value="{{ $placeOfBirth }}" disabled>
+          </td>
         </tr>
         <tr>
           <th style="padding:14px;">Home Address</th>
-          <td style="padding:10px;"><input type="text" class="form-control form-control-sm" value="{{ $homeAddress }}" disabled></td>
+          <td style="padding:10px;">
+            <input type="text" class="form-control form-control-sm" value="{{ $homeAddress }}" disabled>
+          </td>
         </tr>
         <tr>
           <th style="padding:14px;">Academic Year</th>
-          <td style="padding:10px;"><input type="text" class="form-control form-control-sm" value="{{ $ayLabel }}" disabled></td>
+          <td style="padding:10px;">
+            <input type="text" class="form-control form-control-sm" value="{{ $ayLabel }}" disabled>
+          </td>
         </tr>
       </table>
     </form>
 
-    <div class="text-end mt-4">
+    <div class="d-flex justify-content-end gap-2 mt-4">
+      <button class="btn btn-outline-secondary px-4" type="button"
+              data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+        Change Password
+      </button>
       <button class="btn btn-primary px-4" id="editBtn" type="button">Edit Profile</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHANGE PASSWORD MODAL -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1"
+     aria-labelledby="changePasswordModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-3">
+      <div class="modal-header">
+        <h5 class="modal-title" id="changePasswordModalLabel">Change Password</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                aria-label="Close"></button>
+      </div>
+
+      <form id="changePasswordForm">
+        @csrf
+        <div class="modal-body">
+          <div id="changePasswordAlert" class="alert d-none" role="alert"></div>
+
+          <div class="mb-3">
+            <label for="current_password" class="form-label">Current Password</label>
+            <input type="password" class="form-control" id="current_password"
+                   name="current_password" required>
+          </div>
+
+          <div class="mb-3">
+            <label for="new_password" class="form-label">New Password</label>
+            <input type="password" class="form-control" id="new_password"
+                   name="new_password" required>
+          </div>
+
+          <div class="mb-3">
+            <label for="new_password_confirmation" class="form-label">Confirm New Password</label>
+            <input type="password" class="form-control" id="new_password_confirmation"
+                   name="new_password_confirmation" required>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
@@ -75,10 +132,12 @@
 <script>
   let selectedFile = null;
 
+  // Camera button → open file picker
   document.querySelector('label[for="fileUpload"]')?.addEventListener('click', () => {
     document.getElementById('fileUpload')?.click();
   });
 
+  // Preview only; actual save happens when clicking "Edit Profile"
   document.getElementById('fileUpload')?.addEventListener('change', (e) => {
     selectedFile = e.target.files?.[0] || null;
     if (!selectedFile) return;
@@ -87,15 +146,12 @@
     reader.readAsDataURL(selectedFile);
   });
 
+  // On Edit Profile → send selected image (if any) to DB
   document.getElementById('editBtn')?.addEventListener('click', async () => {
-    if (!selectedFile) {
-      alert('Please choose a photo first.');
-      return;
-    }
-
     const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
     const fd = new FormData();
-    fd.append('photo', selectedFile);
+    if (selectedFile) fd.append('photo', selectedFile); // only send if chosen
 
     try {
       const res = await fetch("{{ route('dean.profile.save') }}", {
@@ -105,17 +161,90 @@
         credentials: 'same-origin'
       });
 
-      const data = await res.json().catch(() => ({}));
+      let data = {};
+      try { data = await res.json(); } catch (_) {}
+
       if (!res.ok || data.ok === false) {
-        alert('Failed to save profile.\n' + (data.message || `HTTP ${res.status}`));
+        const msg = data.message || (data.errors && Object.values(data.errors).flat().join('\n')) || `HTTP ${res.status}`;
+        alert('Failed to save profile.\n' + msg);
         return;
       }
 
-      document.getElementById('profileImage').src = "{{ route('dean.profile.photo') }}" + "?v=" + Date.now();
+      // success: reload image from DB and clear local selection
+      const img = document.getElementById('profileImage');
+      img.src = "{{ route('dean.profile.photo') }}" + "?v=" + Date.now();
       selectedFile = null;
       alert('✅ Profile saved.');
     } catch (err) {
       alert('Failed to save profile.\n' + (err?.message || err));
+      console.error(err);
+    }
+  });
+
+  // CHANGE PASSWORD HANDLER (same logic as student, but dean route)
+  const changePasswordForm = document.getElementById('changePasswordForm');
+  const changePasswordAlert = document.getElementById('changePasswordAlert');
+
+  changePasswordForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    const payload = {
+      current_password: document.getElementById('current_password').value,
+      new_password: document.getElementById('new_password').value,
+      new_password_confirmation: document.getElementById('new_password_confirmation').value,
+    };
+
+    changePasswordAlert.classList.add('d-none');
+    changePasswordAlert.textContent = '';
+
+    try {
+      const res = await fetch("{{ route('dean.password.change') }}", {
+        method: 'POST',
+        headers: {
+          'X-CSRF-TOKEN': csrf,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        credentials: 'same-origin'
+      });
+
+      let data = {};
+      try { data = await res.json(); } catch (_) {}
+
+      if (!res.ok || data.ok === false) {
+        let msg = data.message || 'Password change failed.';
+
+        if (data.errors) {
+          msg = Object.values(data.errors).flat().join('\n');
+        }
+
+        changePasswordAlert.classList.remove('d-none', 'alert-success');
+        changePasswordAlert.classList.add('alert-danger');
+        changePasswordAlert.textContent = msg;
+        return;
+      }
+
+      // success
+      changePasswordAlert.classList.remove('d-none', 'alert-danger');
+      changePasswordAlert.classList.add('alert-success');
+      changePasswordAlert.textContent = data.message || 'Password changed successfully.';
+
+      // clear inputs
+      changePasswordForm.reset();
+
+      // optionally close modal after a short delay
+      setTimeout(() => {
+        const modalEl = document.getElementById('changePasswordModal');
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+        modalInstance?.hide();
+      }, 1000);
+    } catch (err) {
+      changePasswordAlert.classList.remove('d-none', 'alert-success');
+      changePasswordAlert.classList.add('alert-danger');
+      changePasswordAlert.textContent = err?.message || 'Something went wrong.';
       console.error(err);
     }
   });
