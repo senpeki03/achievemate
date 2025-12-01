@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Hash;
 
 use App\Models\UserManage;
 use App\Models\UserDesignation;
@@ -53,7 +54,11 @@ class DeanProfileController extends Controller
         $userId = $this->resolveUserId();
         $user   = $userId ? UserManage::find($userId) : null;
 
-        $fullName = trim(($user->First_name ?? '') . ' ' . ($user->Middle_name ?? '') . ' ' . ($user->Last_name ?? '')) ?: 'Dean';
+        $fullName = trim(
+            ($user->First_name ?? '') . ' ' .
+            ($user->Middle_name ?? '') . ' ' .
+            ($user->Last_name ?? '')
+        ) ?: 'Dean';
 
         return view('dean.profile', [
             'fullName'      => $fullName,
@@ -121,10 +126,117 @@ class DeanProfileController extends Controller
 
             return response()->json(['ok' => true, 'message' => 'Profile saved.']);
         } catch (ValidationException $e) {
-            return response()->json(['ok'=>false,'message'=>$e->getMessage(),'errors'=>$e->errors()], 422);
+            return response()->json([
+                'ok'      => false,
+                'message' => $e->getMessage(),
+                'errors'  => $e->errors()
+            ], 422);
         } catch (\Throwable $e) {
             Log::error('Dean profile save failed', ['err' => $e->getMessage()]);
-            return response()->json(['ok'=>false,'message'=>$e->getMessage()], 500);
+            return response()->json(['ok' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Legacy / route compatibility:
+     * Some routes may still point to DeanProfileController@change,
+     * so forward that to changePassword().
+     */
+    public function change(Request $request)
+    {
+        return $this->changePassword($request);
+    }
+
+    /** POST /dean/password/change */
+    public function changePassword(Request $request)
+    {
+        Log::info('Dean.changePassword: start', [
+            'login_id' => auth()->id(),
+            'ip'       => $request->ip(),
+        ]);
+
+        try {
+            // Validate inputs (matches your Blade field names)
+            $request->validate([
+                'current_password'          => ['required', 'string'],
+                'new_password'              => ['required', 'string', 'min:8', 'confirmed'],
+                // requires new_password_confirmation
+            ]);
+
+            // Authenticated login record (from login table)
+            $login = auth()->user();
+
+            if (!$login) {
+                Log::warning('Dean.changePassword: no auth user');
+                return response()->json([
+                    'ok'      => false,
+                    'message' => 'Not authenticated.',
+                ], 401);
+            }
+
+            // Try both common column names: password / Password
+            $hashedPassword = null;
+
+            if (isset($login->password)) {
+                $hashedPassword = $login->password;
+            } elseif (isset($login->Password)) {
+                $hashedPassword = $login->Password;
+            }
+
+            if (!$hashedPassword) {
+                Log::error('Dean.changePassword: no password column on login model', [
+                    'class' => get_class($login),
+                ]);
+                return response()->json([
+                    'ok'      => false,
+                    'message' => 'Password column not found on login record.',
+                ], 500);
+            }
+
+            // Check current password
+            if (!Hash::check($request->input('current_password'), $hashedPassword)) {
+                return response()->json([
+                    'ok'      => false,
+                    'message' => 'The current password is incorrect.',
+                ], 422);
+            }
+
+            $newHashed = Hash::make($request->input('new_password'));
+
+            // Set both if they exist to be safe
+            if (isset($login->password)) {
+                $login->password = $newHashed;
+            }
+            if (isset($login->Password)) {
+                $login->Password = $newHashed;
+            }
+
+            $login->save();
+
+            Log::info('Dean.changePassword: success', ['login_pk' => $login->getKey()]);
+
+            return response()->json([
+                'ok'      => true,
+                'message' => 'Password changed successfully.',
+            ]);
+        } catch (ValidationException $e) {
+            Log::warning('Dean.changePassword: validation failed', [
+                'errors' => $e->errors(),
+            ]);
+            return response()->json([
+                'ok'      => false,
+                'message' => 'Password change failed.',
+                'errors'  => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            Log::error('Dean.changePassword: exception', [
+                'err'   => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json([
+                'ok'      => false,
+                'message' => 'An unexpected error occurred.',
+            ], 500);
         }
     }
 }

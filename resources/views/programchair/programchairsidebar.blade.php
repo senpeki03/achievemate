@@ -173,7 +173,6 @@
         </div>
       </div>
       <div class="icons">
-        {{-- 🔔 Notification icon → punta sa pgnotification (Program Chair notifications) --}}
         <a href="{{ route('programchair.notifications.index') }}" class="text-decoration-none position-relative me-3">
           <i class="bi bi-bell text-white"></i>
           @if(isset($unreadCount) && $unreadCount > 0)
@@ -230,14 +229,14 @@
   <!-- SIDEBAR TOGGLE SCRIPT -->
   <script>
     document.addEventListener('DOMContentLoaded', function () {
-      const sidebar = document.getElementById('sidebar');
-      const burgerToggle = document.getElementById('burgerToggle');
+      const sidebar       = document.getElementById('sidebar');
+      const burgerToggle  = document.getElementById('burgerToggle');
       const topbarWrapper = document.getElementById('topbarWrapper');
-      const body = document.body;
+      const body          = document.body;
 
-      // Collect all submenus inside the sidebar and init Bootstrap Collapse without auto-toggle
+      // all submenus inside sidebar
       const submenuEls = Array.from(sidebar.querySelectorAll('.submenu'));
-      const collapses = submenuEls.map(el => new bootstrap.Collapse(el, { toggle: false }));
+      const collapses  = submenuEls.map(el => new bootstrap.Collapse(el, { toggle: false }));
 
       let stickOpen = false;
 
@@ -249,7 +248,6 @@
         sidebar.classList.add('collapsed');
         topbarWrapper.classList.add('collapsed');
         body.classList.add('sidebar-collapsed');
-        // Auto-close submenus whenever the sidebar collapses
         collapseAllSubmenus();
       }
 
@@ -259,24 +257,29 @@
         body.classList.remove('sidebar-collapsed');
       }
 
-      // Start collapsed and with submenus closed
-      collapseSidebar();
+      // ✅ Remember state just for Program Chair sidebar
+      const savedState = localStorage.getItem('pcSidebarOpen'); // '1' open, '0' closed
 
-      // Hover behavior when not sticky
-      sidebar.addEventListener('mouseenter', () => {
-        if (!stickOpen) expandSidebar();
-      });
-      sidebar.addEventListener('mouseleave', () => {
-        if (!stickOpen) collapseSidebar();
-      });
+      if (savedState === null || savedState === '1') {
+        // Default: open on first load
+        expandSidebar();
+        stickOpen = true;
+      } else {
+        collapseSidebar();
+        stickOpen = false;
+      }
 
-      // Burger stick/unstick toggle
+      // ❌ Removed hover behavior (no mouseenter/mouseleave)
+      // Sidebar only changes via burger click
+
       burgerToggle.addEventListener('click', () => {
         stickOpen = !stickOpen;
         if (stickOpen) {
           expandSidebar();
+          localStorage.setItem('pcSidebarOpen', '1');
         } else {
           collapseSidebar();
+          localStorage.setItem('pcSidebarOpen', '0');
         }
       });
 
@@ -286,11 +289,14 @@
         if (!toggler) return;
 
         const targetSel = toggler.getAttribute('data-bs-target');
-        const target = document.querySelector(targetSel);
+        const target    = document.querySelector(targetSel);
         if (!target) return;
 
         submenuEls.forEach(el => {
-          if (el !== target) bootstrap.Collapse.getInstance(el)?.hide();
+          if (el !== target) {
+            const inst = bootstrap.Collapse.getInstance(el);
+            if (inst) inst.hide();
+          }
         });
       });
     });

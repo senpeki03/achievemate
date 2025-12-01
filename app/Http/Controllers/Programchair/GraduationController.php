@@ -21,8 +21,8 @@ class GraduationController extends Controller
             ->where('Login_id', $loginId)
             ->firstOrFail();
 
-        // 2) Students: same College/Program/(Major of chair, if any) + BOTH THIRD YEAR AND FOURTH YEAR
-        $students = StudentManage::query()
+        // 2) Base query for students (same filters as before)
+        $studentsQuery = StudentManage::query()
             ->with([
                 'studentCourse' => function ($q) use ($designation) {
                     $q->where('College_id', $designation->College_id)
@@ -33,7 +33,7 @@ class GraduationController extends Controller
                         $q->where('Major_id', $designation->Major_id);
                     }
                 },
-                'graduationForm.requirement', // Eager load the relationship
+                'graduationForm.requirement', // eager load
             ])
             ->whereHas('studentCourse', function ($q) use ($designation) {
                 $q->where('College_id', $designation->College_id)
@@ -55,11 +55,16 @@ class GraduationController extends Controller
                 END
             ")
             ->orderBy('Last_name')
-            ->orderBy('First_name')
-            ->get();
+            ->orderBy('First_name');
 
-        // 3) Group students by YEAR first, then by MAJOR
-        $groups = $students->groupBy(function ($stu) {
+        // 3) Paginate — 30 students per page
+        $studentsPaginated = $studentsQuery->paginate(30);
+
+        // Current page collection (Collection, not paginator)
+        $pageStudents = $studentsPaginated->getCollection();
+
+        // 4) Group students BY YEAR + MAJOR for *this page only*
+        $groups = $pageStudents->groupBy(function ($stu) {
             // Normalize year values
             $year = strtoupper(trim($stu->Year));
             if (in_array($year, ['FOURTH YEAR', '4TH YEAR'])) {
@@ -78,29 +83,30 @@ class GraduationController extends Controller
             return $yearGroup . '|' . $name;
         });
 
-        // 4) Order groups: FOURTH YEAR first, then THIRD YEAR
-        // Within each year: Business Analytics first, then other majors alpha, last 'No Major'
+        // 5) Order groups: FOURTH YEAR first, then THIRD YEAR
+        //    Inside each year: Business Analytics, then others A–Z, then No Major
         $groups = $groups->sortBy(function ($students, $groupKey) {
-            list($year, $majorName) = explode('|', $groupKey, 2);
-            
-            // Year ordering: FOURTH YEAR first (0), THIRD YEAR second (1)
+            [$year, $majorName] = explode('|', $groupKey, 2);
+
+            // Year ordering
             $yearOrder = ($year === 'FOURTH YEAR') ? '0' : '1';
-            
+
             // Major ordering within year
             if (strcasecmp($majorName, 'Business Analytics') === 0) {
-                $majorOrder = '0';             // pinaka-una
+                $majorOrder = '0';
             } elseif (strcasecmp($majorName, 'No Major') === 0) {
-                $majorOrder = '2_'.$majorName; // pinaka-huli
+                $majorOrder = '2_' . $majorName;
             } else {
-                $majorOrder = '1_'.strtolower($majorName); // ibang majors in between
+                $majorOrder = '1_' . strtolower($majorName);
             }
 
             return $yearOrder . '_' . $majorOrder;
         });
 
         return view('programchair.graduation', [
-            'designation'     => $designation,
-            'groups'          => $groups,    // Collection keyed by "YEAR|MAJOR"
+            'designation'       => $designation,
+            'groups'            => $groups,            // grouped per page
+            'studentsPaginated' => $studentsPaginated, // for pagination + row numbers
         ]);
     }
 }

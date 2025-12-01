@@ -32,4 +32,9 @@ class Program extends Model
     {
         return $this->hasOne(Major::class, 'Program_id', 'Program_id');
     }
+
+    public function college()
+    {
+        return $this->belongsTo(College::class, 'College_id', 'College_id');
+    }
 }

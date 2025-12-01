@@ -82,13 +82,25 @@ class UserDesignationController extends Controller
                     $rules = ['Campus_name' => 'required|string'];
                     break;
                 case 'College':
-                    $rules = ['Campus_name' => 'required|string', 'College_id' => 'required|integer'];
+                    $rules = [
+                        'Campus_name' => 'required|string',
+                        'College_id'  => 'required|integer',
+                    ];
                     break;
                 case 'Program':
-                    $rules = ['Campus_name' => 'required|string', 'College_id' => 'required|integer', 'Program_id' => 'required|integer'];
+                    $rules = [
+                        'Campus_name' => 'required|string',
+                        'College_id'  => 'required|integer',
+                        'Program_id'  => 'required|integer',
+                    ];
                     break;
                 case 'Major':
-                    $rules = ['Campus_name' => 'required|string', 'College_id' => 'required|integer', 'Program_id' => 'required|integer', 'Major_id' => 'required|integer'];
+                    $rules = [
+                        'Campus_name' => 'required|string',
+                        'College_id'  => 'required|integer',
+                        'Program_id'  => 'required|integer',
+                        'Major_id'    => 'required|integer',
+                    ];
                     break;
                 default:
                     $rules = [];
@@ -116,14 +128,25 @@ class UserDesignationController extends Controller
                 return response()->json(['success' => false, 'message' => 'User not found.'], 404);
             }
 
-            // Create / update login (consider switching to unique username scheme later)
-            $username        = $user->First_name;
+            // ===========================
+            //   LOGIN CREATION / UPDATE
+            // ===========================
+            // Make username unique per user para hindi mag-share ng Login_id
+            $username = strtolower(
+                trim($user->First_name) . '.' .
+                trim($user->Last_name)  . '.' .
+                $user->User_id
+            );
+
             $defaultPassword = $user->Last_name;
             $usertype        = $base['Designation_name'];
 
             $login = Login::updateOrCreate(
-                ['username' => $username],
-                ['password' => Hash::make($defaultPassword), 'usertype' => $usertype]
+                ['username' => $username], // unique per user
+                [
+                    'password' => Hash::make($defaultPassword),
+                    'usertype' => $usertype,
+                ]
             );
 
             // Block exact duplicate assignment (same scope for same user)
@@ -177,13 +200,18 @@ class UserDesignationController extends Controller
                 'errors'  => $ve->errors(),
             ], 422);
         } catch (QueryException $qe) {
-            Log::error('[UserDesignation.store][SQL] '.$qe->getMessage(), ['sql' => $qe->getSql(), 'bindings' => $qe->getBindings()]);
+            Log::error('[UserDesignation.store][SQL] '.$qe->getMessage(), [
+                'sql'      => $qe->getSql(),
+                'bindings' => $qe->getBindings()
+            ]);
             if (app()->environment('local')) {
                 return response()->json(['success' => false, 'message' => $qe->getMessage()], 500);
             }
             return response()->json(['success' => false, 'message' => 'Database error.'], 500);
         } catch (\Throwable $e) {
-            Log::error("[UserDesignation.store] ".$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            Log::error("[UserDesignation.store] ".$e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
             if (app()->environment('local')) {
                 return response()->json([
                     'success' => false,

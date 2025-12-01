@@ -11,6 +11,7 @@ use App\Models\College;
 use App\Models\Program;
 use App\Models\Major;
 use App\Models\StudentGrade;
+use App\Models\UserDesignation;
 use App\Models\Curriculumsubject;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -210,123 +211,89 @@ class GraduationFormController extends Controller
     /* ----------------------------------------------------------------------
     |  SAVE FORM FIELDS
     * --------------------------------------------------------------------*/
-    public function saveFields(Request $request): JsonResponse
+    public function saveFields(Request $request)
     {
-        $loginId = optional($request->user())->Login_id
-            ?? session('login_id')
-            ?? session('Login_id');
+        try {
+            $login = $request->user();
 
-        $student = $loginId ? StudentManage::where('Login_id', $loginId)->first() : null;
-        if (!$student) {
-            return response()->json(['ok' => false, 'message' => 'No linked student'], 401);
-        }
-
-        $v = $request->validate([
-            'birthdate'          => 'nullable|string|max:30',
-            'place_of_birth'     => 'nullable|string|max:150',
-            'home_address'       => 'nullable|string|max:600',
-            'zip_code'           => 'nullable|string|max:10',
-            'secondary_school'   => 'nullable|string|max:200',
-            'secondary_year'     => 'nullable|string|max:10',
-            'elementary_school'  => 'nullable|string|max:200',
-            'elementary_year'    => 'nullable|string|max:10',
-
-            // NEW fields
-            'scholarship_grant'  => 'nullable|string|max:200',
-            'parent1'            => 'nullable|string|max:200',
-            'parent1_contact'    => 'nullable|string|max:50',
-            'parent2'            => 'nullable|string|max:200',
-            'parent2_contact'    => 'nullable|string|max:50',
-        ]);
-
-        // existing or new GraduationForm for this student
-        $form = GraduationForm::firstOrNew([
-            'Student_id' => $student->Student_id,
-        ]);
-
-        $table = $form->getTable();
-
-        $data = [
-            'Birthdate'           => self::toDateYmd($v['birthdate'] ?? null),
-            'PlaceofBirth'        => $v['place_of_birth']    ?? null,
-            'HomeAddress'         => $v['home_address']      ?? null,
-            'ZIP_Code'            => $v['zip_code']          ?? null,
-            'Sec_Grad'            => $v['secondary_school']  ?? null,
-            'Sec_Grad_Year'       => $v['secondary_year']    ?? null,
-            'Elem_Grad'           => $v['elementary_school'] ?? null,
-            'Elem_Grad_Year'      => $v['elementary_year']   ?? null,
-            'Scholarship_grant'   => $v['scholarship_grant'] ?? null,
-            'Guardian_1'          => $v['parent1']           ?? null,
-            'Guardian_1_Contact'  => $v['parent1_contact']   ?? null,
-            'Guardian_2'          => $v['parent2']           ?? null,
-            'Guardian_2_Contact'  => $v['parent2_contact']   ?? null,
-        ];
-
-        foreach ($data as $column => $value) {
-            if (Schema::hasColumn($table, $column)) {
-                $form->{$column} = $value;
+            if (!$login) {
+                abort(403, 'Unauthorized');
             }
-        }
 
-        $form->save();
+            $student = StudentManage::where('Login_id', $login->Login_id)->first();
 
-        /*
-        * 🔹 Now that we DEFINITELY have GraduationForm_id,
-        *     link the COG PDF to graduation_requirements.reportofgrade_path
-        *     IF the file from Step 3 exists.
-        */
-        $relativeCog = 'graduation/cog/cog_' . $student->Student_id . '.pdf';
-        $fullCogPath = storage_path('app/public/' . $relativeCog);
-
-        // 🔹 AUTO-EVALUATE GRADUATION STATUS FROM COR
-        $graduationRemarks = 'NOT GRADUATING'; // Default
-        $corTextPath = $this->corDir . '/cor_output.txt';
-        
-        if (is_file($corTextPath)) {
-            try {
-                $corText = file_get_contents($corTextPath);
-                $corCourses = $this->extractCoursesFromCorText($corText);
-                $evaluation = $this->evaluateGraduationStatus($student, $corCourses);
-                
-                // SIMPLIFIED: Just use "GRADUATING" or "NOT GRADUATING"
-                $graduationRemarks = ($evaluation['graduation_status'] === 'GRADUATED' || 
-                                    $evaluation['graduation_status'] === 'CANDIDATE FOR GRADUATION') 
-                                    ? 'GRADUATING' 
-                                    : 'NOT GRADUATING';
-                
-                Log::info('Graduation evaluation simplified', [
-                    'student_id' => $student->Student_id,
-                    'original_status' => $evaluation['graduation_status'],
-                    'simplified_remarks' => $graduationRemarks
-                ]);
-            } catch (\Exception $e) {
-                Log::error('Auto graduation evaluation failed in saveFields: ' . $e->getMessage());
-                $graduationRemarks = 'NOT GRADUATING';
+            if (!$student) {
+                return response()->json([
+                    'ok'      => false,
+                    'message' => 'Student record not found.',
+                ], 404);
             }
-        }
 
-        if (is_file($fullCogPath)) {
-            // Store with same style as applicationform_grad: "/storage/..."
-            $storedPath = Storage::url($relativeCog); // e.g. "/storage/graduation/cog/cog_80.pdf"
+            // 🔎 Validate incoming fields from the form (Step 5)
+            $data = $request->validate([
+                'birthdate'          => 'required|date',
+                'place_of_birth'     => 'nullable|string|max:255',
+                'home_address'       => 'nullable|string|max:255',
+                'zip_code'           => 'nullable|string|max:20',
+                'secondary_school'   => 'nullable|string|max:255',
+                'secondary_year'     => 'nullable|string|max:50',
+                'elementary_school'  => 'nullable|string|max:255',
+                'elementary_year'    => 'nullable|string|max:50',
+                'scholarship_grant'  => 'nullable|string|max:255',
+                'parent1'            => 'nullable|string|max:255',
+                'parent1_contact'    => 'nullable|string|max:50',
+                'parent2'            => 'nullable|string|max:255',
+                'parent2_contact'    => 'nullable|string|max:50',
+            ]);
 
-            GraduationRequirement::updateOrCreate(
-                ['GraduationForm_id' => $form->GraduationForm_id],
-                [
-                    'reportofgrade_path' => $storedPath,
-                    'remarks' => $graduationRemarks // 🔹 SIMPLIFIED: Just "GRADUATING" or "NOT GRADUATING"
-                ]
+            // 🔁 Map FRONTEND field names → REAL DB column names
+            $payload = [
+                'Student_id'         => $student->Student_id,
+                'Birthdate'          => $data['birthdate'],                // date
+                'PlaceofBirth'       => $data['place_of_birth']   ?? null, // PlaceofBirth
+                'HomeAddress'        => $data['home_address']     ?? null, // HomeAddress
+                'ZIP_Code'           => $data['zip_code']         ?? null, // ZIP_Code
+                'Sec_Grad'           => $data['secondary_school'] ?? null, // Sec_Grad
+                'Sec_Grad_Year'      => $data['secondary_year']   ?? null, // Sec_Grad_Year
+                'Elem_Grad'          => $data['elementary_school']?? null, // Elem_Grad
+                'Elem_Grad_Year'     => $data['elementary_year']  ?? null, // Elem_Grad_Year
+                'Scholarship_grant'  => $data['scholarship_grant']?? null, // Scholarship_grant
+                'Guardian_1'         => $data['parent1']          ?? null, // Guardian_1
+                'Guardian_1_Contact' => $data['parent1_contact']  ?? null, // Guardian_1_Contact
+                'Guardian_2'         => $data['parent2']          ?? null, // Guardian_2
+                'Guardian_2_Contact' => $data['parent2_contact']  ?? null, // Guardian_2_Contact
+            ];
+
+            // 🔄 Create or update 1 row per student
+            $form = GraduationForm::updateOrCreate(
+                ['Student_id' => $student->Student_id],
+                $payload
             );
-        } else {
-            // Even if no COG, still update/create with graduation status
-            GraduationRequirement::updateOrCreate(
-                ['GraduationForm_id' => $form->GraduationForm_id],
-                [
-                    'remarks' => $graduationRemarks // 🔹 SIMPLIFIED: Just "GRADUATING" or "NOT GRADUATING"
-                ]
-            );
-        }
 
-        return response()->json(['ok' => true]);
+            Log::info('GraduationForm saveFields: saved successfully', [
+                'student_id'          => $student->Student_id,
+                'graduation_form_id'  => $form->GraduationForm_id,
+            ]);
+
+            return response()->json([
+                'ok'  => true,
+                'id'  => $form->GraduationForm_id,
+                'row' => $payload,
+            ]);
+        } catch (ValidationException $e) {
+            // Para naka-proper 422 with errors
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error('GraduationForm saveFields failed', [
+                'err'   => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'ok'      => false,
+                'message' => 'Server error while saving graduation form.',
+            ], 500);
+        }
     }
 
     /* ----------------------------------------------------------------------
@@ -471,6 +438,8 @@ class GraduationFormController extends Controller
         $collegeName = '';
         $programName = '';
         $majorName   = '';
+        $campusId    = null;
+        $collegeId   = null;
 
         $course = StudentCourse::with(['college', 'program', 'major'])
             ->where('Student_id', $student->Student_id)
@@ -478,6 +447,9 @@ class GraduationFormController extends Controller
             ->first();
 
         if ($course) {
+            $campusId  = $course->Campus_id ?? null;
+            $collegeId = $course->College_id ?? null;
+
             if ($course->college) {
                 $collegeName = $course->college->College_name ?? '';
             }
@@ -527,6 +499,37 @@ class GraduationFormController extends Controller
         }
         // 🔹 ---- END GET COLLEGE / PROGRAM / MAJOR ----
 
+        // 🔹 ---- GET REGISTRAR (by Campus) & DEAN (by College) ----
+        $registrarName = '';
+        $deanName      = '';
+
+        if ($campusId) {
+            $registrarDesignation = UserDesignation::with(['user', 'designation'])
+                ->where('Campus_id', $campusId)
+                ->whereHas('designation', function ($q) {
+                    $q->whereRaw("UPPER(Designation_name) LIKE '%REGISTRAR%'");
+                })
+                ->first();
+
+            if ($registrarDesignation && $registrarDesignation->user) {
+                $registrarName = $registrarDesignation->user->full_name;
+            }
+        }
+
+        if ($collegeId) {
+            $deanDesignation = UserDesignation::with(['user', 'designation'])
+                ->where('College_id', $collegeId)
+                ->whereHas('designation', function ($q) {
+                    $q->whereRaw("UPPER(Designation_name) LIKE '%DEAN%'");
+                })
+                ->first();
+
+            if ($deanDesignation && $deanDesignation->user) {
+                $deanName = $deanDesignation->user->full_name;
+            }
+        }
+        // 🔹 ---- END REGISTRAR / DEAN LOOKUP ----
+
         $templatePath = storage_path('app/pdf_templates/BatStateU-FO-REG-10_Application for Graduation_Rev. 02.pdf');
         if (!file_exists($templatePath)) {
             return response()->json(['ok' => false, 'message' => 'Template not found'], 404);
@@ -539,7 +542,6 @@ class GraduationFormController extends Controller
         $gradId   = $form->GraduationForm_id;
         $fileName = 'graduation_form_' . $gradId . '.pdf';
         $outPath  = $outDir . DIRECTORY_SEPARATOR . $fileName;
-
 
         try {
             $pdf = new FPDI();
@@ -581,9 +583,9 @@ class GraduationFormController extends Controller
             $put(150, 78,   $student->Email ?? '');
 
             $put(74,  87, $form->Sec_Grad ?? '');
-            $put(183, 87, $form->Sec_Grad_Year ?? '');
+            $put(185, 87, $form->Sec_Grad_Year ?? '');
             $put(74,  96, $form->Elem_Grad ?? '');
-            $put(183, 96, $form->Elem_Grad_Year ?? '');
+            $put(185, 96, $form->Elem_Grad_Year ?? '');
 
             // 🔹 COLLEGE / PROGRAM / MAJOR
             $put(60, 109.0, $collegeName);  // COLLEGE:
@@ -591,17 +593,42 @@ class GraduationFormController extends Controller
             $put(60, 118.0, $majorName);    // MAJOR:
 
             // 🔹 Full name over "Signature over Printed Name of Student"
-            // (adjust Y coordinate if medyo mataas/mababa pa)
             $put(32, 140.0, $fullName);
 
-            // 🔹 Date Signed (when the student applied)
-            $applyDate = $form->created_at ?? $form->Created_at ?? null;
+            $put(15, 220, $fullName);
+
+            // 🔹 Date Signed
+            $applyDate    = $form->created_at ?? $form->Created_at ?? null;
             $applyDateStr = $applyDate
                 ? Carbon::parse($applyDate)->format('m/d/Y')
                 : Carbon::now()->format('m/d/Y');
 
-            // ilagay mo ito sa tapat ng "Date Signed:" (tune coordinates kung kailangan)
             $put(46, 151.0, $applyDateStr);
+
+            // 🔹 Dean of College (adjust coordinates to match your template)
+            // Example: left bottom signature block
+            if (!empty($deanName)) {
+                $put(35, 170.0, strtoupper($deanName));
+            }
+
+            // 🔹 Campus Registrar
+            if (!empty($registrarName)) {
+                $put(140, 140.0, strtoupper($registrarName));
+            }
+
+            if (!empty($registrarName)) {
+                $put(140, 170.0, strtoupper($registrarName));
+            }
+
+            $check = function($x, $y) use ($pdf) {
+                $pdf->SetFont('ZapfDingbats','', 14);
+                $pdf->SetXY($x, $y);
+                $pdf->Cell(5,5, '4', 0, 0); // ✔
+                $pdf->SetFont('Helvetica','',10);
+            };
+
+            $check(10, 200);
+
 
             // Page 2 (COG) intentionally NOT appended
             $pdf->Output($outPath, 'F');
@@ -615,6 +642,7 @@ class GraduationFormController extends Controller
             ], 500);
         }
     }
+
 
     public function uploadCor(Request $request)
     {

@@ -177,6 +177,43 @@
   </div>
 </div>
 
+{{-- Download Options Modal (Dean Report Only) --}}
+<div class="modal fade" id="downloadOptionsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:480px;">
+    <div class="modal-content border-0 rounded-4 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold">
+          <i class="bi bi-download me-2"></i>Download Dean's Honor List Report
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body pt-0">
+        <div class="mb-3">
+          <label class="form-label fw-bold">Academic Year</label>
+          <select id="dlAcademicYear" class="form-select">
+            <option value="">Loading...</option>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">Semester</label>
+          <select id="dlSemester" class="form-select">
+            <option value="">Loading...</option>
+          </select>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-3">
+          <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
+          <button class="btn btn-primary" id="downloadConfirmBtn" type="button">
+            <i class="bi bi-download me-1"></i> Download
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 @push('head')
   <meta name="csrf-token" content="{{ csrf_token() }}">
 @endpush
@@ -504,15 +541,81 @@
     });
   });
 
-  // ===== Download Report (Dean)
-  $(document).on('click', '#download-report', function () {
-    if (!_selectedProgramId) { alert('Please select a program first.'); return; }
-    const term = prompt('Enter Term (e.g., Second Semester):', ''); if (!term) return;
-    const ay   = prompt('Enter Academic Year (e.g., 2024-2025):', ''); if (!ay) return;
+  // ===== Download Report (Dean) - Modal + Auto AY/Sem
+  function showDeanReportDownloadModal() {
+    if (!_selectedProgramId) {
+      alert('Please select a program first.');
+      return;
+    }
 
-    const url = "{{ url('/dean/deanshonorlist/report') }}/" + _selectedProgramId + 
-                "?term=" + encodeURIComponent(term) + 
-                "&ay=" + encodeURIComponent(ay);
+    const $ay  = $('#dlAcademicYear');
+    const $sem = $('#dlSemester');
+
+    // Temporary loading text
+    $ay.html('<option value="">Loading...</option>');
+    $sem.html('<option value="">Loading...</option>');
+
+    // Call Dean options endpoint
+    const optionsUrl = "{{ route('dean.deanshonorlist.options', ['programId' => '__PID__']) }}"
+                        .replace('__PID__', _selectedProgramId);
+
+    $.getJSON(optionsUrl, function (data) {
+      const years = data.academic_years || [];
+      const sems  = data.semesters || [];
+
+      // Fill AY dropdown
+      $ay.html(
+        '<option value="">Select Academic Year</option>' +
+        years.map(y => `<option value="${y}">${y}</option>`).join('')
+      );
+
+      // Fill Semester dropdown
+      $sem.html(
+        '<option value="">Select Semester</option>' +
+        sems.map(s => `<option value="${s}">${s}</option>`).join('')
+      );
+
+      // Default selections (latest post, etc.)
+      if (data.default_ay) $ay.val(data.default_ay);
+      if (data.default_semester) $sem.val(data.default_semester);
+
+      const modalEl = document.getElementById('downloadOptionsModal');
+      new bootstrap.Modal(modalEl).show();
+    }).fail(function () {
+      alert('Unable to load Academic Year/Semester options.');
+    });
+  }
+
+  // Open modal when clicking Download button
+  $(document).on('click', '#download-report', function () {
+    if ($(this).prop('disabled')) return;
+    showDeanReportDownloadModal();
+  });
+
+  // Confirm Download from modal
+  $('#downloadConfirmBtn').on('click', function () {
+    const ay  = $('#dlAcademicYear').val();
+    const sem = $('#dlSemester').val();
+
+    if (!ay || !sem) {
+      alert('Please choose both Academic Year and Semester.');
+      return;
+    }
+
+    if (!_selectedProgramId) {
+      alert('No program selected.');
+      return;
+    }
+
+    // Base URL from data-url-template in the blade
+    const template = $('#download-report').data('url-template'); 
+    const baseUrl  = template.replace('__PID__', _selectedProgramId);
+
+    const url = `${baseUrl}?term=${encodeURIComponent(sem)}&ay=${encodeURIComponent(ay)}`;
+
+    // Close modal then navigate
+    const modalInstance = bootstrap.Modal.getInstance(document.getElementById('downloadOptionsModal'));
+    if (modalInstance) modalInstance.hide();
 
     window.location.href = url;
   });

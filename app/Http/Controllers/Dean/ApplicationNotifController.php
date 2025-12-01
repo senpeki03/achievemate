@@ -98,52 +98,156 @@ class ApplicationNotifController extends Controller
 
     /* ------------------------ internals ------------------------ */
 
-    private function sendApprovedEmail(Application $app): void
+    private function sendApprovedEmail(Application $app, ?StudentNotification $notif = null): void
     {
         try {
-            // Get student with their course and program information
-            $student = StudentManage::with([
-                'login',
-                'studentCourse.program',
-                'studentCourse.college'
-            ])->where('Student_id', $app->Student_id)->first();
+            Log::info('DeanEmail DEBUG: start sendApprovedEmail', [
+                'app_id'     => $app->Application_id ?? $app->id,
+                'student_id' => $app->Student_id,
+            ]);
+
+            // ===== Student + login =====
+            $student = StudentManage::with('login')
+                ->where('Student_id', $app->Student_id)
+                ->first();
 
             if (!$student) {
-                Log::warning('Dean approval: student not found', ['student_id'=>$app->Student_id, 'app'=>$app->Application_id]);
+                Log::warning('DeanEmail DEBUG: student not found', [
+                    'student_id' => $app->Student_id,
+                ]);
                 return;
             }
+
+            Log::info('DeanEmail DEBUG: student basic', [
+                'Student_id'    => $student->Student_id,
+                'SRCODE'        => $student->SRCODE ?? null,
+                'College_name'  => $student->College_name ?? null,
+                'College_raw'   => $student->College ?? null,
+                'Program_name'  => $student->Program_name ?? null,
+            ]);
 
             $email = $student?->login?->username
-                  ?? $student?->Email
-                  ?? null;
+                ?? $student?->Email
+                ?? null;
 
             if (!$email) {
-                Log::warning('Dean approval: no email found', ['student_id'=>$app->Student_id, 'app'=>$app->Application_id]);
+                Log::warning('DeanEmail DEBUG: no email/username found', [
+                    'student_id' => $student->Student_id,
+                ]);
                 return;
             }
 
-            // Get program and college from student course
-            $studentCourse = $student->studentCourse->first();
-            $programName = $studentCourse?->program?->Program_name ?? '—';
-            $collegeName = $studentCourse?->college?->College_name ?? '—';
+            // ===== Claim URL =====
+            $downloadLink = ($notif && $notif->claim_token)
+                ? route('student.award.claim', ['token' => $notif->claim_token])
+                : (Route::has('student.notifications')
+                    ? route('student.notifications')
+                    : url('/student/notifications'));
 
+            // ===== Basic student info =====
             $studentName = trim(implode(' ', array_filter([
-                $student?->First_name, $student?->Middle_name, $student?->Last_name,
+                $student?->First_name,
+                $student?->Middle_name,
+                $student?->Last_name,
             ]))) ?: 'Student';
 
-            $studentNo   = $student?->SRCODE ?? (string)($student?->Student_id ?? $app->Student_id);
-            $yearLevel   = (string)($app->YearLevel ?? $student?->Year ?? '—');
-            $gwaVal      = $app->GWA ?? null;
-            $gwaTxt      = is_numeric($gwaVal) ? number_format((float)$gwaVal, 4) : '—';
-            $rankTxt     = $app->rank ?? $app->distinction ?? 'Dean\'s Lister';
-            $termTxt     = $app->term ?? (now()->month <= 5 ? '2nd Semester' : '1st Semester');
-            $ayTxt       = $app->ay ?? sprintf('%d-%d', now()->year, now()->addYear()->year);
+            $studentNo = $student?->SRCODE ?? (string)($student?->Student_id ?? $app->Student_id);
 
-            // send them to the in-app notifications page
-            $downloadLink = Route::has('student.notifications')
-                ? route('student.notifications')
-                : url('/student/notifications');
+            // ============================================================
+            //  PROGRAM & COLLEGE  (from StudentCourse)
+            // ============================================================
+            $programName = '—';
+            $collegeName = '—';
+            $sc = null;
 
+            try {
+                $sc = StudentCourse::with(['program.college', 'college'])
+                    ->where('Student_id', $app->Student_id)
+                    ->latest('StudentCourse_id')
+                    ->first();
+
+                Log::info('DeanEmail DEBUG: StudentCourse raw', [
+                    'has_sc' => (bool) $sc,
+                    'sc_row' => $sc ? $sc->toArray() : null,
+                ]);
+
+                if ($sc) {
+                    // Program from StudentCourse->program
+                    if ($sc->program) {
+                        $programName = $sc->program->Program_name ?? $programName;
+                    }
+
+                    // College via StudentCourse->college relation
+                    if ($sc->college) {
+                        $collegeName = $sc->college->College_name ?? $collegeName;
+                    }
+
+                    // Kung di pa rin, try Program->college
+                    if ($collegeName === '—' && $sc->program && $sc->program->college) {
+                        $collegeName = $sc->program->college->College_name ?? $collegeName;
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::warning('DeanEmail DEBUG: StudentCourse lookup failed', [
+                    'err' => $e->getMessage(),
+                ]);
+            }
+
+            Log::info('DeanEmail DEBUG: after StudentCourse', [
+                'program_from_sc' => $programName,
+                'college_from_sc' => $collegeName,
+            ]);
+
+            // FINAL fallback: StudentManage.College_name LANG, hindi yung JSON sa College
+            if ($collegeName === '—' && !empty($student->College_name)) {
+                $collegeName = $student->College_name;
+                Log::info('DeanEmail DEBUG: college fallback to StudentManage.College_name', [
+                    'collegeName' => $collegeName,
+                ]);
+            }
+
+            // Optional fallback for program kung meron sa student_manage
+            if ($programName === '—' && !empty($student->Program_name)) {
+                $programName = $student->Program_name;
+                Log::info('DeanEmail DEBUG: program fallback to StudentManage.Program_name', [
+                    'programName' => $programName,
+                ]);
+            }
+
+            // ============================================================
+            //  YEAR LEVEL / GWA (4 decimals) / RANK
+            // ============================================================
+            $yearLevel = (string)($app->YearLevel ?? $app->year_level ?? $student?->Year ?? '—');
+
+            $gwaVal = $app->GWA ?? null;
+            $gwaTxt = is_numeric($gwaVal)
+                ? number_format((float)$gwaVal, 4)
+                : '—';
+
+            Log::info('DeanEmail DEBUG: GWA values', [
+                'gwa_raw'   => $gwaVal,
+                'gwa_final' => $gwaTxt,
+            ]);
+
+            $rankTxt = $app->rank ?? $app->distinction ?? "Dean's Lister";
+
+            // ============================================================
+            //  TERM / A.Y.
+            // ============================================================
+            $termTxt = $app->term ?? null;
+            $ayTxt   = $app->ay   ?? null;
+
+            if (!$termTxt) {
+                $termTxt = now()->month <= 5 ? '2nd Semester' : '1st Semester';
+            }
+            if (!$ayTxt) {
+                $year = (int) now()->year;
+                $ayTxt = $year . '-' . ($year + 1);
+            }
+
+            // ============================================================
+            //  PAYLOAD TO MAILABLE
+            // ============================================================
             $payload = [
                 'studentName'        => $studentName,
                 'studentId'          => $studentNo,
@@ -162,10 +266,19 @@ class ApplicationNotifController extends Controller
                 'supportEmail'       => config('mail.from.address'),
             ];
 
+            Log::info('DeanEmail DEBUG: final payload for mail', $payload);
+
             Mail::to($email)->send(new DeansListApprovedMail($payload));
-            Log::info('DeansList mail sent successfully', ['to'=>$email, 'app'=>$app->Application_id, 'student_name' => $studentName]);
+
+            Log::info('DeanEmail DEBUG: mail sent OK', [
+                'to'       => $email,
+                'student'  => $studentNo,
+            ]);
         } catch (\Throwable $e) {
-            Log::error('Dean approval email failed', ['err'=>$e->getMessage(), 'app'=>$app->Application_id]);
+            Log::error('DeanEmail DEBUG: sendApprovedEmail failed', [
+                'err'    => $e->getMessage(),
+                'app_id' => $app->Application_id ?? $app->id,
+            ]);
         }
     }
 
