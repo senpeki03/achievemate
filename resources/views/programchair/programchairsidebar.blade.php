@@ -4,7 +4,7 @@
 
   // Route groups per dropdown
   $announcementRoutes = ['programchair.post.index', 'admin.college', 'admin.program'];
-  $settingsRoutes     = ['programchair.rank'];
+  $settingsRoutes = ['programchair.rank', 'programchair.events'];
 
   // Active flags (per dropdown)
   $isAnnouncementActive = in_array($currentRoute, $announcementRoutes, true);
@@ -130,36 +130,52 @@
       </a>
     </div>
 
-    <!-- Settings dropdown -->
-    <div class="card shadow-sm border-0 m-2" id="settingsDropdownCard">
-      <a
-        class="card-body py-3 px-4 d-flex align-items-center justify-content-between nav-link text-decoration-none rounded-4 {{ $isSettingsActive ? 'custom-bg-primary' : '' }}"
-        data-bs-toggle="collapse"
-        data-bs-target="#settingsSubmenu"
-        role="button"
-        aria-expanded="{{ $isSettingsActive ? 'true' : 'false' }}"
-        aria-controls="settingsSubmenu"
-      >
-        <div class="d-flex align-items-center gap-3">
-          <i class="bi bi-gear-fill fs-6 {{ $isSettingsActive ? 'text-white' : '' }}"></i>
-          <span class="fw-semibold small ms-1 {{ $isSettingsActive ? 'text-white' : 'text-dark' }}">Settings</span>
-        </div>
-        <span class="chevron-toggle">
-          <i class="bi bi-chevron-down {{ $isSettingsActive ? 'text-white' : 'text-muted' }}"></i>
-        </span>
-      </a>
+<!-- Settings dropdown -->
+<div class="card shadow-sm border-0 m-2" id="settingsDropdownCard">
 
-      <div class="collapse submenu {{ $isSettingsActive ? 'show' : '' }}" id="settingsSubmenu" data-bs-parent="#sidebar">
-        <ul class="list-unstyled ms-5 mb-0">
-          <li>
-            <a href="{{ route('programchair.rank') }}"
-               class="nav-link py-2 px-2 small {{ $currentRoute === 'programchair.rank' ? 'text-primary fw-bold' : 'text-dark' }}">
-              Creation Rank
-            </a>
-          </li>
-        </ul>
-      </div>
+  @php
+      $settingsRoutes = ['programchair.rank', 'programchair.events'];
+      $isSettingsActive = in_array($currentRoute, $settingsRoutes, true);
+  @endphp
+
+  <a
+    class="card-body py-3 px-4 d-flex align-items-center justify-content-between nav-link text-decoration-none rounded-4 {{ $isSettingsActive ? 'custom-bg-primary' : '' }}"
+    data-bs-toggle="collapse"
+    data-bs-target="#settingsSubmenu"
+    role="button"
+    aria-expanded="{{ $isSettingsActive ? 'true' : 'false' }}"
+    aria-controls="settingsSubmenu"
+  >
+    <div class="d-flex align-items-center gap-3">
+      <i class="bi bi-gear-fill fs-6 {{ $isSettingsActive ? 'text-white' : '' }}"></i>
+      <span class="fw-semibold small ms-1 {{ $isSettingsActive ? 'text-white' : 'text-dark' }}">Settings</span>
     </div>
+    <span class="chevron-toggle">
+      <i class="bi bi-chevron-down {{ $isSettingsActive ? 'text-white' : 'text-muted' }}"></i>
+    </span>
+  </a>
+
+  <div class="collapse submenu {{ $isSettingsActive ? 'show' : '' }}" id="settingsSubmenu" data-bs-parent="#sidebar">
+    <ul class="list-unstyled ms-5 mb-0">
+
+      <li>
+        <a href="{{ route('programchair.rank') }}"
+           class="nav-link py-2 px-2 small {{ $currentRoute === 'programchair.rank' ? 'text-primary fw-bold' : 'text-dark' }}">
+          Creation Rank
+        </a>
+      </li>
+
+      <!-- ✅ NEW: Creation Event -->
+      <li>
+        <a href="{{ route('programchair.events') }}"
+           class="nav-link py-2 px-2 small {{ $currentRoute === 'programchair.events' ? 'text-primary fw-bold' : 'text-dark' }}">
+          Creation Event
+        </a>
+      </li>
+
+    </ul>
+  </div>
+</div>
 
   </div>
 

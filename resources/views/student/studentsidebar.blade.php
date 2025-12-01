@@ -205,6 +205,23 @@
       @endif
     </div>
 
+    <!-- Event Invite -->
+    <div class="card shadow-sm border-0 m-2">
+      <a href="{{ route('student.event.invite') }}"
+        class="card-body py-3 px-4 d-flex align-items-center gap-4 nav-link text-decoration-none rounded-4 
+        {{ request()->routeIs('student.event.invite') ? 'custom-bg-primary' : '' }}">
+        
+        <i class="bi bi-calendar-event fs-6 
+          {{ request()->routeIs('student.event.invite') ? 'text-white' : '' }}"></i>
+
+        <span class="fw-semibold small ms-1 
+          {{ request()->routeIs('student.event.invite') ? 'text-white' : 'text-dark' }}">
+          Event Invite
+        </span>
+
+      </a>
+    </div>
+
   </div>
 
   <!-- TOPBAR -->
